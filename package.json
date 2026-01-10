@@ -1,0 +1,24 @@
+{
+  "name": "stream-deck-local",
+  "private": true,
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently -n \"SERVER,WEB\" -c \"blue,green\" \"pnpm --filter server start:dev\" \"pnpm --filter web dev\"",
+    "dev:server": "pnpm --filter server start:dev",
+    "dev:web": "pnpm --filter web dev",
+    "build": "pnpm --parallel build:server build:web",
+    "build:server": "pnpm --filter server build",
+    "build:web": "pnpm --filter web build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.28.0",
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "^5.9.3"
+  }
+}
