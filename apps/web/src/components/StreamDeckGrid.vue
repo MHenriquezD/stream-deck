@@ -3,11 +3,15 @@ import { ActionType, type StreamButton as ButtonType } from '@shared/core'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref } from 'vue'
+import { useServerUrl } from '../composables/useServerUrl'
 import ButtonEditor from './ButtonEditor.vue'
+import DownloadsPage from './DownloadsPage.vue'
+import ServerSettings from './ServerSettings.vue'
 import StreamButton from './StreamButton.vue'
 
 const toast = useToast()
 const confirm = useConfirm()
+const { getServerUrl } = useServerUrl()
 
 const props = defineProps<{
   rows?: number
@@ -18,6 +22,8 @@ const gridRows = ref(props.rows || 3)
 const gridCols = ref(props.cols || 4)
 const buttons = ref<Map<string, ButtonType>>(new Map())
 const showEditor = ref(false)
+const showSettings = ref(false)
+const showDownloads = ref(false)
 const editingButton = ref<ButtonType | null>(null)
 const editingPosition = ref({ row: 0, col: 0 })
 const isExecuting = ref<string | null>(null)
@@ -29,7 +35,7 @@ const connectionStatus = ref<'connected' | 'disconnected' | 'connecting'>(
 const draggedButton = ref<ButtonType | null>(null)
 const dragOverPosition = ref<{ row: number; col: number } | null>(null)
 
-const API_URL = 'http://localhost:3000'
+const API_URL = getServerUrl()
 
 const gridItems = computed(() => {
   const items: Array<{ row: number; col: number; button: ButtonType | null }> =
@@ -368,6 +374,20 @@ const isDragOver = (position: { row: number; col: number }): boolean => {
       </div>
       <div class="actions">
         <button
+          @click="showDownloads = true"
+          class="btn-icon btn-download"
+          title="Descargar Servidor"
+        >
+          📥
+        </button>
+        <button
+          @click="showSettings = true"
+          class="btn-icon btn-settings"
+          title="Configuración"
+        >
+          ⚙️
+        </button>
+        <button
           @click="loadMultimediaPresets"
           class="btn-icon btn-multimedia"
           title="Comandos multimedia"
@@ -389,6 +409,11 @@ const isDragOver = (position: { row: number; col: number }): boolean => {
         </button>
       </div>
     </div>
+
+    <p class="hint">
+      💡 Click para ejecutar • Click derecho para editar • Arrastra para
+      reorganizar
+    </p>
 
     <div
       class="grid"
@@ -421,12 +446,9 @@ const isDragOver = (position: { row: number; col: number }): boolean => {
       </div>
     </div>
 
-    <div class="footer">
-      <p class="hint">
-        💡 Click para ejecutar • Click derecho para editar • Arrastra para
-        reorganizar
-      </p>
-    </div>
+    <ServerSettings v-model:show="showSettings" />
+
+    <DownloadsPage v-if="showDownloads" @close="showDownloads = false" />
 
     <ButtonEditor
       :show="showEditor"
@@ -471,6 +493,19 @@ const isDragOver = (position: { row: number; col: number }): boolean => {
         </div>
       </div>
     </div>
+
+    <footer class="footer">
+      <p class="credits">
+        Hecho por
+        <a
+          href="https://mhenriquezdev.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Manuel Henriquez</a
+        >
+      </p>
+      <p class="copyright">© 2026 - Todos los derechos reservados</p>
+    </footer>
   </div>
 </template>
 
@@ -577,6 +612,22 @@ const isDragOver = (position: { row: number; col: number }): boolean => {
   background: rgba(239, 68, 68, 0.3);
 }
 
+.btn-icon.btn-download {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.btn-icon.btn-download:hover {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+.btn-icon.btn-settings {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.btn-icon.btn-settings:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
 .btn-icon.btn-multimedia {
   background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
 }
@@ -642,16 +693,55 @@ const isDragOver = (position: { row: number; col: number }): boolean => {
   }
 }
 
-.footer {
+.hint {
+  color: var(--hint-color);
+  font-size: 0.9rem;
+  margin: 0 0 16px 0;
   text-align: center;
-  padding-top: 20px;
-  border-top: 2px solid rgba(255, 255, 255, 0.1);
+  transition: color 0.3s ease;
 }
 
-.hint {
-  color: rgba(255, 255, 255, 0.5);
+.footer {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 2px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.credits {
+  color: var(--credits-color);
   font-size: 0.9rem;
+  margin: 0 0 8px 0;
+  transition: color 0.3s ease;
+}
+
+.credits a {
+  color: rgba(139, 92, 246, 0.9);
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border-bottom: 1px solid transparent;
+}
+
+.credits a:hover {
+  color: rgb(139, 92, 246);
+  border-bottom-color: rgba(139, 92, 246, 0.5);
+}
+
+:global([data-theme='light']) .credits a {
+  color: rgba(139, 92, 246, 1);
+}
+
+:global([data-theme='light']) .credits a:hover {
+  color: rgb(109, 62, 216);
+  border-bottom-color: rgba(139, 92, 246, 0.8);
+}
+
+.copyright {
+  color: var(--credits-color);
+  font-size: 0.8rem;
   margin: 0;
+  opacity: 0.7;
 }
 
 @media (max-width: 768px) {

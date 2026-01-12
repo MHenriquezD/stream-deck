@@ -23,9 +23,29 @@ const searchQuery = ref('')
 
 // Lista de SVGs personalizados - agregar nuevos archivos aquí
 const customSvgFiles = [
-  'xbox-logo.svg',
-  'epicgames.svg',
+  'brave.svg',
+  'brave-circle.svg',
+  'chrome.svg',
+  'Disney_logo.svg',
   'epic-games-round.svg',
+  'epicgames.svg',
+  'excel.svg',
+  'gog.svg',
+  'minecraft.svg',
+  'netflix.svg',
+  'netflix-letters.svg',
+  'opera.svg',
+  'opera-gx.svg',
+  'outlook.svg',
+  'powerpoint.svg',
+  'spotify.svg',
+  'store-microsoft.svg',
+  'whatsapp.svg',
+  'word.svg',
+  'xbox.svg',
+  'xbox-logo.svg',
+  'youtube.svg',
+  'youtube-large.svg',
   // Agregar más archivos SVG aquí según los agregues a public/icons/
 ]
 
