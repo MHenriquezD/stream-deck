@@ -66,6 +66,7 @@ coverage/
 node_modules/
 dist/
 .vite/
+dev-dist/
 
 # ==============================
 # Optional: logs o archivos locales de configuración
