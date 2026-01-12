@@ -1,0 +1,65 @@
+[
+  {
+    "id": "5c8feb2b-5f9f-48ef-b40e-32e0118358d0",
+    "label": "Escritorio",
+    "icon": "📁",
+    "type": "command",
+    "payload": "explorer \"%USERPROFILE%\\Desktop\""
+  },
+  {
+    "id": "0c25312c-6fe8-494f-ae9b-f13100aadb4f",
+    "label": "Brave",
+    "icon": "svg:brave.svg",
+    "type": "command",
+    "payload": "start brave"
+  },
+  {
+    "id": "preset-volume-up-1768248383752",
+    "label": "Chrome",
+    "icon": "svg:chrome.svg",
+    "type": "command",
+    "payload": "start chrome"
+  },
+  {
+    "id": "702314c6-d0d7-4f7e-8535-e3436074794d",
+    "label": "Youtube",
+    "icon": "svg:youtube.svg",
+    "type": "command",
+    "payload": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=agimnkijcaahngcdmfeangaknmldooml"
+  },
+  {
+    "id": "3eafc26f-ea9c-43f4-8c87-edb327e587fd",
+    "label": "EpicGames",
+    "icon": "svg:epic-games-round.svg",
+    "type": "command",
+    "payload": "C:\\Program Files (x86)\\Epic Games\\"
+  },
+  {
+    "id": "d0472558-8f78-4e37-bbd7-dc554154670b",
+    "label": "Word",
+    "icon": "svg:word.svg",
+    "type": "command",
+    "payload": "start winword"
+  },
+  {
+    "id": "preset-volume-up-1768252088213",
+    "label": "Subir Volumen",
+    "icon": "fas fa-volume-high",
+    "type": "command",
+    "payload": "powershell -Command \"(New-Object -ComObject WScript.Shell).SendKeys([char]175)\""
+  },
+  {
+    "id": "preset-volume-down-1768252089774",
+    "label": "Bajar Volumen",
+    "icon": "fas fa-volume-low",
+    "type": "command",
+    "payload": "powershell -Command \"(New-Object -ComObject WScript.Shell).SendKeys([char]174)\""
+  },
+  {
+    "id": "e1a98731-953c-406b-94fa-ccf059279961",
+    "label": "Disney+",
+    "icon": "svg:Disney_logo.svg",
+    "type": "command",
+    "payload": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=mbjafbmjpcimpkkihihoideiofnoalmh"
+  }
+]

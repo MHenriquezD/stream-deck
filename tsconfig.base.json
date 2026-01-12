@@ -1,14 +1,11 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@shared/core": ["packages/shared/src"]
-    },
     "target": "ES2020",
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "bundler",
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "ignoreDeprecations": "5.0"
   }
 }

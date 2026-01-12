@@ -11,7 +11,15 @@
     "build": "pnpm --parallel build:server build:web",
     "build:server": "pnpm --filter server build",
     "build:web": "pnpm --filter web build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "pkg:win": "pkg . --targets node24-win-x64 --output dist/server.exe",
+    "pkg:mac": "pkg . --targets node24-macos-x64 --output dist/server.app",
+    "pkg:linux": "pkg . --targets node24-linux-x64 --output dist/server",
+    "test": "jest -c jest.config.ts",
+    "test:server": "pnpm --filter server test",
+    "test:server:watch": "pnpm --filter server test:watch",
+    "test:server:e2e": "pnpm --filter server test:e2e",
+    "lint:server": "pnpm --filter server lint",
+    "format:server": "pnpm --filter server format"
   },
   "keywords": [],
   "author": "",

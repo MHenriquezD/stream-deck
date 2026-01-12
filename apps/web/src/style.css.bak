@@ -5,7 +5,7 @@
 
   color-scheme: dark;
   color: rgba(255, 255, 255, 0.87);
-  background: #0f0f0f;
+  background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -24,10 +24,6 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;
-  background: 
-    radial-gradient(ellipse at top, rgba(26, 26, 46, 0.4), transparent),
-    radial-gradient(ellipse at bottom, rgba(20, 20, 35, 0.4), transparent),
-    #0f0f0f;
 }
 
 #app {

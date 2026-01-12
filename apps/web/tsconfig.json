@@ -2,8 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "."
+    "baseUrl": ".",
+    "paths": {
+      "@shared/core": ["../../packages/shared/src/index.ts"]
+    }
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue", "../../packages/shared/src/**/*.ts"],
   "exclude": ["dist", "node_modules"]
 }
