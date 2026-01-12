@@ -11,9 +11,10 @@
     "build": "pnpm --parallel build:server build:web",
     "build:server": "pnpm --filter server build",
     "build:web": "pnpm --filter web build",
-    "pkg:win": "pkg . --targets node24-win-x64 --output dist/server.exe",
-    "pkg:mac": "pkg . --targets node24-macos-x64 --output dist/server.app",
-    "pkg:linux": "pkg . --targets node24-linux-x64 --output dist/server",
+    "build:executables": "pnpm run build:server && pnpm run pkg:win && pnpm run pkg:mac && pnpm run pkg:linux",
+    "pkg:win": "pkg apps/server/dist/main.js --targets node18-win-x64 --output dist/StreamDeck-Server-Windows.exe --compress GZip",
+    "pkg:mac": "pkg apps/server/dist/main.js --targets node18-macos-x64 --output dist/StreamDeck-Server-macOS --compress GZip",
+    "pkg:linux": "pkg apps/server/dist/main.js --targets node18-linux-x64 --output dist/StreamDeck-Server-Linux --compress GZip",
     "test": "jest -c jest.config.ts",
     "test:server": "pnpm --filter server test",
     "test:server:watch": "pnpm --filter server test:watch",
@@ -27,6 +28,7 @@
   "packageManager": "pnpm@10.28.0",
   "devDependencies": {
     "concurrently": "^9.2.1",
+    "pkg": "^5.8.1",
     "typescript": "^5.9.3"
   }
 }
