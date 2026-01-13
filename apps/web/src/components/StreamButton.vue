@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { StreamButton } from '@shared/core';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
   button: StreamButton | null
   isEmpty?: boolean
   isDragging?: boolean
   isDragOver?: boolean
+  isSelected?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -19,6 +20,10 @@ const emit = defineEmits<{
   drop: []
 }>()
 
+// Long press detection for mobile
+let longPressTimer: number | null = null
+const isLongPressing = ref(false)
+
 const buttonStyle = computed(() => {
   if (!props.button) return {}
   return {
@@ -28,12 +33,41 @@ const buttonStyle = computed(() => {
 })
 
 const handleClick = () => {
-  emit('click', props.button)
+  if (!isLongPressing.value) {
+    emit('click', props.button)
+  }
+  isLongPressing.value = false
 }
 
-const handleEdit = (e: MouseEvent) => {
+const handleEdit = (e: MouseEvent | TouchEvent) => {
   e.stopPropagation()
+  e.preventDefault()
   emit('edit', props.button)
+}
+
+// Touch events for mobile long press
+const handleTouchStart = (e: TouchEvent) => {
+  isLongPressing.value = false
+  longPressTimer = window.setTimeout(() => {
+    isLongPressing.value = true
+    handleEdit(e)
+  }, 500) // 500ms para activar long press
+}
+
+const handleTouchEnd = () => {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+  }
+}
+
+const handleTouchMove = () => {
+  // Cancelar long press si el usuario mueve el dedo
+  if (longPressTimer) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+    isLongPressing.value = false
+  }
 }
 
 const handleDragStart = (e: DragEvent) => {
@@ -69,11 +103,15 @@ const handleDrop = (e: DragEvent) => {
       empty: isEmpty,
       dragging: isDragging,
       'drag-over': isDragOver,
+      selected: isSelected,
     }"
     :style="buttonStyle"
     :draggable="!!button"
     @click="handleClick"
     @contextmenu.prevent="handleEdit"
+    @touchstart="handleTouchStart"
+    @touchend="handleTouchEnd"
+    @touchmove="handleTouchMove"
     @dragstart="handleDragStart"
     @dragend="handleDragEnd"
     @dragover="handleDragOver"
@@ -121,37 +159,37 @@ const handleDrop = (e: DragEvent) => {
   overflow: visible;
   transform-style: preserve-3d;
   
-  /* Vista lateral 3D con perspectiva - botón transparente que sobresale */
+  /* Vista lateral 3D con perspectiva - botón de cristal transparente */
   background: linear-gradient(
     145deg,
-    rgba(40, 40, 60, 0.3) 0%,
-    rgba(25, 25, 40, 0.4) 50%,
-    rgba(20, 20, 35, 0.5) 100%
+    rgba(40, 40, 60, 0.15) 0%,
+    rgba(25, 25, 40, 0.2) 50%,
+    rgba(20, 20, 35, 0.25) 100%
   );
-  backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-right-width: 2px;
-  border-bottom-width: 2px;
-  border-right-color: rgba(255, 255, 255, 0.08);
-  border-bottom-color: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(40px) saturate(200%);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-right-width: 3px;
+  border-bottom-width: 3px;
+  border-right-color: rgba(255, 255, 255, 0.15);
+  border-bottom-color: rgba(0, 0, 0, 0.4);
   
-  /* Sombra multi-capa para profundidad 3D */
+  /* Sombra multi-capa para profundidad 3D más prominente */
   box-shadow: 
-    /* Sombra lateral derecha (profundidad) */
-    8px 0 16px rgba(0, 0, 0, 0.4),
-    /* Sombra inferior (altura) */
-    0 12px 24px rgba(0, 0, 0, 0.3),
+    /* Sombra lateral derecha (profundidad) - más pronunciada */
+    12px 0 24px rgba(0, 0, 0, 0.6),
+    /* Sombra inferior (altura) - más elevada */
+    0 16px 32px rgba(0, 0, 0, 0.5),
     /* Sombra suave general */
-    0 4px 8px rgba(0, 0, 0, 0.2),
-    /* Luz superior interna */
-    inset 0 2px 4px rgba(255, 255, 255, 0.1),
-    /* Sombra inferior interna */
-    inset 0 -2px 4px rgba(0, 0, 0, 0.3),
-    /* Borde lateral interno */
-    inset -2px 0 4px rgba(0, 0, 0, 0.2);
+    0 6px 12px rgba(0, 0, 0, 0.3),
+    /* Luz superior interna - más brillante */
+    inset 0 3px 6px rgba(255, 255, 255, 0.15),
+    /* Sombra inferior interna - más profunda */
+    inset 0 -3px 6px rgba(0, 0, 0, 0.4),
+    /* Borde lateral interno - más marcado */
+    inset -3px 0 6px rgba(0, 0, 0, 0.3);
     
-  /* Transformación 3D para vista lateral */
-  transform: perspective(1000px) rotateY(-2deg) translateZ(20px);
+  /* Transformación 3D para vista lateral - más pronunciada */
+  transform: perspective(800px) rotateY(-3deg) translateZ(30px);
 }
 
 /* Tema Claro */
@@ -175,7 +213,7 @@ const handleDrop = (e: DragEvent) => {
     inset -2px 0 4px rgba(0, 0, 0, 0.08);
 }
 
-/* Capa de brillo superior - efecto de cristal */
+/* Capa de brillo superior - efecto de cristal intenso */
 .stream-button::before {
   content: '';
   position: absolute;
@@ -183,10 +221,10 @@ const handleDrop = (e: DragEvent) => {
   border-radius: 20px;
   background: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.25) 0%,
-    rgba(255, 255, 255, 0.08) 30%,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.15) 30%,
     transparent 60%,
-    rgba(0, 0, 0, 0.1) 100%
+    rgba(0, 0, 0, 0.15) 100%
   );
   pointer-events: none;
   transform: translateZ(1px);
@@ -309,6 +347,54 @@ const handleDrop = (e: DragEvent) => {
     transparent 70%,
     rgba(59, 130, 246, 0.2) 100%
   );
+}
+
+/* Botón seleccionado en modo edición */
+.stream-button.selected {
+  border-color: rgba(34, 197, 94, 0.8);
+  border-right-color: rgba(34, 197, 94, 0.6);
+  border-bottom-color: rgba(34, 197, 94, 0.5);
+  transform: perspective(1000px) rotateY(-4deg) translateZ(40px) scale(1.05);
+  
+  box-shadow: 
+    14px 0 28px rgba(34, 197, 94, 0.4),
+    0 18px 36px rgba(34, 197, 94, 0.3),
+    0 6px 12px rgba(0, 0, 0, 0.3),
+    inset 0 2px 5px rgba(34, 197, 94, 0.2),
+    inset 0 -2px 5px rgba(34, 197, 94, 0.3),
+    inset -2px 0 5px rgba(34, 197, 94, 0.25);
+  animation: pulse-selected 2s infinite;
+}
+
+.stream-button.selected::before {
+  background: linear-gradient(
+    145deg,
+    rgba(34, 197, 94, 0.3) 0%,
+    rgba(34, 197, 94, 0.15) 40%,
+    transparent 70%,
+    rgba(34, 197, 94, 0.2) 100%
+  );
+}
+
+@keyframes pulse-selected {
+  0%, 100% {
+    box-shadow: 
+      14px 0 28px rgba(34, 197, 94, 0.4),
+      0 18px 36px rgba(34, 197, 94, 0.3),
+      0 6px 12px rgba(0, 0, 0, 0.3),
+      inset 0 2px 5px rgba(34, 197, 94, 0.2),
+      inset 0 -2px 5px rgba(34, 197, 94, 0.3),
+      inset -2px 0 5px rgba(34, 197, 94, 0.25);
+  }
+  50% {
+    box-shadow: 
+      18px 0 36px rgba(34, 197, 94, 0.5),
+      0 22px 44px rgba(34, 197, 94, 0.4),
+      0 8px 16px rgba(0, 0, 0, 0.3),
+      inset 0 3px 6px rgba(34, 197, 94, 0.3),
+      inset 0 -3px 6px rgba(34, 197, 94, 0.4),
+      inset -3px 0 6px rgba(34, 197, 94, 0.35);
+  }
 }
 
 .stream-button.drag-over::after {

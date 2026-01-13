@@ -130,14 +130,44 @@ export class CommandService {
         return `start "" "${command.trim()}"`;
       }
 
-      // Si el comando empieza con una ruta (C:\, D:\, etc.) y no tiene comillas
-      const drivePathMatch = command.match(/^([A-Z]:\\[^"]+?)(\s|$)/i);
-      if (drivePathMatch) {
-        const path = drivePathMatch[1];
-        // Solo agregar comillas si la ruta contiene espacios y no está ya entre comillas
-        if (path.includes(' ') && !command.startsWith('"')) {
-          return command.replace(path, `"${path}"`);
+      // Si el comando ya usa 'start ""', asegurarse de que la ruta esté entre comillas
+      if (command.includes('start ""')) {
+        // Extraer la ruta después de start ""
+        const startMatch = command.match(/start\s+""\s+(.+)$/i);
+        if (startMatch) {
+          const targetPath = startMatch[1].trim();
+          // Si la ruta no está entre comillas y contiene espacios, agregarlas
+          if (!targetPath.startsWith('"') && targetPath.includes(' ')) {
+            return `start "" "${targetPath}"`;
+          }
+          // Si ya tiene comillas o no tiene espacios, retornar como está
+          return command;
         }
+      }
+
+      // Si el comando empieza con una ruta (C:\, D:\, etc.)
+      const drivePathPattern = /^([A-Z]:\\)/i;
+      if (drivePathPattern.test(command.trim())) {
+        const trimmedCommand = command.trim();
+
+        // Si termina en backslash, probablemente es una carpeta (error)
+        if (trimmedCommand.endsWith('\\')) {
+          throw new Error(
+            'La ruta parece ser una carpeta, no un archivo ejecutable. Asegúrate de especificar la ruta completa al .exe',
+          );
+        }
+
+        // Si no está entre comillas y tiene espacios, agregarlas
+        if (!trimmedCommand.startsWith('"') && trimmedCommand.includes(' ')) {
+          return `"${trimmedCommand}"`;
+        }
+
+        return trimmedCommand;
+      }
+
+      // Si el comando empieza con comillas, asumimos que ya está bien formateado
+      if (command.trim().startsWith('"')) {
+        return command.trim();
       }
     }
     return command;
@@ -146,23 +176,37 @@ export class CommandService {
   private execAsync(command: string) {
     return new Promise<{ success: boolean; output?: string }>(
       (resolve, reject) => {
-        // En Windows, usar cmd.exe explícitamente para manejar rutas con espacios
+        let finalCommand = command;
+
+        // En Windows, si es un path a un ejecutable (tiene .exe y comillas), usar start
+        if (process.platform === 'win32') {
+          const isExePath =
+            command.toLowerCase().includes('.exe') &&
+            (command.trim().startsWith('"') || command.includes(':\\'));
+
+          // Si es un path directo a un .exe, envolverlo con start ""
+          if (isExePath && !command.toLowerCase().startsWith('start ')) {
+            // Si ya tiene comillas, quitarlas temporalmente
+            const cleanPath = command.replace(/^["']|["']$/g, '').trim();
+            finalCommand = `start "" "${cleanPath}"`;
+          }
+        }
+
         const options: { shell: string; windowsHide: boolean } = {
           shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
           windowsHide: true,
         };
 
-        exec(command, options, (error, stdout, stderr) => {
+        exec(finalCommand, options, (error, stdout, stderr) => {
           // Algunos comandos (como explorer, start) funcionan pero retornan códigos de error
-          // Identificar estos casos y considerarlos exitosos
-          const isExplorerCommand =
-            command.toLowerCase().includes('explorer') ||
-            command.toLowerCase().includes('start ""');
+          const isStartCommand =
+            finalCommand.toLowerCase().includes('explorer') ||
+            finalCommand.toLowerCase().includes('start ');
 
-          if (error && !isExplorerCommand) {
+          if (error && !isStartCommand) {
             reject(new Error(stderr || error.message));
           } else {
-            // Para comandos de explorer/start, ignorar errores y considerar exitoso
+            // Para comandos start/explorer, ignorar errores y considerar exitoso
             resolve({
               success: true,
               output: stdout || 'Comando ejecutado',
@@ -253,10 +297,33 @@ foreach ($path in $paths) {
     }
     
     if ($isValid) {
+      # Intentar obtener el ejecutable principal
+      $exePath = ''
+      
+      # Primero intentar desde DisplayIcon si es un .exe
+      if ($icon -and $icon -like '*.exe*') {
+        $exePath = $icon -replace ',\d+$', ''  # Quitar índice de icono
+      }
+      
+      # Si no, buscar en InstallLocation
+      if (-not $exePath -and $location -and (Test-Path $location)) {
+        # Buscar el .exe principal en la carpeta
+        $exeFiles = Get-ChildItem -Path $location -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue -Depth 2 | 
+          Where-Object { $_.Name -notlike '*unins*' -and $_.Name -notlike '*update*' } |
+          Select-Object -First 1
+        
+        if ($exeFiles) {
+          $exePath = $exeFiles.FullName
+        }
+      }
+      
+      # Si encontramos el exe, usarlo; si no, dejar el directorio
+      $finalPath = if ($exePath) { $exePath } else { $location }
+      
       $apps += [PSCustomObject]@{
         Name = $displayName
         Icon = $icon
-        Path = $location
+        Path = $finalPath
         Source = 'Registry'
       }
     }
@@ -424,5 +491,21 @@ if ($unique.Count -gt 0) {
         apps: [],
       };
     }
+  }
+
+  private async execPowerShellScript(script: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      exec(
+        `powershell -Command "${script.replace(/"/g, '\\"')}"`,
+        { windowsHide: true },
+        (error, stdout, stderr) => {
+          if (error) {
+            reject(new Error(stderr || error.message));
+          } else {
+            resolve(stdout);
+          }
+        },
+      );
+    });
   }
 }

@@ -19,6 +19,7 @@ const emit = defineEmits<{
   save: [button: StreamButton]
   close: []
   delete: [id: string]
+  movePosition: [direction: 'up' | 'down' | 'left' | 'right']
 }>()
 
 const showIconPicker = ref(false)
@@ -303,6 +304,10 @@ const handleIconInputBlur = () => {
     showIconSuggestions.value = false
   }, 200)
 }
+
+const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
+  emit('movePosition', direction)
+}
 </script>
 
 <template>
@@ -530,23 +535,77 @@ const handleIconInputBlur = () => {
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="modal-footer">
-          <button v-if="button" class="btn btn-danger" @click="handleDelete">
-            Eliminar
-          </button>
-          <div class="spacer"></div>
-          <button class="btn btn-secondary" @click="handleClose">
-            Cancelar
-          </button>
-          <button
-            class="btn btn-primary"
-            @click="handleSave"
-            :disabled="!formData.label || !formData.payload"
-          >
-            Guardar
-          </button>
+          <!-- Controles de posición -->
+          <div v-if="button" class="form-group position-section">
+            <label>Posición en la cuadrícula</label>
+            <div class="preview">
+              <div class="position-controls">
+                <div class="position-row">
+                  <button
+                    type="button"
+                    class="btn-position"
+                    @click="movePosition('up')"
+                    title="Mover arriba"
+                  >
+                    ↑
+                  </button>
+                </div>
+                <div class="position-row">
+                  <button
+                    type="button"
+                    class="btn-position"
+                    @click="movePosition('left')"
+                    title="Mover izquierda"
+                  >
+                    ←
+                  </button>
+                  <div class="position-info">
+                    Fila {{ position.row + 1 }}, Col {{ position.col + 1 }}
+                  </div>
+                  <button
+                    type="button"
+                    class="btn-position"
+                    @click="movePosition('right')"
+                    title="Mover derecha"
+                  >
+                    →
+                  </button>
+                </div>
+                <div class="position-row">
+                  <button
+                    type="button"
+                    class="btn-position"
+                    @click="movePosition('down')"
+                    title="Mover abajo"
+                  >
+                    ↓
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button v-if="button" class="btn btn-danger" @click="handleDelete">
+              <i class="pi pi-trash"></i>
+              <span class="btn-text">Eliminar</span>
+            </button>
+            <div class="spacer"></div>
+            <button class="btn btn-secondary" @click="handleClose">
+              <i class="pi pi-times"></i>
+              <span class="btn-text">Cancelar</span>
+            </button>
+            <button
+              class="btn btn-primary"
+              @click="handleSave"
+              :disabled="!formData.label || !formData.payload"
+            >
+              <i v-if="button" class="fa-solid fa-floppy-disk"></i>
+              <i v-else class="pi pi-check"></i>
+              <span class="btn-text">Guardar</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -943,6 +1002,10 @@ label {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .btn:disabled {
@@ -977,6 +1040,63 @@ label {
   background: #ef3a3a;
 }
 
+.position-controls {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px;
+  background: #2a2a2a;
+  border-radius: 8px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.position-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-position {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-position:hover {
+  background: rgba(139, 92, 246, 0.3);
+  transform: scale(1.1);
+}
+
+.btn-position:active {
+  transform: scale(0.95);
+}
+
+.position-info {
+  padding: 6px 12px;
+  background: rgba(139, 92, 246, 0.2);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.9);
+  min-width: 100px;
+  text-align: center;
+}
+
+.position-section {
+  display: none;
+  margin-top: 24px;
+}
+
 .modal-enter-active,
 .modal-leave-active {
   transition: opacity 0.3s;
@@ -995,5 +1115,50 @@ label {
 .modal-enter-from .modal-container,
 .modal-leave-to .modal-container {
   transform: scale(0.9);
+}
+
+/* Responsive: solo iconos en móvil */
+@media (max-width: 640px) {
+  .btn .btn-text {
+    display: none;
+  }
+
+  .btn {
+    padding: 12px;
+    min-width: 44px;
+  }
+
+  .btn i {
+    font-size: 1.2rem;
+  }
+
+  /* Mostrar controles de posición solo en móvil */
+  .position-section {
+    display: block;
+  }
+
+  .position-controls {
+    display: flex;
+    padding: 8px;
+    gap: 4px;
+    max-width: fit-content;
+    margin: 0 auto;
+  }
+
+  .position-row {
+    gap: 4px;
+  }
+
+  .btn-position {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+  }
+
+  .position-info {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    min-width: 80px;
+  }
 }
 </style>

@@ -31,4 +31,11 @@ export class CommandController {
   getInstalledApps() {
     return this.service.getInstalledApps();
   }
+
+  // TODO: Implementar control de volumen en el futuro
+  // Requiere instalar módulo AudioDeviceCmdlets: Install-Module -Name AudioDeviceCmdlets -Force
+  // Endpoints necesarios:
+  //   - GET /command/volume -> obtener volumen actual del sistema
+  //   - POST /command/volume/:level -> establecer volumen (0-100)
+  // Permitiría mostrar un slider visual para controlar el volumen de forma no intrusiva
 }
