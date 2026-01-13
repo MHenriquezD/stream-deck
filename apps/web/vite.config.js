@@ -5,6 +5,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    host: '0.0.0.0', // Escuchar en todas las interfaces de red
+    port: 5173,
+  },
   plugins: [
     vue(),
     VitePWA({
@@ -40,16 +44,16 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        globPatterns: ['**/*.{js,css,html,png,svg}'],
         runtimeCaching: [
           {
-            urlPattern: /^http:\/\/.*\/command.*/i,
+            urlPattern: ({ url }) => url.pathname.startsWith('/command'),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 60 * 5, // 5 minutos
+                maxAgeSeconds: 300,
               },
               cacheableResponse: {
                 statuses: [0, 200],

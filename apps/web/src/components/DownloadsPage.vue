@@ -1,45 +1,49 @@
 <script setup lang="ts">
-const releases = [
+import { ref } from 'vue'
+
+interface DownloadFile {
+  name: string
+  size: number
+  sizeFormatted: string
+  url: string
+}
+
+const emit = defineEmits<{
+  close: []
+}>()
+
+const showModal = ref(false)
+
+// Archivos disponibles para descarga (servidos desde /public/downloads)
+const availableFiles = ref<DownloadFile[]>([
   {
-    id: 'windows',
-    name: 'Windows',
-    icon: '🪟',
-    file: 'StreamDeck-Server-Windows-v1.0.0.zip',
-    description: 'Ejecutable para Windows 10/11 (64-bit)',
-    size: '~40 MB',
+    name: 'StreamDeck-Server-Windows.zip',
+    size: 0,
+    sizeFormatted: '36.2 MB',
+    url: '/downloads/StreamDeck-Server-Windows.zip',
   },
-  {
-    id: 'macos',
-    name: 'macOS',
-    icon: '🍎',
-    file: 'StreamDeck-Server-macOS-v1.0.0.zip',
-    description: 'Ejecutable para macOS (Intel & Apple Silicon)',
-    size: '~40 MB',
-  },
-  {
-    id: 'linux',
-    name: 'Linux',
-    icon: '🐧',
-    file: 'StreamDeck-Server-Linux-v1.0.0.zip',
-    description: 'Ejecutable para Linux (64-bit)',
-    size: '~40 MB',
-  },
-]
+])
+
+const openDownloadsModal = () => {
+  showModal.value = true
+}
+
+const getFileIcon = (filename: string) => {
+  if (filename.includes('Windows') || filename.endsWith('.exe')) return '🪟'
+  if (filename.includes('macOS') || filename.includes('Mac')) return '🍎'
+  if (filename.includes('Linux')) return '🐧'
+  return '📦'
+}
 
 const version = '1.0.0'
-
-const downloadFile = (file: string) => {
-  const link = document.createElement('a')
-  link.href = `/downloads/${file}`
-  link.download = file
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-}
 </script>
 
 <template>
   <div class="downloads-page">
+    <button @click="emit('close')" class="close-page-btn" title="Cerrar">
+      ✕
+    </button>
+
     <div class="downloads-container">
       <div class="header">
         <h1>📥 Descargas</h1>
@@ -56,20 +60,13 @@ const downloadFile = (file: string) => {
         </ol>
       </div>
 
-      <div class="downloads-grid">
-        <div
-          v-for="release in releases"
-          :key="release.id"
-          class="download-card"
-        >
-          <div class="card-icon">{{ release.icon }}</div>
-          <h3>{{ release.name }}</h3>
-          <p class="card-description">{{ release.description }}</p>
-          <p class="card-size">{{ release.size }}</p>
-          <button @click="downloadFile(release.file)" class="btn-download">
-            Descargar
-          </button>
-        </div>
+      <div class="downloads-section">
+        <button @click="openDownloadsModal" class="btn-open-downloads">
+          📥 Ver Descargas Disponibles
+        </button>
+        <p class="downloads-hint">
+          Click para ver todos los archivos disponibles para descargar
+        </p>
       </div>
 
       <div class="instructions">
@@ -100,7 +97,7 @@ const downloadFile = (file: string) => {
             <li>Instala como PWA desde el menú del navegador</li>
             <li>Click en el botón ⚙️ (Configuración)</li>
             <li>
-              Ingresa la IP del servidor: <code>http://192.168.x.x:3000</code>
+              Ingresa la IP del servidor: <code>http://192.168.x.x:8765</code>
             </li>
             <li>Click en "Probar Conexión" y luego "Guardar"</li>
           </ol>
@@ -120,14 +117,80 @@ const downloadFile = (file: string) => {
         </p>
       </div>
     </div>
+
+    <!-- Modal de Descargas -->
+    <Transition name="modal">
+      <div v-if="showModal" class="modal-overlay" @click="showModal = false">
+        <div class="modal-container" @click.stop>
+          <div class="modal-header">
+            <h2>📥 Archivos Disponibles</h2>
+            <button @click="showModal = false" class="close-btn">✕</button>
+          </div>
+
+          <div class="modal-body">
+            <div v-if="availableFiles.length === 0" class="no-files">
+              <p>📦 No hay archivos disponibles para descargar</p>
+            </div>
+
+            <div v-else class="files-list">
+              <a
+                v-for="file in availableFiles"
+                :key="file.name"
+                :href="file.url"
+                :download="file.name"
+                class="file-item"
+              >
+                <div class="file-icon">{{ getFileIcon(file.name) }}</div>
+                <div class="file-info">
+                  <div class="file-name">{{ file.name }}</div>
+                  <div class="file-size">{{ file.sizeFormatted }}</div>
+                </div>
+                <div class="download-icon">⬇️</div>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <style scoped>
 .downloads-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   min-height: 100vh;
   padding: 40px 20px;
   background: var(--app-background, #0f0f0f);
+  overflow-y: auto;
+  z-index: 9999;
+}
+
+.close-page-btn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.close-page-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
 }
 
 .downloads-container {
@@ -178,6 +241,35 @@ const downloadFile = (file: string) => {
   margin-bottom: 8px;
 }
 
+.downloads-section {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.btn-open-downloads {
+  padding: 16px 32px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.btn-open-downloads:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.5);
+}
+
+.downloads-hint {
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+}
+
 .downloads-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -198,6 +290,16 @@ const downloadFile = (file: string) => {
   transform: translateY(-4px);
   border-color: rgba(139, 92, 246, 0.5);
   background: rgba(139, 92, 246, 0.1);
+}
+
+.download-card.disabled {
+  opacity: 0.6;
+}
+
+.download-card.disabled:hover {
+  transform: none;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .card-icon {
@@ -224,6 +326,9 @@ const downloadFile = (file: string) => {
 
 .btn-download {
   width: 100%;
+  text-decoration: none;
+  display: block;
+  text-align: center;
   padding: 12px 24px;
   background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
   border: none;
@@ -238,6 +343,17 @@ const downloadFile = (file: string) => {
 .btn-download:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+}
+
+.btn-download:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.btn-download:disabled:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .github-section {
@@ -343,6 +459,167 @@ const downloadFile = (file: string) => {
 
 .footer-info a:hover {
   text-decoration: underline;
+}
+
+.footer-info a:hover {
+  text-decoration: underline;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.modal-container {
+  background: #1a1a1a;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.close-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  font-size: 1.2rem;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.loading,
+.no-files {
+  text-align: center;
+  padding: 40px 20px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  text-decoration: none;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.file-item:hover {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.5);
+  transform: translateX(4px);
+}
+
+.file-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-name {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+
+.file-size {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85rem;
+}
+
+.download-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: all 0.3s ease;
+}
+
+.file-item:hover .download-icon {
+  opacity: 1;
+  transform: translateY(2px);
+}
+
+/* Modal Transitions */
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-active .modal-container,
+.modal-leave-active .modal-container {
+  transition: transform 0.3s ease;
+}
+
+.modal-enter-from .modal-container,
+.modal-leave-to .modal-container {
+  transform: scale(0.9);
 }
 
 @media (max-width: 768px) {
