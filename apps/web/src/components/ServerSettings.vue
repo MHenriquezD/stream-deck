@@ -1,17 +1,102 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import QRCode from 'qrcode'
+import { onMounted, onUnmounted, ref } from 'vue'
 
 const show = defineModel<boolean>('show', { required: true })
-const serverUrl = ref('http://localhost:3000')
+const serverUrl = ref('http://localhost:8765')
 const isConnecting = ref(false)
 const connectionStatus = ref<'success' | 'error' | null>(null)
+const gridSize = ref(12)
+const serverLocalIP = ref<string | null>(null)
+const isLoadingIP = ref(false)
+const qrCodeUrl = ref<string | null>(null)
+
+const isMobile = ref(window.innerWidth <= 768)
+
+const gridSizeOptions = [
+  { value: 8, label: '8 botones (2x4)' },
+  { value: 12, label: '12 botones (3x4)' },
+  { value: 16, label: '16 botones (4x4)' },
+  { value: 24, label: '24 botones (4x6)' },
+  { value: 32, label: '32 botones (4x8)' },
+]
 
 onMounted(() => {
   const saved = localStorage.getItem('serverUrl')
   if (saved) {
     serverUrl.value = saved
   }
+  const savedGridSize = localStorage.getItem('gridSize')
+  if (savedGridSize) {
+    gridSize.value = parseInt(savedGridSize)
+  }
+
+  // Cargar del caché si existe
+  const cachedIP = localStorage.getItem('serverLocalIP')
+  const cachedQR = localStorage.getItem('qrCodeUrl')
+  if (cachedIP) {
+    serverLocalIP.value = cachedIP
+  }
+  if (cachedQR) {
+    qrCodeUrl.value = cachedQR
+  }
+
+  // Listener para cambios de tamaño de ventana
+  const handleResize = () => {
+    isMobile.value = window.innerWidth <= 768
+  }
+  window.addEventListener('resize', handleResize)
+
+  loadServerIP()
 })
+
+onUnmounted(() => {
+  window.removeEventListener('resize', () => {
+    isMobile.value = window.innerWidth <= 768
+  })
+})
+
+const loadServerIP = async () => {
+  isLoadingIP.value = true
+  try {
+    const response = await fetch(`${serverUrl.value}/network-info`)
+    if (response.ok) {
+      const data = await response.json()
+      serverLocalIP.value = data.url
+
+      // Guardar en caché
+      if (data.url) {
+        localStorage.setItem('serverLocalIP', data.url)
+      }
+
+      // Generar QR code con la URL del backend (donde está la PWA servida)
+      // El QR apunta directamente al backend que sirve la aplicación
+      const qrUrl = data.url || window.location.origin
+
+      qrCodeUrl.value = await QRCode.toDataURL(qrUrl, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF',
+        },
+      })
+
+      // Guardar QR en caché
+      if (qrCodeUrl.value) {
+        localStorage.setItem('qrCodeUrl', qrCodeUrl.value)
+      }
+    }
+  } catch (error) {
+    // Si falla, usar caché si existe
+    const cachedIP = localStorage.getItem('serverLocalIP')
+    const cachedQR = localStorage.getItem('qrCodeUrl')
+    if (cachedIP) serverLocalIP.value = cachedIP
+    if (cachedQR) qrCodeUrl.value = cachedQR
+  } finally {
+    isLoadingIP.value = false
+  }
+}
 
 const testConnection = async () => {
   isConnecting.value = true
@@ -35,12 +120,20 @@ const testConnection = async () => {
 }
 
 const save = () => {
+  console.log('Saving gridSize:', gridSize.value)
   localStorage.setItem('serverUrl', serverUrl.value)
+  localStorage.setItem('gridSize', gridSize.value.toString())
   window.location.reload()
 }
 
 const close = () => {
   show.value = false
+}
+
+const copyToClipboard = () => {
+  if (serverLocalIP.value) {
+    navigator.clipboard.writeText(serverLocalIP.value)
+  }
 }
 </script>
 
@@ -48,7 +141,7 @@ const close = () => {
   <div v-if="show" class="settings-overlay" @click="close">
     <div class="settings-dialog" @click.stop>
       <div class="settings-header">
-        <h2>⚙️ Configuración del Servidor</h2>
+        <h2>Configuración del Servidor</h2>
         <button @click="close" class="close-btn">✕</button>
       </div>
 
@@ -58,9 +151,25 @@ const close = () => {
             <strong>Conecta desde otro dispositivo:</strong><br />
             1. Inicia el servidor en tu PC<br />
             2. Anota la IP local que aparece en la consola<br />
-            3. En tu tablet/móvil, ingresa: http://[IP]:3000<br />
+            3. En tu tablet/móvil, ingresa: http://[IP]:8765<br />
             4. Guarda y recarga la página
           </p>
+        </div>
+
+        <div v-if="serverLocalIP && !isMobile" class="ip-display">
+          <label>🌐 URL del servidor en red local:</label>
+          <div class="ip-box">
+            <code>{{ serverLocalIP }}</code>
+          </div>
+          <small>Usa esta URL en tu móvil/tablet para conectarte</small>
+
+          <div v-if="qrCodeUrl" class="qr-section">
+            <div class="qr-label">📱 Escanea para conectar:</div>
+            <img :src="qrCodeUrl" alt="QR Code" class="qr-code" />
+          </div>
+        </div>
+        <div v-else-if="isLoadingIP && !isMobile" class="ip-display">
+          <small>🔄 Cargando información de red...</small>
         </div>
 
         <div class="form-group">
@@ -69,10 +178,24 @@ const close = () => {
             id="serverUrl"
             v-model="serverUrl"
             type="text"
-            placeholder="http://192.168.1.100:3000"
+            placeholder="http://192.168.1.100:8765"
             class="server-input"
           />
-          <small>Ejemplo: http://192.168.1.100:3000</small>
+          <small>Ejemplo: http://192.168.1.100:8765</small>
+        </div>
+
+        <div class="form-group">
+          <label for="gridSize">Tamaño de la Cuadrícula</label>
+          <select id="gridSize" v-model.number="gridSize" class="server-input">
+            <option
+              v-for="option in gridSizeOptions"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </option>
+          </select>
+          <small>Cantidad de botones en la cuadrícula</small>
         </div>
 
         <button
@@ -178,6 +301,9 @@ const close = () => {
 
 .settings-content {
   padding: 24px;
+  max-height: 70vh;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .info-box {
@@ -192,6 +318,95 @@ const close = () => {
 
 .info-box strong {
   color: #8b5cf6;
+}
+
+.ip-display {
+  background: rgba(34, 197, 94, 0.1);
+  border: 2px solid rgba(34, 197, 94, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.ip-display label {
+  display: block;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #22c55e;
+  font-size: 0.95rem;
+}
+
+.ip-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.ip-box code {
+  flex: 1;
+  font-family: 'Courier New', monospace;
+  font-size: 1.1rem;
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.btn-copy {
+  padding: 6px 12px;
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  border-radius: 6px;
+  color: #22c55e;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.btn-copy:hover {
+  background: rgba(34, 197, 94, 0.3);
+  transform: scale(1.1);
+}
+
+.btn-copy:active {
+  transform: scale(0.95);
+}
+
+.ip-display small {
+  display: block;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+.qr-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(34, 197, 94, 0.3);
+  text-align: center;
+}
+
+.qr-label {
+  font-weight: 600;
+  color: #22c55e;
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+}
+
+.qr-code {
+  border-radius: 12px;
+  padding: 12px;
+  background: white;
+  display: inline-block;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
 }
 
 .form-group {
@@ -215,6 +430,17 @@ const close = () => {
   font-size: 1rem;
   font-family: 'Courier New', monospace;
   transition: all 0.3s;
+}
+
+select.server-input {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+select.server-input option {
+  background: #1e1e1e;
+  color: #fff;
+  padding: 10px;
 }
 
 .server-input:focus {

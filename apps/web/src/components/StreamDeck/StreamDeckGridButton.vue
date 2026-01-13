@@ -6,7 +6,7 @@ const props = defineProps<{
 }>()
 
 const execute = () => {
-  fetch(`http://localhost:3000/commands/execute/${props.command.id}`, {
+  fetch(`http://localhost:8765/commands/execute/${props.command.id}`, {
     method: 'POST',
   })
 }

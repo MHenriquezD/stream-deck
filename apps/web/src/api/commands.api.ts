@@ -1,6 +1,6 @@
 import type { Command } from '../models/command.model'
 
-const BASE_URL = 'http://localhost:3000'
+const BASE_URL = 'http://localhost:8765'
 
 export const getCommands = async (): Promise<Command[]> => {
   const res = await fetch(`${BASE_URL}/commands`)

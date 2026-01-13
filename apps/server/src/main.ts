@@ -1,5 +1,7 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import * as os from 'os';
+import * as path from 'path';
 import { AppModule } from './app.module';
 
 function getLocalIpAddress(): string {
@@ -18,7 +20,19 @@ function getLocalIpAddress(): string {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Servir archivos estáticos de la carpeta downloads
+  const downloadsPath = path.join(
+    process.cwd(),
+    'apps',
+    'web',
+    'public',
+    'downloads',
+  );
+  app.useStaticAssets(downloadsPath, {
+    prefix: '/downloads/',
+  });
 
   // Habilitar CORS para permitir conexiones desde cualquier origen en la red local
   app.enableCors({
@@ -27,7 +41,7 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const port = process.env.PORT ?? 3000;
+  const port = process.env.PORT ?? 8765;
   await app.listen(port, '0.0.0.0'); // Escuchar en todas las interfaces de red
 
   const localIp = getLocalIpAddress();

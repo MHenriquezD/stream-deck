@@ -21,7 +21,7 @@ const searchQuery = ref('')
 const apps = ref<InstalledApp[]>([])
 const loading = ref(false)
 
-const API_URL = 'http://localhost:3000'
+const API_URL = 'http://localhost:8765'
 
 watch(
   () => props.show,
@@ -63,17 +63,38 @@ const filteredApps = computed(() => {
 })
 
 const selectApp = (app: InstalledApp) => {
-  // Si tiene ruta de instalación, buscar el .exe principal
   let command = ''
+
   if (app.Path) {
-    // Intentar encontrar un .exe en la ruta
-    command = app.Path
+    // Si el path contiene .exe, es un ejecutable directo
+    if (app.Path.toLowerCase().includes('.exe')) {
+      // Si tiene espacios, agregar comillas
+      if (app.Path.includes(' ')) {
+        command = `"${app.Path}"`
+      } else {
+        command = app.Path
+      }
+    }
+    // Si ya contiene comillas y argumentos (PWAs), usar tal cual
+    else if (app.Path.includes('"')) {
+      command = app.Path
+    }
+    // Si es un directorio, intentar lanzarlo con start
+    else {
+      command = `start "" "${app.Path}"`
+    }
   } else {
-    // Usar el nombre de la app como comando
-    command = app.Name.toLowerCase().replace(/\s+/g, '')
+    // Sin path, intentar lanzar con start usando el nombre
+    let cleanName = app.Name.replace(/\s*\d+(\.\d+)*\s*/g, '') // Eliminar versiones
+      .replace(/Microsoft\s*/gi, '') // Eliminar "Microsoft"
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '')
+
+    command = `start ${cleanName}`
   }
 
-  console.log('Emitting app:', command)
+  console.log('Emitting app command:', command)
   emit('select', command)
 }
 </script>

@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 
-const DEFAULT_URL = 'http://localhost:3000'
+const DEFAULT_URL = 'http://localhost:8765'
 
 export function useServerUrl() {
   const getServerUrl = (): string => {
