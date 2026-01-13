@@ -74,3 +74,5 @@ dev-dist/
 .env
 .env.local
 .env.*.local
+temp-caxa
+downloads/
