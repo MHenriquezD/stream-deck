@@ -1,25 +1,25 @@
-import { ref } from 'vue'
+import { ref } from "vue";
 
-const DEFAULT_URL = 'http://localhost:8765'
+const DEFAULT_URL = "https://localhost:8765";
 
 export function useServerUrl() {
   const getServerUrl = (): string => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('serverUrl') || DEFAULT_URL
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("serverUrl") || DEFAULT_URL;
     }
-    return DEFAULT_URL
-  }
+    return DEFAULT_URL;
+  };
 
-  const serverUrl = ref(getServerUrl())
+  const serverUrl = ref(getServerUrl());
 
   const setServerUrl = (url: string) => {
-    localStorage.setItem('serverUrl', url)
-    serverUrl.value = url
-  }
+    localStorage.setItem("serverUrl", url);
+    serverUrl.value = url;
+  };
 
   return {
     serverUrl,
     getServerUrl,
     setServerUrl,
-  }
+  };
 }
