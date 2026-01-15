@@ -21,19 +21,26 @@ function getLocalIpAddress(): string {
 }
 
 async function bootstrap() {
-  // Verificar si existen certificados SSL
-  const certPath = path.join(__dirname, '..', 'certs', 'server.pem');
-  const keyPath = path.join(__dirname, '..', 'certs', 'server.pem');
-  const useHttps = fs.existsSync(certPath) && fs.existsSync(keyPath);
-
-  const httpsOptions = {
-    key: fs.readFileSync(path.join(process.cwd(), 'certs', 'key.pem')),
-    cert: fs.readFileSync(path.join(process.cwd(), 'certs', 'cert.pem')),
-  };
-
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    httpsOptions,
-  });
+  // Verificar si existen certificados SSL (cert.pem y key.pem)
+  const certPath = path.join(process.cwd(), 'certs', 'cert.pem');
+  const keyPath = path.join(process.cwd(), 'certs', 'key.pem');
+  let app: NestExpressApplication;
+  let useHttps = false;
+  let httpsOptions: { key: Buffer; cert: Buffer } | undefined = undefined;
+  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+    httpsOptions = {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
+    };
+    useHttps = true;
+  }
+  if (httpsOptions) {
+    app = await NestFactory.create<NestExpressApplication>(AppModule, {
+      httpsOptions,
+    });
+  } else {
+    app = await NestFactory.create<NestExpressApplication>(AppModule);
+  }
 
   // Servir archivos estáticos de la carpeta downloads
   const downloadsPath = path.join(

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useServerUrl } from '../composables/useServerUrl'
 
 interface DownloadFile {
   name: string
@@ -14,15 +15,32 @@ const emit = defineEmits<{
 
 const showModal = ref(false)
 
+const { getServerUrl } = useServerUrl()
+const isBackendConfigured = computed(() => {
+  const url = getServerUrl()
+  return url && url !== 'https://localhost:8765'
+})
+
 // Archivos disponibles para descarga (servidos desde /public/downloads)
-const availableFiles = ref<DownloadFile[]>([
-  {
-    name: 'StreamDeck-Server-Windows.zip',
-    size: 0,
-    sizeFormatted: '4.3 MB',
-    url: '/downloads/StreamDeck-Server-Windows.zip',
-  },
-])
+const availableFiles = computed(() => {
+  const files = [
+    {
+      name: 'StreamDeck-Server-Windows.zip',
+      size: 0,
+      sizeFormatted: '4.3 MB',
+      url: '/downloads/StreamDeck-Server-Windows.zip',
+    },
+  ]
+  if (isBackendConfigured.value) {
+    files.push({
+      name: 'rootCA.pem',
+      size: 0,
+      sizeFormatted: 'Certificado CA',
+      url: '/downloads/rootCA.pem',
+    })
+  }
+  return files
+})
 
 const openDownloadsModal = () => {
   showModal.value = true
@@ -142,8 +160,27 @@ const version = '1.0.0'
               >
                 <div class="file-icon">{{ getFileIcon(file.name) }}</div>
                 <div class="file-info">
-                  <div class="file-name">{{ file.name }}</div>
+                  <div class="file-name">
+                    <template v-if="file.name === 'rootCA.pem'">
+                      <span>Certificado CA para HTTPS (rootCA.pem)</span>
+                    </template>
+                    <template v-else>
+                      {{ file.name }}
+                    </template>
+                  </div>
                   <div class="file-size">{{ file.sizeFormatted }}</div>
+                  <template v-if="file.name === 'rootCA.pem'">
+                    <div
+                      style="
+                        color: #8b5cf6;
+                        font-size: 0.95rem;
+                        margin-top: 4px;
+                      "
+                    >
+                      Instala este certificado en tu móvil/tablet para confiar
+                      en HTTPS local.
+                    </div>
+                  </template>
                 </div>
                 <div class="download-icon">⬇️</div>
               </a>

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
 import { CommandService } from './command.service';
 import { StreamCommand } from './interfaces/command.interface';
 
@@ -30,6 +30,12 @@ export class CommandController {
   @Get('installed-apps')
   getInstalledApps() {
     return this.service.getInstalledApps();
+  }
+
+  @Get('cert')
+  downloadCert(@Res() res) {
+    const certPath = require('path').join(process.cwd(), 'certs', 'cert.pem');
+    res.download(certPath);
   }
 
   // TODO: Implementar control de volumen en el futuro
