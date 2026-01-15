@@ -75,6 +75,9 @@ IP.1 = 127.0.0.1
         
         Remove-Item $configPath -Force
         
+        Write-Host ""
+        Write-Host "✅ Certificados generados exitosamente con OpenSSL!" -ForegroundColor Green
+        
     } else {
         # Usar PowerShell como alternativa
         Write-Host "📋 Usando PowerShell..." -ForegroundColor Cyan
@@ -110,10 +113,11 @@ IP.1 = 127.0.0.1
         
         # Limpiar el certificado del store
         Remove-Item -Path "Cert:\CurrentUser\My\$($cert.Thumbprint)" -Force
+        
+        Write-Host ""
+        Write-Host "✅ Certificados generados exitosamente con PowerShell!" -ForegroundColor Green
     }
     
-    Write-Host ""
-    Write-Host "✅ Certificados generados exitosamente!" -ForegroundColor Green
     Write-Host ""
     Write-Host "📁 Ubicación:" -ForegroundColor Cyan
     Write-Host "   Certificado: $certPath" -ForegroundColor White

@@ -19,7 +19,7 @@ const availableFiles = ref<DownloadFile[]>([
   {
     name: 'StreamDeck-Server-Windows.zip',
     size: 0,
-    sizeFormatted: '36.2 MB',
+    sizeFormatted: '4.3 MB',
     url: '/downloads/StreamDeck-Server-Windows.zip',
   },
 ])

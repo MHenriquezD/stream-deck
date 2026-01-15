@@ -1,8 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import * as fs from 'fs';
 import { AppModule } from './app.module';
 
 function getLocalIpAddress(): string {
@@ -22,16 +22,14 @@ function getLocalIpAddress(): string {
 
 async function bootstrap() {
   // Verificar si existen certificados SSL
-  const certPath = path.join(__dirname, '..', 'certs', 'server.crt');
-  const keyPath = path.join(__dirname, '..', 'certs', 'server.key');
+  const certPath = path.join(__dirname, '..', 'certs', 'server.pem');
+  const keyPath = path.join(__dirname, '..', 'certs', 'server.pem');
   const useHttps = fs.existsSync(certPath) && fs.existsSync(keyPath);
 
-  const httpsOptions = useHttps
-    ? {
-        key: fs.readFileSync(keyPath),
-        cert: fs.readFileSync(certPath),
-      }
-    : undefined;
+  const httpsOptions = {
+    key: fs.readFileSync(path.join(process.cwd(), 'certs', 'key.pem')),
+    cert: fs.readFileSync(path.join(process.cwd(), 'certs', 'cert.pem')),
+  };
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     httpsOptions,
@@ -51,9 +49,9 @@ async function bootstrap() {
 
   // Habilitar CORS para permitir conexiones desde cualquier origen en la red local
   app.enableCors({
-    origin: true, // Permitir todos los orígenes (necesario para PWA en dispositivos móviles)
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
+    origin: '*', // Permitir todos los orígenes (necesario para PWA en dispositivos móviles)
+    // methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    // credentials: true,
   });
 
   const port = process.env.PORT ?? 8765;

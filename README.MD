@@ -40,6 +40,20 @@
 
 ---
 
+---
+
+## Generar el portable
+
+# 1. Generar el portable
+
+node scripts/build-portable.js
+
+# 2. Comprimir a ZIP y mover a Downloads
+
+Compress-Archive -Path "dist\StreamDeck-Portable\*" -DestinationPath "apps\web\public\downloads\StreamDeck-Server-Windows.zip" -Force
+
+--
+
 ## 📂 Archivos
 
 - `/web/dist` → Archivos compilados del frontend

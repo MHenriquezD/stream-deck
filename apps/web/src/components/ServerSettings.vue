@@ -22,10 +22,31 @@ const gridSizeOptions = [
 ]
 
 onMounted(() => {
-  const saved = localStorage.getItem('serverUrl')
-  if (saved) {
-    serverUrl.value = saved
+  // Detectar si viene serverUrl por query parameter (desde QR)
+  const urlParams = new URLSearchParams(window.location.search)
+  const serverUrlFromQR = urlParams.get('serverUrl')
+
+  if (serverUrlFromQR) {
+    // Configurar automáticamente la URL del servidor
+    serverUrl.value = serverUrlFromQR
+    localStorage.setItem('serverUrl', serverUrlFromQR)
+
+    // Limpiar el query parameter de la URL
+    window.history.replaceState({}, '', window.location.pathname)
+
+    // Mostrar mensaje de éxito
+    connectionStatus.value = 'success'
+    setTimeout(() => {
+      connectionStatus.value = null
+    }, 3000)
+  } else {
+    // Cargar configuración guardada
+    const saved = localStorage.getItem('serverUrl')
+    if (saved) {
+      serverUrl.value = saved
+    }
   }
+
   const savedGridSize = localStorage.getItem('gridSize')
   if (savedGridSize) {
     gridSize.value = parseInt(savedGridSize)
@@ -48,6 +69,7 @@ onMounted(() => {
   window.addEventListener('resize', handleResize)
 
   loadServerIP()
+  generateQRCode()
 })
 
 onUnmounted(() => {
@@ -68,33 +90,38 @@ const loadServerIP = async () => {
       if (data.url) {
         localStorage.setItem('serverLocalIP', data.url)
       }
-
-      // Generar QR code con la URL del backend (donde está la PWA servida)
-      // El QR apunta directamente al backend que sirve la aplicación
-      const qrUrl = data.url || window.location.origin
-
-      qrCodeUrl.value = await QRCode.toDataURL(qrUrl, {
-        width: 200,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF',
-        },
-      })
-
-      // Guardar QR en caché
-      if (qrCodeUrl.value) {
-        localStorage.setItem('qrCodeUrl', qrCodeUrl.value)
-      }
     }
   } catch (error) {
     // Si falla, usar caché si existe
     const cachedIP = localStorage.getItem('serverLocalIP')
-    const cachedQR = localStorage.getItem('qrCodeUrl')
     if (cachedIP) serverLocalIP.value = cachedIP
-    if (cachedQR) qrCodeUrl.value = cachedQR
   } finally {
     isLoadingIP.value = false
+  }
+}
+
+const generateQRCode = async () => {
+  try {
+    // Usar la URL del frontend actual e incluir serverUrl como query parameter
+    const frontendUrl = window.location.origin
+    const qrUrl = `${frontendUrl}?serverUrl=${encodeURIComponent(
+      serverUrl.value
+    )}`
+
+    qrCodeUrl.value = await QRCode.toDataURL(qrUrl, {
+      width: 200,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF',
+      },
+    })
+
+    if (qrCodeUrl.value) {
+      localStorage.setItem('qrCodeUrl', qrCodeUrl.value)
+    }
+  } catch (error) {
+    console.error('Error generando QR:', error)
   }
 }
 
@@ -129,12 +156,6 @@ const save = () => {
 const close = () => {
   show.value = false
 }
-
-const copyToClipboard = () => {
-  if (serverLocalIP.value) {
-    navigator.clipboard.writeText(serverLocalIP.value)
-  }
-}
 </script>
 
 <template>
@@ -156,10 +177,10 @@ const copyToClipboard = () => {
           </p>
         </div>
 
-        <div v-if="serverLocalIP && !isMobile" class="ip-display">
-          <label>🌐 URL del servidor en red local:</label>
+        <div v-if="serverUrl && !isMobile" class="ip-display">
+          <label>🌐 URL configurada:</label>
           <div class="ip-box">
-            <code>{{ serverLocalIP }}</code>
+            <code>{{ serverUrl }}</code>
           </div>
           <small>Usa esta URL en tu móvil/tablet para conectarte</small>
 
@@ -167,9 +188,6 @@ const copyToClipboard = () => {
             <div class="qr-label">📱 Escanea para conectar:</div>
             <img :src="qrCodeUrl" alt="QR Code" class="qr-code" />
           </div>
-        </div>
-        <div v-else-if="isLoadingIP && !isMobile" class="ip-display">
-          <small>🔄 Cargando información de red...</small>
         </div>
 
         <div class="form-group">
