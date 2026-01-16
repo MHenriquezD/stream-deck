@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useServerUrlStore } from '../../store/serverUrl.store'
+
+const serverUrlStore = useServerUrlStore()
 import type { Command } from '../../models/command.model'
 
 const props = defineProps<{
@@ -6,7 +9,7 @@ const props = defineProps<{
 }>()
 
 const execute = () => {
-  fetch(`http://localhost:8765/commands/execute/${props.command.id}`, {
+  fetch(`${serverUrlStore.serverUrl}/commands/execute/${props.command.id}`, {
     method: 'POST',
   })
 }

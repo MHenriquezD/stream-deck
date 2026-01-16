@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useServerUrlStore } from '../store/serverUrl.store'
 
 interface InstalledApp {
   Name: string
@@ -21,7 +22,8 @@ const searchQuery = ref('')
 const apps = ref<InstalledApp[]>([])
 const loading = ref(false)
 
-const API_URL = 'http://localhost:8765'
+const serverUrlStore = useServerUrlStore()
+const API_URL = serverUrlStore.serverUrl
 
 watch(
   () => props.show,

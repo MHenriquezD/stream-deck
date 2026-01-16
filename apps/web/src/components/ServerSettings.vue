@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import QRCode from 'qrcode'
 import { onMounted, onUnmounted, ref } from 'vue'
+import { useServerUrlStore } from '../store/serverUrl.store'
 
 const show = defineModel<boolean>('show', { required: true })
-const serverUrl = ref('http://localhost:8765')
+const serverUrlStore = useServerUrlStore()
+const serverUrl = ref(serverUrlStore.serverUrl)
 const isConnecting = ref(false)
 const connectionStatus = ref<'success' | 'error' | null>(null)
 const gridSize = ref(12)
@@ -29,7 +31,7 @@ onMounted(() => {
   if (serverUrlFromQR) {
     // Configurar automáticamente la URL del servidor
     serverUrl.value = serverUrlFromQR
-    localStorage.setItem('serverUrl', serverUrlFromQR)
+    serverUrlStore.setServerUrl(serverUrlFromQR)
 
     // Limpiar el query parameter de la URL
     window.history.replaceState({}, '', window.location.pathname)
@@ -44,6 +46,7 @@ onMounted(() => {
     const saved = localStorage.getItem('serverUrl')
     if (saved) {
       serverUrl.value = saved
+      serverUrlStore.setServerUrl(saved)
     }
   }
 
@@ -104,9 +107,7 @@ const generateQRCode = async () => {
   try {
     // Usar la URL del frontend actual e incluir serverUrl como query parameter
     const frontendUrl = window.location.origin
-    const qrUrl = `${frontendUrl}?serverUrl=${encodeURIComponent(
-      serverUrl.value
-    )}`
+    const qrUrl = `${frontendUrl}?serverUrl=${encodeURIComponent(serverUrl.value)}`
 
     qrCodeUrl.value = await QRCode.toDataURL(qrUrl, {
       width: 200,
@@ -148,7 +149,7 @@ const testConnection = async () => {
 
 const save = () => {
   console.log('Saving gridSize:', gridSize.value)
-  localStorage.setItem('serverUrl', serverUrl.value)
+  serverUrlStore.setServerUrl(serverUrl.value)
   localStorage.setItem('gridSize', gridSize.value.toString())
   window.location.reload()
 }

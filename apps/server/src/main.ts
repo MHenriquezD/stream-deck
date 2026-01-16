@@ -84,11 +84,8 @@ async function bootstrap() {
   console.log(`   1. Abre la app PWA en tu tablet/móvil`);
   console.log(`   2. Ve a Configuración (⚙️)`);
   console.log(`   3. Ingresa: ${protocol}://${localIp}:${port}`);
-  if (useHttps) {
-    console.log('');
-    console.log('⚠️  Nota: Es un certificado autofirmado, acepta la');
-    console.log('   advertencia de seguridad en tu navegador');
-  }
   console.log('');
 }
-bootstrap();
+bootstrap().catch((err) => {
+  console.error('Error during server bootstrap:', err);
+});

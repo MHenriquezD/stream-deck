@@ -119,11 +119,20 @@ try {
   }
 
   // 7. Copiar carpeta data si existe
-  const dataDir = path.join(__dirname, '..', 'apps', 'server', 'data')
-  if (fs.existsSync(dataDir)) {
-    console.log('💾 Copying data folder...')
-    const dataTarget = path.join(distDir, 'data')
-    fs.cpSync(dataDir, dataTarget, { recursive: true })
+  const dataTarget = path.join(distDir, 'data')
+  fs.mkdirSync(dataTarget, { recursive: true })
+  // Crear commands.json vacío
+  fs.writeFileSync(path.join(dataTarget, 'commands.json'), '[]')
+
+  // Copiar check-cert.ps1 si existe
+  const checkCertSrc = path.join(__dirname, '..', 'apps', 'server', 'scripts', 'check-cert.ps1');
+  const checkCertDest = path.join(distDir, 'server', 'scripts', 'check-cert.ps1');
+  if (fs.existsSync(checkCertSrc)) {
+    fs.mkdirSync(path.dirname(checkCertDest), { recursive: true });
+    fs.copyFileSync(checkCertSrc, checkCertDest);
+    console.log('check-cert.ps1 copiado a la distribución.');
+  } else {
+    console.warn('⚠️  No se encontró check-cert.ps1 en scripts.');
   }
 
   // 8. Crear script de inicio para Windows
@@ -131,52 +140,98 @@ try {
 
   // Generate start-server.bat (asks for IP, ensures mkcert and chocolatey, generates certs, launches backend)
   const serverBat = `@echo off
-setlocal
-cd /d %~dp0
-echo ======================================
-echo   StreamDeck Server - Inicio Seguro
-echo ======================================
-set /p IPLOCAL=Introduce la IP local a usar (ej: 192.168.1.100): 
+    setlocal enabledelayedexpansion
 
-REM Verificar mkcert
-where mkcert >nul 2>nul
-if %ERRORLEVEL% neq 0 (
-  echo mkcert no encontrado. Instalando mkcert...
-  REM Verificar chocolatey
-  where choco >nul 2>nul
-  if %ERRORLEVEL% neq 0 (
-    echo Chocolatey no encontrado. Instalando Chocolatey...
-    @"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))" && SET "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
-  )
-  choco install -y mkcert
-  refreshenv
-)
+    set CERT_FILE=certs\cert.pem
+    set KEY_FILE=certs\key.pem
 
-REM Generar certificados con mkcert
-  if not exist certs mkdir certs
-  pushd certs
-  mkcert -install
-  mkcert -key-file key.pem -cert-file cert.pem localhost 127.0.0.1 ::1 %IPLOCAL%
-  popd
+    REM ==============================
+    REM Verificar si el certificado existe y es válido
+    REM ==============================
+    set CERT_VALID=false
 
-  REM Lanzar backend con la IP indicada
-  start node server/main.js --https --key certs/key.pem --cert certs/cert.pem --host %IPLOCAL%
-endlocal
-`
+    powershell -NoProfile -ExecutionPolicy Bypass -File server/scripts/check-cert.ps1 "%CERT_FILE%"
+    if %ERRORLEVEL%==0 (
+      set CERT_VALID=true
+    )
+
+    REM ==============================
+    REM Si el certificado es válido, levantar server directamente
+    REM ==============================
+    if "%CERT_VALID%"=="true" (
+      echo Certificado SSL válido encontrado.
+      echo Iniciando servidor con HTTPS...
+      start node server/main.js --https --key %KEY_FILE% --cert %CERT_FILE%
+      goto END
+    )
+
+    REM ==============================
+    REM Certificado no existe o está vencido
+    REM ==============================
+    echo.
+    echo No se encontró un certificado SSL válido.
+    echo.
+
+    echo Direcciones IP disponibles:
+    for /f "tokens=2 delims=:" %%f in ('ipconfig ^| findstr /C:"IPv4"') do echo   %%f
+    echo.
+
+    set /p IPLOCAL=Introduce la IP local a usar (ej: 192.168.1.100): 
+
+    REM ==============================
+    REM Verificar mkcert
+    REM ==============================
+    where mkcert >nul 2>nul
+    if %ERRORLEVEL% neq 0 (
+      echo mkcert no encontrado. Instalando mkcert...
+
+      where choco >nul 2>nul
+      if %ERRORLEVEL% neq 0 (
+        echo Chocolatey no encontrado en el sistema.
+        echo Para instalar mkcert automáticamente, ejecuta este script como administrador.
+        echo O instala Chocolatey manualmente desde https://chocolatey.org/install
+        pause
+        exit /b
+      )
+      choco install -y mkcert
+    )
+
+    REM ==============================
+    REM Generar certificados
+    REM ==============================
+    if not exist certs mkdir certs
+    pushd certs
+
+    mkcert -install
+    mkcert -key-file key.pem -cert-file cert.pem localhost 127.0.0.1 ::1 %IPLOCAL%
+
+    popd
+
+    REM ==============================
+    REM Iniciar servidor
+    REM ==============================
+    echo.
+    echo Iniciando servidor con HTTPS...
+    start node server/main.js --https --key %KEY_FILE% --cert %CERT_FILE%
+
+    :END
+    pause
+    endlocal
+    `
   fs.writeFileSync(path.join(distDir, 'start-server.bat'), serverBat)
   console.log('start-server.bat generated.')
 
-  // Update README with new instructions
-  const readmeContent = `# StreamDeck Server Portable
 
-    ## ¿Qué incluye esta carpeta?
+  // Update README with new instructions
+  const readmeContent = `
+  # StreamDeck Server Portable
+
+  ## ¿Qué incluye esta carpeta?
 
     - start-server.bat: Inicia el servidor local en HTTPS (usando certificados mkcert).
     - start-tunnel.bat: (opcional) Inicia un túnel LocalTunnel (no recomendado para producción).
     - server/: Código y dependencias del backend.
     - public/: Archivos de la web.
-
-
   ## ¿Cómo usarlo?
 
   1. Haz doble clic en start-server.bat para iniciar el servidor local en HTTPS (si mkcert está instalado).
