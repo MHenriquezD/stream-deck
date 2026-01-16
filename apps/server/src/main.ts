@@ -7,40 +7,41 @@ import { AppModule } from './app.module';
 
 function getLocalIpAddress(): string {
   const interfaces = os.networkInterfaces();
+  const ips: string[] = [];
   for (const name of Object.keys(interfaces)) {
     const ifaces = interfaces[name];
     if (!ifaces) continue;
     for (const iface of ifaces) {
-      // Skip over internal (i.e. 127.0.0.1) and non-IPv4 addresses
       if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
+        ips.push(iface.address);
       }
     }
   }
-  return 'localhost';
+  return ips.length > 0 ? ips[0] : 'localhost';
+}
+
+function getAllLocalIpAddresses(): string[] {
+  const interfaces = os.networkInterfaces();
+  const ips: string[] = [];
+  for (const name of Object.keys(interfaces)) {
+    const ifaces = interfaces[name];
+    if (!ifaces) continue;
+    for (const iface of ifaces) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        ips.push(iface.address);
+      }
+    }
+  }
+  return ips;
 }
 
 async function bootstrap() {
   // Verificar si existen certificados SSL (cert.pem y key.pem)
   const certPath = path.join(process.cwd(), 'certs', 'cert.pem');
   const keyPath = path.join(process.cwd(), 'certs', 'key.pem');
-  let app: NestExpressApplication;
-  let useHttps = false;
-  let httpsOptions: { key: Buffer; cert: Buffer } | undefined = undefined;
-  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
-    httpsOptions = {
-      key: fs.readFileSync(keyPath),
-      cert: fs.readFileSync(certPath),
-    };
-    useHttps = true;
-  }
-  if (httpsOptions) {
-    app = await NestFactory.create<NestExpressApplication>(AppModule, {
-      httpsOptions,
-    });
-  } else {
-    app = await NestFactory.create<NestExpressApplication>(AppModule);
-  }
+
+  // Siempre crear la app sin httpsOptions (HTTP)
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Servir archivos estáticos de la carpeta downloads
   const downloadsPath = path.join(
@@ -56,35 +57,65 @@ async function bootstrap() {
 
   // Habilitar CORS para permitir conexiones desde cualquier origen en la red local
   app.enableCors({
-    origin: '*', // Permitir todos los orígenes (necesario para PWA en dispositivos móviles)
-    // methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    // credentials: true,
+    origin: '*',
   });
 
-  const port = process.env.PORT ?? 8765;
-  await app.listen(port, '0.0.0.0'); // Escuchar en todas las interfaces de red
-
+  // --- Levantar HTTP y HTTPS en paralelo ---
+  const httpPort = 7500;
+  const httpsPort = 8765;
   const localIp = getLocalIpAddress();
-  const protocol = useHttps ? 'https' : 'http';
-  const secureIcon = useHttps ? '🔒' : '🔓';
+  const allIps = getAllLocalIpAddresses();
 
-  console.log('');
-  console.log('🚀 ====================================');
-  console.log(`   Stream Deck Server Started! ${secureIcon}`);
-  console.log('🚀 ====================================');
-  console.log('');
-  if (useHttps) {
-    console.log('✅ HTTPS habilitado con certificados SSL');
+  // HTTP
+  app.listen(httpPort, '0.0.0.0').then(() => {
     console.log('');
+    console.log('🚀 ====================================');
+    console.log('   Stream Deck Server Started! 🔓 (HTTP)');
+    console.log('🚀 ====================================');
+    console.log('');
+    console.log(`📍 Local:    http://localhost:${httpPort}`);
+    allIps.forEach((ip) => {
+      console.log(`📱 Network:  http://${ip}:${httpPort}`);
+    });
+    console.log('');
+    console.log('💡 Para conectar desde otro dispositivo:');
+    allIps.forEach((ip) => {
+      console.log(`   - Ingresa: http://${ip}:${httpPort}`);
+    });
+    console.log('');
+  });
+
+  // HTTPS (si hay certificados)
+  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+    const httpsOptions = {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
+    };
+    NestFactory.create<NestExpressApplication>(AppModule, {
+      httpsOptions,
+    }).then(async (secureApp) => {
+      secureApp.useStaticAssets(downloadsPath, { prefix: '/downloads/' });
+      secureApp.enableCors({ origin: '*' });
+      await secureApp.listen(httpsPort, '0.0.0.0');
+      console.log('');
+      console.log('🚀 ====================================');
+      console.log('   Stream Deck Server Started! 🔒 (HTTPS)');
+      console.log('🚀 ====================================');
+      console.log('');
+      console.log('✅ HTTPS habilitado con certificados SSL');
+      console.log('');
+      console.log(`📍 Local:    https://localhost:${httpsPort}`);
+      allIps.forEach((ip) => {
+        console.log(`📱 Network:  https://${ip}:${httpsPort}`);
+      });
+      console.log('');
+      console.log('💡 Para conectar desde otro dispositivo:');
+      allIps.forEach((ip) => {
+        console.log(`   - Ingresa: https://${ip}:${httpsPort}`);
+      });
+      console.log('');
+    });
   }
-  console.log(`📍 Local:    ${protocol}://localhost:${port}`);
-  console.log(`📱 Network:  ${protocol}://${localIp}:${port}`);
-  console.log('');
-  console.log('💡 Para conectar desde otro dispositivo:');
-  console.log(`   1. Abre la app PWA en tu tablet/móvil`);
-  console.log(`   2. Ve a Configuración (⚙️)`);
-  console.log(`   3. Ingresa: ${protocol}://${localIp}:${port}`);
-  console.log('');
 }
 bootstrap().catch((err) => {
   console.error('Error during server bootstrap:', err);

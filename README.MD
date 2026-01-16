@@ -54,6 +54,33 @@ Compress-Archive -Path "dist\StreamDeck-Portable\*" -DestinationPath "apps\web\p
 
 --
 
+## 📱 Actualizar la app nativa Android (APK)
+
+Si modificas el frontend y quieres que la app nativa Android tenga los últimos cambios:
+
+1. Genera el build del frontend:
+
+```sh
+cd apps/web
+pnpm build
+```
+
+2. Sincroniza los assets con el proyecto Android:
+
+```sh
+npx cap sync android
+```
+
+3. Abre el proyecto en Android Studio (si no está abierto):
+
+```sh
+npx cap open android
+```
+
+4. Compila el APK desde Android Studio e instálalo en tu dispositivo.
+
+---
+
 ## 📂 Archivos
 
 - `/web/dist` → Archivos compilados del frontend
