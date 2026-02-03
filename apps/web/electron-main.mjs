@@ -18,20 +18,20 @@ const createWindow = () => {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.mjs'),
+      preload: path.join(__dirname, 'preload.cjs'),
     },
   })
 
   const startUrl = isDev
     ? 'http://localhost:5173' // Vite dev server
-    : `file://${path.join(app.getAppPath(), 'dist/index.html')}` // Production build
+    : `file://${path.join(app.getAppPath(), 'dist', 'index.html')}` // Production build
 
   mainWindow.loadURL(startUrl)
 
-  // Descomenta la siguiente línea si quieres abrir DevTools automáticamente en desarrollo
-  // if (isDev) {
-  //   mainWindow.webContents.openDevTools()
-  // }
+  // Abre DevTools para ver errores
+  if (isDev || !app.isPackaged) {
+    mainWindow.webContents.openDevTools()
+  }
 
   mainWindow.on('closed', () => {
     mainWindow = null

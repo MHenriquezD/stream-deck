@@ -24,7 +24,7 @@ files:
   - dist/**/*
   - node_modules/**/*
   - electron-main.mjs
-  - preload.mjs
+  - preload.cjs
   - public/**/*
   - package.json
 
