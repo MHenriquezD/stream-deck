@@ -1,3 +1,12 @@
 packages:
   - apps/*
   - packages/*
+
+ignoredBuiltDependencies:
+  - esbuild
+  - unrs-resolver
+
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - electron
+  - electron-winstaller

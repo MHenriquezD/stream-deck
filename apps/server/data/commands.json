@@ -6,51 +6,7 @@
     "type": "command",
     "payload": "explorer \"%USERPROFILE%\\Desktop\"",
     "position": {
-      "row": 0,
-      "col": 0
-    }
-  },
-  {
-    "id": "0c25312c-6fe8-494f-ae9b-f13100aadb4f",
-    "label": "Brave",
-    "icon": "svg:brave.svg",
-    "type": "command",
-    "payload": "start brave",
-    "position": {
       "row": 1,
-      "col": 3
-    }
-  },
-  {
-    "id": "702314c6-d0d7-4f7e-8535-e3436074794d",
-    "label": "Youtube",
-    "icon": "svg:youtube.svg",
-    "type": "command",
-    "payload": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=agimnkijcaahngcdmfeangaknmldooml",
-    "position": {
-      "row": 0,
-      "col": 1
-    }
-  },
-  {
-    "id": "3eafc26f-ea9c-43f4-8c87-edb327e587fd",
-    "label": "EpicGames",
-    "icon": "svg:epic-games-round.svg",
-    "type": "command",
-    "payload": "\"C:\\Program Files (x86)\\Epic Games\\Launcher\\Portal\\Binaries\\Win32\\EpicGamesLauncher.exe\"",
-    "position": {
-      "row": 0,
-      "col": 2
-    }
-  },
-  {
-    "id": "d0472558-8f78-4e37-bbd7-dc554154670b",
-    "label": "Word",
-    "icon": "svg:word.svg",
-    "type": "command",
-    "payload": "start winword",
-    "position": {
-      "row": 0,
       "col": 3
     }
   },
@@ -85,6 +41,50 @@
     "position": {
       "row": 1,
       "col": 2
+    }
+  },
+  {
+    "id": "preset-media-play-pause-1770133803991",
+    "label": "⏯️ Play/Pausa",
+    "icon": "⏯️",
+    "type": "command",
+    "payload": "powershell -Command \"(New-Object -ComObject WScript.Shell).SendKeys([char]179)\"",
+    "position": {
+      "row": 0,
+      "col": 1
+    }
+  },
+  {
+    "id": "preset-media-next-1770133805934",
+    "label": "⏭️ Siguiente",
+    "icon": "⏭️",
+    "type": "command",
+    "payload": "powershell -Command \"(New-Object -ComObject WScript.Shell).SendKeys([char]176)\"",
+    "position": {
+      "row": 0,
+      "col": 2
+    }
+  },
+  {
+    "id": "preset-media-previous-1770133806631",
+    "label": "⏮️ Anterior",
+    "icon": "⏮️",
+    "type": "command",
+    "payload": "powershell -Command \"(New-Object -ComObject WScript.Shell).SendKeys([char]177)\"",
+    "position": {
+      "row": 0,
+      "col": 0
+    }
+  },
+  {
+    "id": "preset-volume-mute-1770133842494",
+    "label": "🔇 Silenciar",
+    "icon": "🔇",
+    "type": "command",
+    "payload": "powershell -Command \"(New-Object -ComObject WScript.Shell).SendKeys([char]173)\"",
+    "position": {
+      "row": 0,
+      "col": 3
     }
   }
 ]

@@ -5,24 +5,17 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "concurrently -n \"SERVER,WEB\" -c \"blue,green\" \"pnpm --filter server start:dev\" \"pnpm --filter web dev\"",
+    "dev": "concurrently -n \"SERVER,WEB\" -c \"blue,green\" \"pnpm --filter server start:dev\" \"pnpm --filter web dev:electron\"",
     "dev:server": "pnpm --filter server start:dev",
     "dev:web": "pnpm --filter web dev",
+    "dev:electron": "pnpm --filter web dev:electron",
     "build": "pnpm --parallel build:server build:web",
     "build:server": "pnpm --filter server build",
     "build:web": "pnpm --filter web build",
-    "build:executables": "pnpm run build:server && pnpm run nexe:win && pnpm run nexe:mac && pnpm run nexe:linux",
-    "nexe:win": "nexe apps/server/dist/main.js -t windows-x64-18.17.0 -o dist/StreamDeck-Server-Windows.exe",
-    "nexe:mac": "nexe apps/server/dist/main.js -t macos-x64-18.17.0 -o dist/StreamDeck-Server-macOS",
-    "nexe:linux": "nexe apps/server/dist/main.js -t linux-x64-18.17.0 -o dist/StreamDeck-Server-Linux",
-    "caxa:win": "node scripts/build-caxa-win.js",
-    "caxa:linux": "caxa --input apps/server/dist --output dist/StreamDeck-Server-Linux -- node main.js",
-    "caxa:mac": "caxa --input apps/server/dist --output dist/StreamDeck-Server-macOS -- node main.js",
-    "caxa:executables": "pnpm run caxa:win && pnpm run caxa:linux && pnpm run caxa:mac",
-    "build:portable": "node scripts/build-portable.js",
-    "compress:portable": "Compress-Archive -Path \"dist\\StreamDeck-Portable\\*\" -DestinationPath \"apps\\web\\public\\downloads\\StreamDeck-Server-Windows.zip\" -Force",
-    "build:port-compress": "pnpm run build:portable && pnpm run compress:portable",
-    "remove:compress": "Remove-Item -Recurse -Force apps/web/public/downloads/StreamDeck-Server-Windows.zip",
+    "build:electron": "pnpm run build:server && pnpm --filter web build:electron",
+    "build:electron:win": "pnpm run build:electron && pnpm -C apps/web exec electron-builder --win --publish never",
+    "build:web:android": "pnpm run build:web && cd apps/web && npx cap build android",
+    "build:apk": "pnpm run build:web:android",
     "test": "jest -c jest.config.ts",
     "test:server": "pnpm --filter server test",
     "test:server:watch": "pnpm --filter server test:watch",
@@ -40,10 +33,7 @@
     "localtunnel": "^2.0.2"
   },
   "devDependencies": {
-    "caxa": "^3.0.1",
     "concurrently": "^9.2.1",
-    "nexe": "5.0.0-beta.4",
-    "pkg": "^5.8.1",
     "typescript": "^5.9.3"
   }
 }

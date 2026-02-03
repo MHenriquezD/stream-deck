@@ -45,6 +45,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg}'],
+        maximumFileSizeToCacheInBytes: 50 * 1024 * 1024, // 50 MB - Necesario para Electron
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/command'),

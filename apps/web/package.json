@@ -1,11 +1,17 @@
 {
   "name": "web",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Stream Deck Personal - Control your PC with a custom stream deck",
+  "author": "Stream Deck Personal",
   "type": "module",
+  "main": "electron-main.mjs",
+  "homepage": "./",
   "scripts": {
     "dev": "vite",
+    "dev:electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron electron-main.mjs\"",
     "build": "vite build",
+    "build:electron": "vite build && electron-builder",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -25,8 +31,13 @@
   "devDependencies": {
     "@types/qrcode": "^1.5.6",
     "@vitejs/plugin-vue": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "electron": "^40.1.0",
+    "electron-builder": "^26.7.0",
+    "electron-is-dev": "^3.0.1",
     "vite": "^7.2.4",
     "vite-plugin-pwa": "^1.2.0",
+    "wait-on": "^7.2.0",
     "workbox-window": "^7.4.0"
   }
 }
