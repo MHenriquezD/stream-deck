@@ -3,6 +3,9 @@ productName: Stream Deck
 directories:
   output: dist
 
+asarUnpack:
+  - server/**/*
+
 win:
   target:
     - nsis
@@ -27,6 +30,6 @@ files:
   - preload.cjs
   - public/**/*
   - package.json
-
-extraMetadata:
-  main: electron-main.mjs
+  - start-backend.bat
+  - from: ../server
+    to: server

@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: './',  // Usa rutas relativas para que funcione en Electron con file://
   server: {
     host: '0.0.0.0', // Escuchar en todas las interfaces de red
     port: 5173,
