@@ -31,7 +31,7 @@ watch(
     if (newVal && apps.value.length === 0) {
       loadApps()
     }
-  }
+  },
 )
 
 const loadApps = async () => {
@@ -60,7 +60,7 @@ const filteredApps = computed(() => {
   return apps.value.filter(
     (app) =>
       app.Name.toLowerCase().includes(query) ||
-      (app.Path && app.Path.toLowerCase().includes(query))
+      (app.Path && app.Path.toLowerCase().includes(query)),
   )
 })
 
@@ -68,27 +68,22 @@ const selectApp = (app: InstalledApp) => {
   let command = ''
 
   if (app.Path) {
-    // Si el path contiene .exe, es un ejecutable directo
-    if (app.Path.toLowerCase().includes('.exe')) {
-      // Si tiene espacios, agregar comillas
-      if (app.Path.includes(' ')) {
-        command = `"${app.Path}"`
-      } else {
-        command = app.Path
-      }
-    }
-    // Si ya contiene comillas y argumentos (PWAs), usar tal cual
-    else if (app.Path.includes('"')) {
+    // 1️⃣ Si ya es un comando con comillas/argumentos (PWA), usar TAL CUAL
+    if (app.Path.includes('"')) {
       command = app.Path
     }
-    // Si es un directorio, intentar lanzarlo con start
+    // 2️⃣ Ejecutable directo
+    else if (app.Path.toLowerCase().endsWith('.exe')) {
+      command = app.Path.includes(' ') ? `"${app.Path}"` : app.Path
+    }
+    // 3️⃣ Directorio → start
     else {
       command = `start "" "${app.Path}"`
     }
   } else {
-    // Sin path, intentar lanzar con start usando el nombre
-    let cleanName = app.Name.replace(/\s*\d+(\.\d+)*\s*/g, '') // Eliminar versiones
-      .replace(/Microsoft\s*/gi, '') // Eliminar "Microsoft"
+    // 4️⃣ Fallback por nombre
+    let cleanName = app.Name.replace(/\s*\d+(\.\d+)*\s*/g, '')
+      .replace(/Microsoft\s*/gi, '')
       .trim()
       .toLowerCase()
       .replace(/\s+/g, '')

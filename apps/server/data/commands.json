@@ -86,5 +86,16 @@
       "row": 0,
       "col": 3
     }
+  },
+  {
+    "id": "f1c94b93-d579-45cc-baf7-44eb6da0d3e3",
+    "label": "HBO Max",
+    "icon": "svg:hbo-max.svg",
+    "type": "command",
+    "payload": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=bjejpbepolkplfohnddceimlpnboflam",
+    "position": {
+      "row": 2,
+      "col": 0
+    }
   }
 ]

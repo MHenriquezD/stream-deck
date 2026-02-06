@@ -69,20 +69,23 @@ let backendProcess = null
 // Función para esperar a que el backend esté listo
 const waitForBackend = async (maxAttempts = 60) => {
   log('Waiting for backend on port 7500...')
+
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      const response = await fetch('http://localhost:7500')
-      if (response.ok) {
+      const res = await fetch('http://127.0.0.1:7500/health')
+
+      if (res.ok) {
         log('✓ Backend is ready!')
         return true
       }
     } catch (err) {
-      // Backend not ready yet
-      log(`Attempt ${i + 1}/${maxAttempts}: Backend not ready yet...`)
+      log(`Attempt ${i + 1}/${maxAttempts}: Backend not ready yet`)
     }
-    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    await new Promise((r) => setTimeout(r, 500))
   }
-  log('⚠ Backend did not respond in time, continuing anyway...')
+
+  log('⚠ Backend did not respond in time')
   return false
 }
 
@@ -99,8 +102,12 @@ const startBackend = async () => {
   log('Starting backend server...')
   log('App path: ' + app.getAppPath())
 
-  const backendDir = path.join(app.getAppPath(), 'server')
+  const backendDir = path.join(process.resourcesPath, 'server')
   const backendScript = path.join(backendDir, 'dist', 'main.js')
+
+  log('Backend dir: ' + backendDir)
+  log('Backend script: ' + backendScript)
+  log('Electron execPath: ' + process.execPath)
   const startBackendBat = path.join(app.getAppPath(), 'start-backend.bat')
   log('Backend script path: ' + backendScript)
 
@@ -108,75 +115,52 @@ const startBackend = async () => {
   if (existsSync(backendScript)) {
     log('✓ Backend script found')
 
-    if (existsSync(startBackendBat)) {
-      log('✓ Start script found, using: ' + startBackendBat)
-      backendProcess = spawn('cmd.exe', ['/c', startBackendBat], {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        detached: false,
-        env: {
-          ...process.env,
-          NODE_ENV: 'production',
-        },
-      })
-    } else {
-      log('⚠ Start script not found, attempting direct node spawn')
-      backendProcess = spawn('node', [backendScript], {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        detached: false,
+    backendProcess = spawn(
+      process.execPath, // Node embebido de Electron
+      [backendScript],
+      {
         cwd: backendDir,
         env: {
           ...process.env,
           NODE_ENV: 'production',
         },
-      })
-    }
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
+      },
+    )
 
-    // Capturar logs del backend con mejor manejo
-    let backendStdout = ''
-    let backendStderr = ''
-
+    // Capturar logs del backend
     if (backendProcess.stdout) {
       backendProcess.stdout.setEncoding('utf8')
       backendProcess.stdout.on('data', (data) => {
-        backendStdout += data
-        const lines = data.toString().split('\n')
-        lines.forEach((line) => {
-          if (line.trim()) {
-            log('[Backend] ' + line)
-          }
-        })
+        data
+          .toString()
+          .split('\n')
+          .forEach((line) => {
+            if (line.trim()) log('[Backend] ' + line)
+          })
       })
     }
 
     if (backendProcess.stderr) {
       backendProcess.stderr.setEncoding('utf8')
       backendProcess.stderr.on('data', (data) => {
-        backendStderr += data
-        const lines = data.toString().split('\n')
-        lines.forEach((line) => {
-          if (line.trim()) {
-            log('[Backend ERROR] ' + line)
-          }
-        })
+        data
+          .toString()
+          .split('\n')
+          .forEach((line) => {
+            if (line.trim()) log('[Backend ERROR] ' + line)
+          })
       })
     }
 
-    backendProcess.on('error', (err) => {
-      log('Failed to start backend: ' + err.message)
+    backendProcess.on('exit', (code) => {
+      log(`Backend exited with code ${code}`)
     })
 
-    backendProcess.on('exit', (code, signal) => {
-      log('Backend process exited with code ' + code + ' and signal ' + signal)
-      if (backendStderr) {
-        log('Backend stderr: ' + backendStderr)
-      }
-    })
-
-    // Esperar a que el backend esté listo
     await waitForBackend()
   } else {
     log('✗ Backend script NOT found at: ' + backendScript)
-    log('Continuing without backend...')
   }
 }
 

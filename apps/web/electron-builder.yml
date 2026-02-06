@@ -1,10 +1,10 @@
 appId: com.streamdeck.app
 productName: Stream Deck
+
 directories:
   output: dist
 
-asarUnpack:
-  - server/**/*
+asar: true
 
 win:
   target:
@@ -24,12 +24,23 @@ portable:
   artifactName: ${productName}-${version}-portable.exe
 
 files:
+  # Frontend build
   - dist/**/*
-  - node_modules/**/*
+
+  # Electron
   - electron-main.mjs
   - preload.cjs
-  - public/**/*
   - package.json
-  - start-backend.bat
-  - from: ../server
-    to: server
+  - public/**/*
+
+extraResources:
+  # Backend NestJS compilado
+  - from: ../server/dist
+    to: server/dist
+
+  # Node_modules mínimos del backend
+  - from: ../server/node_modules
+    to: server/node_modules
+
+  - from: ../server/package.json
+    to: server/package.json

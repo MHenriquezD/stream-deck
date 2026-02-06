@@ -46,6 +46,7 @@ const customSvgFiles = [
   'xbox-logo.svg',
   'youtube.svg',
   'youtube-large.svg',
+  'hbo-max.svg',
   // Agregar más archivos SVG aquí según los agregues a public/icons/
 ]
 
@@ -261,7 +262,7 @@ const filteredIcons = computed(() => {
     const matchingIcons = icons.filter(
       (item) =>
         item.label.toLowerCase().includes(query) ||
-        item.icon.toLowerCase().includes(query)
+        item.icon.toLowerCase().includes(query),
     )
     if (matchingIcons.length > 0) {
       filtered[category] = matchingIcons

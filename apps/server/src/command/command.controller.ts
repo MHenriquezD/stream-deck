@@ -38,6 +38,11 @@ export class CommandController {
     res.download(certPath);
   }
 
+  @Get('health')
+  health() {
+    return 'ok';
+  }
+
   // TODO: Implementar control de volumen en el futuro
   // Requiere instalar módulo AudioDeviceCmdlets: Install-Module -Name AudioDeviceCmdlets -Force
   // Endpoints necesarios:
