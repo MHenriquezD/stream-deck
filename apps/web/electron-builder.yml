@@ -37,10 +37,3 @@ extraResources:
   # Backend NestJS compilado
   - from: ../server/dist
     to: server/dist
-
-  # Node_modules mínimos del backend
-  - from: ../server/node_modules
-    to: server/node_modules
-
-  - from: ../server/package.json
-    to: server/package.json
