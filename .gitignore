@@ -76,3 +76,4 @@ dev-dist/
 .env.*.local
 temp-caxa
 downloads/
+release/

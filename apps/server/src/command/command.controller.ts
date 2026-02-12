@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
+import { networkInterfaces } from 'os';
 import { CommandService } from './command.service';
 import { StreamCommand } from './interfaces/command.interface';
+import { NetworkInfo } from './interfaces/network.info.interface';
 
 @Controller('command')
 export class CommandController {
@@ -36,6 +38,32 @@ export class CommandController {
   downloadCert(@Res() res) {
     const certPath = require('path').join(process.cwd(), 'certs', 'cert.pem');
     res.download(certPath);
+  }
+
+  @Get('network-info')
+  getNetworkInfo() {
+    const nets = networkInterfaces();
+    const results: NetworkInfo[] = [];
+
+    for (const name of Object.keys(nets)) {
+      const interfaces = nets[name];
+      if (!interfaces) continue;
+      for (const net of interfaces) {
+        // Skip internal (loopback) and non-IPv4 addresses
+        if (net.family === 'IPv4' && !net.internal) {
+          results.push({
+            name,
+            address: net.address,
+            url: `http://${net.address}:7500`,
+          });
+        }
+      }
+    }
+
+    return {
+      interfaces: results,
+      preferredUrl: results[0]?.url || 'http://localhost:7500',
+    };
   }
 
   @Get('health')

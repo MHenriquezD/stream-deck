@@ -1,73 +1,95 @@
 import { spawn } from 'child_process'
 import { app, BrowserWindow } from 'electron'
-import { appendFileSync, existsSync, mkdirSync } from 'fs'
+import { appendFileSync, existsSync, mkdirSync, readdirSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
+console.log('========================================')
+console.log('ELECTRON-MAIN.MJS LOADED')
+console.log('app.isPackaged:', app.isPackaged)
+console.log('process.resourcesPath:', process.resourcesPath)
+console.log('========================================')
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+console.log('__dirname:', __dirname)
 
-// Detectar si estamos en desarrollo o producción
 const isDev = !app.isPackaged
+console.log('isDev:', isDev)
 
-// Logger - escribir a archivo y a la consola de DevTools
+// Logger
 const logDir = path.join(app.getPath('userData'), 'logs')
 try {
   mkdirSync(logDir, { recursive: true })
-} catch (e) {
-  // ignorar
-}
-const logFile = path.join(logDir, 'electron.log')
+} catch (e) {}
 
-// Array para almacenar logs antes de que la ventana esté lista
+const logFile = path.join(logDir, 'electron.log')
 const logQueue = []
 
 const log = (message) => {
   const timestamp = new Date().toISOString()
   const line = `[${timestamp}] ${message}\n`
-  console.log(message) // También mostrar en consola del main process
 
-  // Guardar en el queue para enviar después
+  // SIEMPRE a console, sin importar qué
+  console.log('[ELECTRON-MAIN]', message)
+
   logQueue.push(message)
 
-  // Enviar a la consola de DevTools si la ventana está disponible
   if (mainWindow && mainWindow.webContents) {
     try {
+      // Escapar TODOS los caracteres problemáticos
+      const escaped = message
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '')
       mainWindow.webContents.executeJavaScript(
-        `console.log("%c[Main Process] ${message.replace(/"/g, '\\"')}",  "color: blue; font-weight: bold")`,
+        `console.log("%c[Main Process] ${escaped}", "color: blue; font-weight: bold")`,
       )
     } catch (e) {
-      // ignorar si no se puede ejecutar
+      console.error('[LOG ERROR]', e)
     }
   }
 
+  // Intentar escribir al archivo
   try {
     appendFileSync(logFile, line)
   } catch (e) {
-    // ignorar si no se puede escribir
+    console.error('[FILE LOG ERROR]', e.message)
   }
 }
 
-// Función para enviar todos los logs almacenados al renderer
 const flushLogs = () => {
+  console.log('[FLUSH] Attempting to flush', logQueue.length, 'logs')
+
   if (mainWindow && mainWindow.webContents && logQueue.length > 0) {
-    logQueue.forEach((msg) => {
+    logQueue.forEach((msg, index) => {
       try {
+        const escaped = msg
+          .replace(/\\/g, '\\\\')
+          .replace(/"/g, '\\"')
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '')
         mainWindow.webContents.executeJavaScript(
-          `console.log("%c[Main Process] ${msg.replace(/"/g, '\\"')}",  "color: blue; font-weight: bold")`,
+          `console.log("%c[Main Process QUEUED] ${escaped}", "color: purple; font-weight: bold")`,
         )
       } catch (e) {
-        // ignorar
+        console.error(`[FLUSH ERROR ${index}]`, e)
       }
     })
-    logQueue.length = 0 // Limpiar el array
+    logQueue.length = 0
+  } else {
+    console.log('[FLUSH] Cannot flush:', {
+      hasWindow: !!mainWindow,
+      hasContents: !!(mainWindow && mainWindow.webContents),
+      queueLength: logQueue.length,
+    })
   }
 }
 
 let mainWindow
 let backendProcess = null
 
-// Función para esperar a que el backend esté listo
-const waitForBackend = async (maxAttempts = 60) => {
+const waitForBackend = async (maxAttempts = 20) => {
   log('Waiting for backend on port 7500...')
 
   for (let i = 0; i < maxAttempts; i++) {
@@ -85,88 +107,104 @@ const waitForBackend = async (maxAttempts = 60) => {
     await new Promise((r) => setTimeout(r, 500))
   }
 
-  log('⚠ Backend did not respond in time')
+  log('Backend did not respond in time')
   return false
 }
 
-// Función para iniciar el backend
 const startBackend = async () => {
   if (isDev) {
-    // En desarrollo, el backend ya está corriendo en otro proceso
     log('Development mode: Backend should be running on port 7500')
     await waitForBackend()
     return
   }
 
-  // En producción, lanzar el backend como child process
-  log('Starting backend server...')
+  log('=== Starting backend server ===')
+  log('App isPackaged: ' + app.isPackaged)
   log('App path: ' + app.getAppPath())
+  log('Process resourcesPath: ' + process.resourcesPath)
+  log('Process execPath: ' + process.execPath)
 
-  const backendDir = path.join(process.resourcesPath, 'server')
-  const backendScript = path.join(backendDir, 'dist', 'main.js')
+  const backendDir = path.join(process.resourcesPath, 'backend')
+  const backendScript = path.join(backendDir, 'main.js')
 
   log('Backend dir: ' + backendDir)
   log('Backend script: ' + backendScript)
-  log('Electron execPath: ' + process.execPath)
-  const startBackendBat = path.join(app.getAppPath(), 'start-backend.bat')
-  log('Backend script path: ' + backendScript)
 
-  // Verificar si el archivo existe
-  if (existsSync(backendScript)) {
-    log('✓ Backend script found')
-
-    backendProcess = spawn(
-      process.execPath, // Node embebido de Electron
-      [backendScript],
-      {
-        cwd: backendDir,
-        env: {
-          ...process.env,
-          NODE_ENV: 'production',
-        },
-        stdio: ['ignore', 'pipe', 'pipe'],
-        windowsHide: true,
-      },
-    )
-
-    // Capturar logs del backend
-    if (backendProcess.stdout) {
-      backendProcess.stdout.setEncoding('utf8')
-      backendProcess.stdout.on('data', (data) => {
-        data
-          .toString()
-          .split('\n')
-          .forEach((line) => {
-            if (line.trim()) log('[Backend] ' + line)
-          })
-      })
+  // Debug: Listar contenido de resources
+  try {
+    if (existsSync(process.resourcesPath)) {
+      const resourcesContent = readdirSync(process.resourcesPath)
+      log('Resources directory contents: ' + resourcesContent.join(', '))
+    } else {
+      log('Resources directory does not exist!')
     }
 
-    if (backendProcess.stderr) {
-      backendProcess.stderr.setEncoding('utf8')
-      backendProcess.stderr.on('data', (data) => {
-        data
-          .toString()
-          .split('\n')
-          .forEach((line) => {
-            if (line.trim()) log('[Backend ERROR] ' + line)
-          })
-      })
+    if (existsSync(backendDir)) {
+      const backendContent = readdirSync(backendDir)
+      log('Backend directory contents: ' + backendContent.join(', '))
+    } else {
+      log('Backend directory does not exist!')
     }
-
-    backendProcess.on('exit', (code) => {
-      log(`Backend exited with code ${code}`)
-    })
-
-    await waitForBackend()
-  } else {
-    log('✗ Backend script NOT found at: ' + backendScript)
+  } catch (e) {
+    log('Error listing directories: ' + e.message)
   }
+
+  if (!existsSync(backendScript)) {
+    log('✗ Backend script NOT found at: ' + backendScript)
+    return
+  }
+
+  log('✓ Backend script found')
+
+  backendProcess = spawn(process.execPath, [backendScript], {
+    cwd: backendDir,
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      PORT: '7500',
+      ELECTRON_RUN_AS_NODE: '1',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
+  })
+
+  if (backendProcess.stdout) {
+    backendProcess.stdout.setEncoding('utf8')
+    backendProcess.stdout.on('data', (data) => {
+      data
+        .toString()
+        .split('\n')
+        .forEach((line) => {
+          if (line.trim()) log('[Backend] ' + line)
+        })
+    })
+  }
+
+  if (backendProcess.stderr) {
+    backendProcess.stderr.setEncoding('utf8')
+    backendProcess.stderr.on('data', (data) => {
+      data
+        .toString()
+        .split('\n')
+        .forEach((line) => {
+          if (line.trim()) log('[Backend ERROR] ' + line)
+        })
+    })
+  }
+
+  backendProcess.on('exit', (code) => {
+    log(`Backend exited with code ${code}`) // ✅ CORREGIDO
+  })
+
+  backendProcess.on('error', (err) => {
+    log(`Backend spawn error: ${err.message}`) // ✅ CORREGIDO
+  })
+
+  await waitForBackend()
 }
 
 const createWindow = async () => {
   log('Creating window...')
-  log('App path: ' + app.getAppPath())
 
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -179,13 +217,18 @@ const createWindow = async () => {
   })
 
   const startUrl = isDev
-    ? 'http://localhost:5173' // Vite dev server
-    : `file://${path.join(app.getAppPath(), 'dist', 'index.html')}` // Production build
+    ? 'http://localhost:5173'
+    : `file://${path.join(app.getAppPath(), 'dist', 'index.html')}`
 
   log('Loading URL: ' + startUrl)
-  mainWindow.loadURL(startUrl)
 
-  // Cuando el contenido cargue, enviar todos los logs del queue
+  try {
+    await mainWindow.loadURL(startUrl)
+    log('✓ URL loaded successfully')
+  } catch (err) {
+    log('✗ Failed to load URL: ' + err.message)
+  }
+
   mainWindow.webContents.on('did-finish-load', () => {
     log('Content loaded, flushing logs...')
     flushLogs()
@@ -198,14 +241,9 @@ const createWindow = async () => {
     },
   )
 
-  mainWindow.webContents.on('crashed', () => {
-    log('Renderer process crashed')
-  })
-
-  // Abre DevTools para ver errores
-  if (isDev || !app.isPackaged) {
-    mainWindow.webContents.openDevTools()
+  if (isDev) {
   }
+  mainWindow.webContents.openDevTools()
 
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -213,20 +251,26 @@ const createWindow = async () => {
 }
 
 app.on('ready', async () => {
-  log('App ready event fired')
+  console.log('========================================')
+  console.log('APP READY EVENT FIRED!!!')
+  console.log('========================================')
+
+  log('=== App ready event fired ===')
   try {
     await startBackend()
     log('Backend started, creating window...')
     await createWindow()
-    log('Window created')
+    log('=== Window created successfully ===')
   } catch (err) {
-    log('Error during startup: ' + err.message)
+    console.error('STARTUP ERROR:', err)
+    log('!!! Error during startup: ' + err.message)
+    log('Stack trace: ' + err.stack)
   }
 })
 
 app.on('window-all-closed', () => {
-  // Terminar el backend cuando se cierre la app
   if (backendProcess) {
+    log('Killing backend process...')
     backendProcess.kill()
   }
   if (process.platform !== 'darwin') {
