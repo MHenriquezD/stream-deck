@@ -5,7 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',  // Usa rutas relativas para que funcione en Electron con file://
+  base: './', // Usa rutas relativas para que funcione en Electron con file://
   server: {
     host: '0.0.0.0', // Escuchar en todas las interfaces de red
     port: 5173,
@@ -16,9 +16,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.svg'],
       manifest: {
-        name: 'Stream Deck Personal',
-        short_name: 'StreamDeck',
-        description: 'Stream Deck personal para controlar tu PC',
+        name: 'Spartan Hub',
+        short_name: 'SpartanHub',
+        description: 'Spartan Hub - Control your PC with a custom stream deck',
         theme_color: '#8b5cf6',
         background_color: '#0f0f0f',
         display: 'standalone',

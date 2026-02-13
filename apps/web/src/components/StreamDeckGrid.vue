@@ -49,7 +49,7 @@ const editingButton = ref<ButtonType | null>(null)
 const editingPosition = ref({ row: 0, col: 0 })
 const isExecuting = ref<string | null>(null)
 const connectionStatus = ref<'connected' | 'disconnected' | 'connecting'>(
-  'disconnected'
+  'disconnected',
 )
 
 // Modo edición para móviles
@@ -70,7 +70,7 @@ const gridItems = computed(() => {
   for (let row = 0; row < gridRows.value; row++) {
     for (let col = 0; col < gridCols.value; col++) {
       const button = Array.from(buttons.value.values()).find(
-        (b) => b.position.row === row && b.position.col === col
+        (b) => b.position.row === row && b.position.col === col,
       )
       items.push({ row, col, button: button || null })
     }
@@ -236,7 +236,7 @@ const handleButtonClick = async (button: ButtonType | null) => {
 
 const handleButtonEdit = (
   button: ButtonType | null,
-  position: { row: number; col: number }
+  position: { row: number; col: number },
 ) => {
   editingButton.value = button
   editingPosition.value = position
@@ -293,7 +293,7 @@ const moveSelectedButton = (direction: 'up' | 'down' | 'left' | 'right') => {
     (b) =>
       b.position.row === newPosition.row &&
       b.position.col === newPosition.col &&
-      b.id !== currentButton.id
+      b.id !== currentButton.id,
   )
 
   // Si hay un botón en la posición destino, intercambiar posiciones
@@ -392,7 +392,7 @@ const addPresetButton = (preset: any) => {
   for (let row = 0; row < gridRows.value; row++) {
     for (let col = 0; col < gridCols.value; col++) {
       const exists = Array.from(buttons.value.values()).find(
-        (b) => b.position.row === row && b.position.col === col
+        (b) => b.position.row === row && b.position.col === col,
       )
       if (!exists) {
         const newButton: ButtonType = {
@@ -455,7 +455,7 @@ const handleDrop = (targetPosition: { row: number; col: number }) => {
   const targetButton = Array.from(buttons.value.values()).find(
     (b) =>
       b.position.row === targetPosition.row &&
-      b.position.col === targetPosition.col
+      b.position.col === targetPosition.col,
   )
 
   // Actualizar posiciones
@@ -523,7 +523,7 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
 
   // Buscar si hay un botón en la posición objetivo
   const targetButton = Array.from(buttons.value.values()).find(
-    (b) => b.position.row === newRow && b.position.col === newCol
+    (b) => b.position.row === newRow && b.position.col === newCol,
   )
 
   // Intercambiar posiciones
@@ -552,7 +552,7 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   <div class="stream-deck-container">
     <div class="header">
       <div class="title-section">
-        <h1>MHenriquez Stream Deck</h1>
+        <h1>MHenriquez Spartan Hub</h1>
         <div class="connection-status" :class="connectionStatus">
           <span class="status-dot"></span>
           <span class="status-text">
@@ -560,8 +560,8 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
               connectionStatus === 'connected'
                 ? 'Conectado'
                 : connectionStatus === 'connecting'
-                ? 'Conectando...'
-                : 'Desconectado'
+                  ? 'Conectando...'
+                  : 'Desconectado'
             }}
           </span>
         </div>
@@ -742,7 +742,7 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
         </div>
         <div class="presets-content">
           <p class="presets-description">
-            Haz clic en un comando para agregarlo a tu Stream Deck
+            Haz clic en un comando para agregarlo a Spartan Hub
           </p>
           <div class="presets-grid">
             <div
@@ -993,7 +993,9 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   backdrop-filter: blur(20px) saturate(180%);
   border-radius: 16px;
   border: 2px solid rgba(34, 197, 94, 0.3);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(34, 197, 94, 0.2),
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(34, 197, 94, 0.2),
     inset 0 1px 2px rgba(255, 255, 255, 0.1);
 }
 
@@ -1068,8 +1070,11 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
 
   /* Fondo tipo Stream Deck real */
   background: linear-gradient(145deg, #0a0a0a, #141414);
-  box-shadow: inset 0 0 0 2px #000, inset 0 4px 8px rgba(0, 0, 0, 0.5),
-    inset 0 -2px 4px rgba(255, 255, 255, 0.02), 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    inset 0 0 0 2px #000,
+    inset 0 4px 8px rgba(0, 0, 0, 0.5),
+    inset 0 -2px 4px rgba(255, 255, 255, 0.02),
+    0 8px 24px rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.05);
   position: relative;
 }
@@ -1107,7 +1112,9 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
     rgba(255, 255, 255, 0.02) 50%,
     rgba(0, 0, 0, 0.1) 100%
   );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
@@ -1171,7 +1178,8 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   border-radius: 20px;
   padding: 16px;
   border: 2px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(255, 255, 255, 0.05) inset;
   display: flex;
   flex-direction: column;

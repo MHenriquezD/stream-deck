@@ -1,13 +1,24 @@
-import { defineStore } from "pinia";
-import { ref } from "vue";
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
 
-export const useServerUrlStore = defineStore("serverUrl", () => {
-  const serverUrl = ref(
-    localStorage.getItem("serverUrl") || "http://localhost:8765"
-  );
-  function setServerUrl(url: string) {
-    serverUrl.value = url;
-    localStorage.setItem("serverUrl", url);
+export const useServerUrlStore = defineStore('serverUrl', () => {
+  // Inicializar desde localStorage o default
+  const getInitialUrl = () => {
+    const saved = localStorage.getItem('serverUrl')
+    if (saved) return saved
+    return 'http://localhost:7500'
   }
-  return { serverUrl, setServerUrl };
-});
+
+  const serverUrl = ref(getInitialUrl())
+
+  const setServerUrl = (url: string) => {
+    const cleanUrl = url.replace(/\/$/, '')
+    serverUrl.value = cleanUrl
+    localStorage.setItem('serverUrl', cleanUrl)
+  }
+
+  return {
+    serverUrl,
+    setServerUrl,
+  }
+})

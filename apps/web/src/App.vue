@@ -4,11 +4,13 @@ import ThemeToggle from './components/ThemeToggle.vue'
 </script>
 
 <template>
-  <div class="app dark">
-    <Toast position="top-right" />
-    <ConfirmDialog />
-    <ThemeToggle />
-    <StreamDeckGrid :rows="3" :cols="4" />
+  <div class="app-container">
+    <div class="app dark">
+      <Toast position="top-right" />
+      <ConfirmDialog />
+      <ThemeToggle />
+      <StreamDeckGrid :rows="3" :cols="4" />
+    </div>
   </div>
 </template>
 
@@ -16,5 +18,32 @@ import ThemeToggle from './components/ThemeToggle.vue'
 .app {
   min-height: 100vh;
   width: 100%;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.app-container {
+  /* ⭐ Respetar safe areas del sistema */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+
+  min-height: 100vh;
+  background: #1a1a1a; /* Tu color de fondo */
+}
+
+/* ⭐ IMPORTANTE: Configurar viewport para safe areas */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
 }
 </style>

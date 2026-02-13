@@ -4,9 +4,14 @@
     "outDir": "dist",
     "baseUrl": "./",
     "paths": {
-      "@shared/core": ["../../packages/shared/src/index.ts"]
-    }
+      "@/*": ["src/*"],
+      "@shared/core": ["../../packages/shared/src/index.ts"],
+    },
+    "composite": false
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue", "../../packages/shared/src/**/*.ts"],
-  "exclude": ["dist", "node_modules"]
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"],
+  "exclude": ["dist", "node_modules"],
+  "references": [
+    {"path": "../../packages/shared"}
+  ]
 }

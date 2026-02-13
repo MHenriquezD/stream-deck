@@ -65,7 +65,7 @@ const version = '1.0.0'
     <div class="downloads-container">
       <div class="header">
         <h1>📥 Descargas</h1>
-        <p class="subtitle">Stream Deck Server v{{ version }}</p>
+        <p class="subtitle">Spartan Hub Server v{{ version }}</p>
       </div>
 
       <div class="info-box">

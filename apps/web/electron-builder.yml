@@ -1,5 +1,5 @@
 appId: com.streamdeck.app
-productName: Stream Deck
+productName: Spartan Hub
 
 directories:
   output: ../../release
@@ -17,7 +17,7 @@ nsis:
   oneClick: false
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: Stream Deck
+  shortcutName: Spartan Hub
   installerIcon: icon.ico
   uninstallerIcon: icon.ico
 

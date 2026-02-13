@@ -26,7 +26,7 @@
 
     <!-- Modo Mobile: Escáner QR -->
     <div v-else class="qr-scanner">
-      <h2>Conectar al Stream Deck</h2>
+      <h2>Conectar al Spartan Hub</h2>
       <p>Escanea el código QR de tu computadora</p>
 
       <button @click="startScan" class="scan-button">📷 Escanear QR</button>
@@ -46,7 +46,14 @@
           type="text"
           placeholder="http://192.168.1.100:7500"
         />
-        <button @click="connectManually">Conectar</button>
+        <button @click="connectManually" :disabled="isConnecting">
+          {{ isConnecting ? 'Conectando...' : 'Conectar' }}
+        </button>
+      </div>
+
+      <!-- ⭐ Mensaje de estado -->
+      <div v-if="connectionStatus" class="status" :class="statusClass">
+        {{ connectionStatus }}
       </div>
     </div>
   </div>
@@ -55,7 +62,8 @@
 <script setup lang="ts">
 import { BarcodeScanner } from '@capacitor-community/barcode-scanner'
 import QrcodeVue from 'qrcode-vue3'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { api } from '../api/commands.api'
 import { usePlatform } from '../composables/usePlatform'
 
 const { isMobile } = usePlatform()
@@ -68,6 +76,30 @@ const availableIPs = ref<Array<{ name: string; address: string; url: string }>>(
 )
 const scannedUrl = ref('')
 const manualIP = ref('')
+const connectionStatus = ref('')
+const isConnecting = ref(false)
+
+// Clase de estilo para el estado
+const statusClass = computed(() => {
+  if (connectionStatus.value.includes('✅')) return 'success'
+  if (connectionStatus.value.includes('❌')) return 'error'
+  return 'info'
+})
+
+// Limpiar y validar URL
+const cleanUrl = (url: string): string => {
+  let cleaned = url.trim()
+
+  // Agregar http:// si no tiene protocolo
+  if (!cleaned.startsWith('http://') && !cleaned.startsWith('https://')) {
+    cleaned = 'http://' + cleaned
+  }
+
+  // Remover trailing slash
+  cleaned = cleaned.replace(/\/$/, '')
+
+  return cleaned
+}
 
 // Obtener IPs disponibles (Desktop)
 const fetchServerIPs = async () => {
@@ -109,32 +141,106 @@ const startScan = async () => {
     document.body.classList.remove('scanner-active')
 
     if (result.hasContent) {
-      scannedUrl.value = result.content
+      scannedUrl.value = cleanUrl(result.content)
+      console.log('QR Scanned URL:', scannedUrl.value)
     }
   } catch (error) {
     console.error('Error scanning QR:', error)
     document.body.classList.remove('scanner-active')
+    connectionStatus.value = '❌ Error al escanear QR'
   }
 }
 
-const connectToServer = () => {
-  // Guardar la URL del servidor en localStorage
-  localStorage.setItem('serverUrl', scannedUrl.value)
+// Conectar con URL del QR escaneado
+const connectToServer = async () => {
+  if (!scannedUrl.value) return
 
-  // Actualizar la configuración global
-  window.location.reload()
+  isConnecting.value = true
+  connectionStatus.value = '🔄 Conectando al servidor...'
+
+  try {
+    const url = cleanUrl(scannedUrl.value)
+    console.log('Attempting connection to:', url)
+
+    // Probar conexión
+    const testUrl = `${url}/health`
+    const response = await fetch(testUrl, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    })
+
+    if (response.ok) {
+      // Actualizar usando el método del API
+      api.updateServerUrl(url)
+
+      connectionStatus.value = '✅ Conectado exitosamente'
+
+      // Recargar después de 1 segundo
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+    } else {
+      connectionStatus.value = '❌ Servidor no responde correctamente'
+      isConnecting.value = false
+    }
+  } catch (error) {
+    console.error('Connection error:', error)
+    connectionStatus.value = '❌ No se pudo conectar al servidor'
+    isConnecting.value = false
+  }
 }
 
-const connectManually = () => {
-  if (manualIP.value) {
-    localStorage.setItem('serverUrl', manualIP.value)
-    window.location.reload()
+// Conectar manualmente
+const connectManually = async () => {
+  if (!manualIP.value) {
+    connectionStatus.value = '❌ Por favor introduce una URL'
+    return
+  }
+
+  isConnecting.value = true
+  connectionStatus.value = '🔄 Conectando...'
+
+  try {
+    const url = cleanUrl(manualIP.value)
+    console.log('Attempting manual connection to:', url)
+
+    // Probar conexión
+    const testUrl = `${url}/health`
+    const response = await fetch(testUrl, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    })
+
+    if (response.ok) {
+      // Actualizar usando el método del API
+      api.updateServerUrl(url)
+
+      connectionStatus.value = '✅ Conectado exitosamente'
+
+      // Recargar después de 1 segundo
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+    } else {
+      connectionStatus.value = '❌ No se pudo conectar al servidor'
+      isConnecting.value = false
+    }
+  } catch (error) {
+    console.error('Connection error:', error)
+    connectionStatus.value = '❌ Error de conexión. Verifica la URL'
+    isConnecting.value = false
   }
 }
 
 onMounted(() => {
   if (!isMobile.value) {
     fetchServerIPs()
+  } else {
+    // En mobile, mostrar URL actual si existe
+    const currentUrl = api.getCurrentUrl()
+    if (currentUrl !== 'http://localhost:7500') {
+      connectionStatus.value = `📡 Conectado a: ${currentUrl}`
+    }
   }
 })
 </script>
@@ -160,6 +266,7 @@ onMounted(() => {
   padding: 0.5rem 1rem;
   background: #f0f0f0;
   border-radius: 8px;
+  word-break: break-all;
 }
 
 .ip-selector {
@@ -172,6 +279,8 @@ onMounted(() => {
   margin-top: 0.5rem;
   width: 100%;
   max-width: 400px;
+  border-radius: 8px;
+  border: 2px solid #ddd;
 }
 
 .scan-button {
@@ -183,10 +292,15 @@ onMounted(() => {
   border-radius: 8px;
   cursor: pointer;
   margin: 2rem 0;
+  transition: background 0.3s;
 }
 
 .scan-button:hover {
   background: #35a372;
+}
+
+.scan-button:active {
+  transform: scale(0.98);
 }
 
 .scanned-result {
@@ -194,6 +308,7 @@ onMounted(() => {
   padding: 1rem;
   background: #e8f5e9;
   border-radius: 8px;
+  border: 2px solid #4caf50;
 }
 
 .connect-button {
@@ -205,6 +320,16 @@ onMounted(() => {
   border-radius: 8px;
   cursor: pointer;
   margin-top: 1rem;
+  transition: background 0.3s;
+}
+
+.connect-button:hover {
+  background: #45a049;
+}
+
+.connect-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 
 .manual-input {
@@ -223,6 +348,11 @@ onMounted(() => {
   margin: 1rem 0;
 }
 
+.manual-input input:focus {
+  outline: none;
+  border-color: #42b983;
+}
+
 .manual-input button {
   padding: 0.75rem 1.5rem;
   background: #2196f3;
@@ -230,6 +360,54 @@ onMounted(() => {
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  transition: background 0.3s;
+  min-width: 150px;
+}
+
+.manual-input button:hover:not(:disabled) {
+  background: #1976d2;
+}
+
+.manual-input button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.status {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  animation: fadeIn 0.3s;
+}
+
+.status.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.status.info {
+  background: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Ocultar todo cuando el scanner está activo */
