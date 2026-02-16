@@ -10,3 +10,4 @@ onlyBuiltDependencies:
   - '@nestjs/core'
   - electron
   - electron-winstaller
+  - sharp
