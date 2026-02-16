@@ -1,8 +1,21 @@
-const { contextBridge } = require('electron')
+const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('electron', {
   app: {
     getName: () => 'Spartan Hub',
     getVersion: () => '1.0.0',
   },
+})
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  // ⭐ Usar IPC en lugar de acceso directo a 'os'
+  getNetworkInterfaces: () => {
+    return ipcRenderer.invoke('get-network-interfaces')
+  },
+
+  // Detectar si estamos en Electron
+  isElectron: () => true,
+
+  // Obtener plataforma
+  platform: () => process.platform,
 })

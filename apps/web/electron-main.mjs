@@ -1,17 +1,17 @@
 import { spawn } from 'child_process'
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron' // ⭐ Importa ipcMain
 import { appendFileSync, existsSync, mkdirSync, readdirSync } from 'fs'
+import { networkInterfaces } from 'os' // ⭐ Importa networkInterfaces
 import path from 'path'
 import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 console.log('========================================')
 console.log('ELECTRON-MAIN.MJS LOADED')
 console.log('app.isPackaged:', app.isPackaged)
 console.log('process.resourcesPath:', process.resourcesPath)
 console.log('========================================')
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-console.log('__dirname:', __dirname)
 
 const isDev = !app.isPackaged
 console.log('isDev:', isDev)
@@ -88,6 +88,31 @@ const flushLogs = () => {
 
 let mainWindow
 let backendProcess = null
+
+// ⭐ NUEVA FUNCIÓN: Obtener interfaces de red
+const getNetworkInterfaces = () => {
+  const nets = networkInterfaces()
+  const results = []
+
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        results.push({
+          name,
+          address: net.address,
+          url: `http://${net.address}:7500`,
+        })
+      }
+    }
+  }
+
+  console.log('Network interfaces detected:', results)
+
+  return {
+    interfaces: results,
+    preferredUrl: results[0]?.url || 'http://localhost:7500',
+  }
+}
 
 const waitForBackend = async (maxAttempts = 20) => {
   log('Waiting for backend on port 7500...')
@@ -214,6 +239,11 @@ const createWindow = async () => {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs'),
     },
+  })
+
+  // ⭐ NUEVO: Registrar handler IPC para obtener interfaces de red
+  ipcMain.handle('get-network-interfaces', () => {
+    return getNetworkInterfaces()
   })
 
   const startUrl = isDev

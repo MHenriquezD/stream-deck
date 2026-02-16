@@ -11,7 +11,7 @@
       </div>
 
       <div v-else class="loading">
-        <p>Obteniendo IP del servidor...</p>
+        <p>Obteniendo IPs de red...</p>
       </div>
 
       <div v-if="availableIPs.length > 1" class="ip-selector">
@@ -21,6 +21,11 @@
             {{ ip.name }}: {{ ip.address }}
           </option>
         </select>
+      </div>
+
+      <div v-if="availableIPs.length === 0" class="no-ips-warning">
+        <p>⚠️ No se detectaron interfaces de red activas</p>
+        <p class="small">Asegúrate de estar conectado a una red</p>
       </div>
     </div>
 
@@ -34,8 +39,12 @@
       <div v-if="scannedUrl" class="scanned-result">
         <p>✅ Servidor detectado:</p>
         <p class="url-text">{{ scannedUrl }}</p>
-        <button @click="connectToServer" class="connect-button">
-          Conectar
+        <button
+          @click="connectToServer"
+          class="connect-button"
+          :disabled="isConnecting"
+        >
+          {{ isConnecting ? 'Conectando...' : 'Conectar' }}
         </button>
       </div>
 
@@ -51,7 +60,6 @@
         </button>
       </div>
 
-      <!-- ⭐ Mensaje de estado -->
       <div v-if="connectionStatus" class="status" :class="statusClass">
         {{ connectionStatus }}
       </div>
@@ -68,7 +76,6 @@ import { usePlatform } from '../composables/usePlatform'
 
 const { isMobile } = usePlatform()
 
-// Estado
 const serverUrl = ref('')
 const selectedIP = ref('')
 const availableIPs = ref<Array<{ name: string; address: string; url: string }>>(
@@ -79,51 +86,74 @@ const manualIP = ref('')
 const connectionStatus = ref('')
 const isConnecting = ref(false)
 
-// Clase de estilo para el estado
 const statusClass = computed(() => {
   if (connectionStatus.value.includes('✅')) return 'success'
   if (connectionStatus.value.includes('❌')) return 'error'
   return 'info'
 })
 
-// Limpiar y validar URL
+// ⭐ Detectar IPs desde Electron
+const fetchServerIPs = async () => {
+  console.log('Iniciando detección de IPs...')
+
+  try {
+    if (window.electronAPI) {
+      console.log('✓ Electron API disponible, obteniendo interfaces de red...')
+
+      // ⭐ Ahora es async
+      const networkInfo = await window.electronAPI.getNetworkInterfaces()
+
+      console.log('Interfaces detectadas:', networkInfo)
+
+      availableIPs.value = networkInfo.interfaces
+      serverUrl.value = networkInfo.preferredUrl
+      selectedIP.value = networkInfo.preferredUrl
+
+      if (availableIPs.value.length === 0) {
+        console.warn('⚠ No se detectaron interfaces de red')
+      } else {
+        console.log(`✓ ${availableIPs.value.length} interface(s) encontrada(s)`)
+      }
+    } else {
+      console.log('No estamos en Electron, usando localhost')
+      serverUrl.value = 'http://localhost:7500'
+      availableIPs.value = [
+        {
+          name: 'localhost',
+          address: '127.0.0.1',
+          url: 'http://localhost:7500',
+        },
+      ]
+    }
+  } catch (error) {
+    console.error('Error fetching IPs:', error)
+    serverUrl.value = 'http://localhost:7500'
+    availableIPs.value = [
+      {
+        name: 'localhost (fallback)',
+        address: '127.0.0.1',
+        url: 'http://localhost:7500',
+      },
+    ]
+  }
+}
+
 const cleanUrl = (url: string): string => {
   let cleaned = url.trim()
-
-  // Agregar http:// si no tiene protocolo
   if (!cleaned.startsWith('http://') && !cleaned.startsWith('https://')) {
     cleaned = 'http://' + cleaned
   }
-
-  // Remover trailing slash
   cleaned = cleaned.replace(/\/$/, '')
-
   return cleaned
-}
-
-// Obtener IPs disponibles (Desktop)
-const fetchServerIPs = async () => {
-  try {
-    const response = await fetch('http://localhost:7500/network-info')
-    const data = await response.json()
-
-    availableIPs.value = data.interfaces
-    serverUrl.value = data.preferredUrl
-    selectedIP.value = data.preferredUrl
-  } catch (error) {
-    console.error('Error fetching server IPs:', error)
-    serverUrl.value = 'http://localhost:7500'
-  }
 }
 
 const updateQR = () => {
   serverUrl.value = selectedIP.value
+  console.log('QR actualizado a:', serverUrl.value)
 }
 
-// Escáner QR (Mobile)
 const startScan = async () => {
   try {
-    // Pedir permisos
     const status = await BarcodeScanner.checkPermission({ force: true })
 
     if (!status.granted) {
@@ -131,13 +161,8 @@ const startScan = async () => {
       return
     }
 
-    // Ocultar fondo para mostrar la cámara
     document.body.classList.add('scanner-active')
-
-    // Iniciar escaneo
     const result = await BarcodeScanner.startScan()
-
-    // Restaurar fondo
     document.body.classList.remove('scanner-active')
 
     if (result.hasContent) {
@@ -151,7 +176,6 @@ const startScan = async () => {
   }
 }
 
-// Conectar con URL del QR escaneado
 const connectToServer = async () => {
   if (!scannedUrl.value) return
 
@@ -162,7 +186,6 @@ const connectToServer = async () => {
     const url = cleanUrl(scannedUrl.value)
     console.log('Attempting connection to:', url)
 
-    // Probar conexión
     const testUrl = `${url}/health`
     const response = await fetch(testUrl, {
       method: 'GET',
@@ -170,12 +193,9 @@ const connectToServer = async () => {
     })
 
     if (response.ok) {
-      // Actualizar usando el método del API
       api.updateServerUrl(url)
-
       connectionStatus.value = '✅ Conectado exitosamente'
 
-      // Recargar después de 1 segundo
       setTimeout(() => {
         window.location.reload()
       }, 1000)
@@ -190,7 +210,6 @@ const connectToServer = async () => {
   }
 }
 
-// Conectar manualmente
 const connectManually = async () => {
   if (!manualIP.value) {
     connectionStatus.value = '❌ Por favor introduce una URL'
@@ -204,7 +223,6 @@ const connectManually = async () => {
     const url = cleanUrl(manualIP.value)
     console.log('Attempting manual connection to:', url)
 
-    // Probar conexión
     const testUrl = `${url}/health`
     const response = await fetch(testUrl, {
       method: 'GET',
@@ -212,12 +230,9 @@ const connectManually = async () => {
     })
 
     if (response.ok) {
-      // Actualizar usando el método del API
       api.updateServerUrl(url)
-
       connectionStatus.value = '✅ Conectado exitosamente'
 
-      // Recargar después de 1 segundo
       setTimeout(() => {
         window.location.reload()
       }, 1000)
@@ -236,7 +251,6 @@ onMounted(() => {
   if (!isMobile.value) {
     fetchServerIPs()
   } else {
-    // En mobile, mostrar URL actual si existe
     const currentUrl = api.getCurrentUrl()
     if (currentUrl !== 'http://localhost:7500') {
       connectionStatus.value = `📡 Conectado a: ${currentUrl}`
@@ -273,14 +287,38 @@ onMounted(() => {
   margin-top: 2rem;
 }
 
+.ip-selector label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #666;
+}
+
 .ip-selector select {
   padding: 0.5rem;
   font-size: 1rem;
-  margin-top: 0.5rem;
   width: 100%;
   max-width: 400px;
   border-radius: 8px;
   border: 2px solid #ddd;
+}
+
+.loading {
+  margin: 2rem 0;
+  color: #666;
+}
+
+.no-ips-warning {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+}
+
+.no-ips-warning .small {
+  font-size: 0.9rem;
+  color: #856404;
+  margin-top: 0.5rem;
 }
 
 .scan-button {
@@ -323,7 +361,7 @@ onMounted(() => {
   transition: background 0.3s;
 }
 
-.connect-button:hover {
+.connect-button:hover:not(:disabled) {
   background: #45a049;
 }
 
@@ -338,6 +376,11 @@ onMounted(() => {
   border-top: 1px solid #ddd;
 }
 
+.manual-input p {
+  margin-bottom: 1rem;
+  color: #666;
+}
+
 .manual-input input {
   width: 100%;
   max-width: 400px;
@@ -345,7 +388,7 @@ onMounted(() => {
   font-size: 1rem;
   border: 2px solid #ddd;
   border-radius: 8px;
-  margin: 1rem 0;
+  margin-bottom: 1rem;
 }
 
 .manual-input input:focus {
@@ -410,7 +453,6 @@ onMounted(() => {
   }
 }
 
-/* Ocultar todo cuando el scanner está activo */
 body.scanner-active {
   background: transparent !important;
 }

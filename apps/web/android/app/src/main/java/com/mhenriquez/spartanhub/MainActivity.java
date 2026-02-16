@@ -1,4 +1,4 @@
-package com.mhenriquez.streamdeck;
+package com.mhenriquez.spartanhub;
 
 import com.getcapacitor.BridgeActivity;
 

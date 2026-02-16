@@ -319,7 +319,7 @@ const selectIcon = (icon: string) => {
             >
               <img
                 v-if="item.isCustom"
-                :src="'/icons/' + item.icon.replace('svg:', '')"
+                :src="'./icons/' + item.icon.replace('svg:', '')"
                 class="custom-icon-preview"
                 :alt="item.label"
               />

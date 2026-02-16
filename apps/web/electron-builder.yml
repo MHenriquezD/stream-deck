@@ -1,4 +1,4 @@
-appId: com.streamdeck.app
+appId: com.spartanhub.app
 productName: Spartan Hub
 
 directories:
@@ -25,22 +25,25 @@ portable:
   artifactName: ${productName}-${version}-portable.exe
 
 files:
+  # ⭐ Frontend completo (incluye todos los assets)
   - from: dist
     to: dist
     filter:
       - "**/*"
   
+  # Electron files
   - electron-main.mjs
   - preload.cjs
   - package.json
   
+  # ⭐ Public assets (si tienes archivos que no pasan por Vite)
   - from: public
     to: public
     filter:
       - "**/*"
 
 extraResources:
-  # Solo el bundle del backend
+  # Backend
   - from: ../server/dist
     to: backend
     filter:
