@@ -51,7 +51,7 @@ const handleTouchStart = (e: TouchEvent) => {
   longPressTimer = window.setTimeout(() => {
     isLongPressing.value = true
     handleEdit(e)
-  }, 500) // 500ms para activar long press
+  }, 500)
 }
 
 const handleTouchEnd = () => {
@@ -59,15 +59,24 @@ const handleTouchEnd = () => {
     clearTimeout(longPressTimer)
     longPressTimer = null
   }
+  isLongPressing.value = false
 }
 
 const handleTouchMove = () => {
-  // Cancelar long press si el usuario mueve el dedo
   if (longPressTimer) {
     clearTimeout(longPressTimer)
     longPressTimer = null
     isLongPressing.value = false
   }
+}
+
+// ⭐ Agregar touchcancel para limpiar estado
+const handleTouchCancel = () => {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+  }
+  isLongPressing.value = false
 }
 
 const handleDragStart = (e: DragEvent) => {
@@ -112,6 +121,7 @@ const handleDrop = (e: DragEvent) => {
     @touchstart="handleTouchStart"
     @touchend="handleTouchEnd"
     @touchmove="handleTouchMove"
+    @touchcancel="handleTouchCancel"
     @dragstart="handleDragStart"
     @dragend="handleDragEnd"
     @dragover="handleDragOver"
@@ -122,7 +132,7 @@ const handleDrop = (e: DragEvent) => {
       <div v-if="button.icon" class="button-icon">
         <img
           v-if="button.icon.startsWith('svg:')"
-          :src="'./icons/' + button.icon.replace('svg:', '')"
+          :src="'/icons/' + button.icon.replace('svg:', '')"
           class="custom-icon"
           alt="icon"
         />
@@ -146,6 +156,9 @@ const handleDrop = (e: DragEvent) => {
 
 <style scoped>
 .stream-button {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   aspect-ratio: 1;
   border-radius: 20px;
   cursor: pointer;
@@ -153,13 +166,18 @@ const handleDrop = (e: DragEvent) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16px 12px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 10px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: visible;
   transform-style: preserve-3d;
 
-  /* Vista lateral 3D con perspectiva - botón de cristal transparente */
+  /* ⭐ Evita que touch se quede pegado */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+
   background: linear-gradient(
     145deg,
     rgba(40, 40, 60, 0.15) 0%,
@@ -173,24 +191,17 @@ const handleDrop = (e: DragEvent) => {
   border-right-color: rgba(255, 255, 255, 0.15);
   border-bottom-color: rgba(0, 0, 0, 0.4);
 
-  /* Sombra multi-capa para profundidad 3D más prominente */
-  box-shadow: 
-    /* Sombra lateral derecha (profundidad) - más pronunciada */
+  box-shadow:
     12px 0 24px rgba(0, 0, 0, 0.6),
-    /* Sombra inferior (altura) - más elevada */ 0 16px 32px rgba(0, 0, 0, 0.5),
-    /* Sombra suave general */ 0 6px 12px rgba(0, 0, 0, 0.3),
-    /* Luz superior interna - más brillante */ inset 0 3px 6px
-      rgba(255, 255, 255, 0.15),
-    /* Sombra inferior interna - más profunda */ inset 0 -3px 6px
-      rgba(0, 0, 0, 0.4),
-    /* Borde lateral interno - más marcado */ inset -3px 0 6px
-      rgba(0, 0, 0, 0.3);
+    0 16px 32px rgba(0, 0, 0, 0.5),
+    0 6px 12px rgba(0, 0, 0, 0.3),
+    inset 0 3px 6px rgba(255, 255, 255, 0.15),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.4),
+    inset -3px 0 6px rgba(0, 0, 0, 0.3);
 
-  /* Transformación 3D para vista lateral - más pronunciada */
-  transform: perspective(800px) rotateY(-3deg) translateZ(30px);
+  transform: rotateY(-3deg) translateZ(30px);
 }
 
-/* Tema Claro */
 :global([data-theme='light']) .stream-button {
   background: linear-gradient(
     145deg,
@@ -211,7 +222,6 @@ const handleDrop = (e: DragEvent) => {
     inset -2px 0 4px rgba(0, 0, 0, 0.08);
 }
 
-/* Capa de brillo superior - efecto de cristal intenso */
 .stream-button::before {
   content: '';
   position: absolute;
@@ -238,7 +248,6 @@ const handleDrop = (e: DragEvent) => {
   );
 }
 
-/* Resplandor exterior para hover */
 .stream-button::after {
   content: '';
   position: absolute;
@@ -255,44 +264,76 @@ const handleDrop = (e: DragEvent) => {
   filter: blur(16px);
 }
 
-/* Hover - el botón sobresale más */
-.stream-button:hover {
-  transform: perspective(1000px) rotateY(-3deg) translateZ(35px)
-    translateY(-2px);
-  border-right-width: 3px;
-  border-bottom-width: 3px;
+/* ⭐ Hover solo en dispositivos con hover real (desktop) */
+@media (hover: hover) and (pointer: fine) {
+  .stream-button:hover {
+    transform: rotateY(-3deg) translateZ(35px) translateY(-2px);
+    border-right-width: 3px;
+    border-bottom-width: 3px;
+    box-shadow:
+      12px 0 24px rgba(0, 0, 0, 0.5),
+      0 16px 32px rgba(0, 0, 0, 0.4),
+      0 6px 12px rgba(0, 0, 0, 0.3),
+      inset 0 3px 6px rgba(255, 255, 255, 0.15),
+      inset 0 -3px 6px rgba(0, 0, 0, 0.4),
+      inset -3px 0 6px rgba(0, 0, 0, 0.25);
+  }
 
-  box-shadow:
-    12px 0 24px rgba(0, 0, 0, 0.5),
-    0 16px 32px rgba(0, 0, 0, 0.4),
-    0 6px 12px rgba(0, 0, 0, 0.3),
-    inset 0 3px 6px rgba(255, 255, 255, 0.15),
-    inset 0 -3px 6px rgba(0, 0, 0, 0.4),
-    inset -3px 0 6px rgba(0, 0, 0, 0.25);
+  :global([data-theme='light']) .stream-button:hover {
+    box-shadow:
+      12px 0 24px rgba(0, 0, 0, 0.2),
+      0 16px 32px rgba(0, 0, 0, 0.15),
+      0 6px 12px rgba(0, 0, 0, 0.12),
+      inset 0 3px 6px rgba(255, 255, 255, 1),
+      inset 0 -3px 6px rgba(0, 0, 0, 0.08),
+      inset -3px 0 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .stream-button:hover::before {
+    opacity: 1;
+  }
+
+  .stream-button:hover::after {
+    opacity: 0.7;
+  }
+
+  .stream-button.empty:hover {
+    background: linear-gradient(
+      145deg,
+      rgba(40, 40, 60, 0.25) 0%,
+      rgba(30, 30, 50, 0.3) 50%,
+      rgba(25, 25, 45, 0.35) 100%
+    );
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: perspective(1000px) rotateY(-2deg) translateZ(20px)
+      translateY(-1px);
+    box-shadow:
+      6px 0 12px rgba(0, 0, 0, 0.3),
+      0 8px 16px rgba(0, 0, 0, 0.2),
+      inset 0 2px 3px rgba(255, 255, 255, 0.08),
+      inset -2px 0 3px rgba(0, 0, 0, 0.2);
+  }
+
+  :global([data-theme='light']) .stream-button.empty:hover {
+    background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.4) 0%,
+      rgba(245, 245, 250, 0.5) 50%,
+      rgba(240, 240, 245, 0.55) 100%
+    );
+    border-color: rgba(0, 0, 0, 0.18);
+    box-shadow:
+      6px 0 12px rgba(0, 0, 0, 0.12),
+      0 8px 16px rgba(0, 0, 0, 0.08),
+      inset 0 2px 3px rgba(255, 255, 255, 0.8),
+      inset -2px 0 3px rgba(0, 0, 0, 0.1);
+  }
 }
 
-:global([data-theme='light']) .stream-button:hover {
-  box-shadow:
-    12px 0 24px rgba(0, 0, 0, 0.2),
-    0 16px 32px rgba(0, 0, 0, 0.15),
-    0 6px 12px rgba(0, 0, 0, 0.12),
-    inset 0 3px 6px rgba(255, 255, 255, 1),
-    inset 0 -3px 6px rgba(0, 0, 0, 0.08),
-    inset -3px 0 6px rgba(0, 0, 0, 0.1);
-}
-
-.stream-button:hover::before {
-  opacity: 1;
-}
-
-.stream-button:hover::after {
-  opacity: 0.7;
-}
-
-/* Active - botón presionado hacia adentro */
+/* ⭐ Active con transición rápida para evitar stuck */
 .stream-button:active {
   transform: perspective(1000px) rotateY(-1deg) translateZ(10px) translateY(1px);
-
+  transition: all 0.1s ease-out;
   box-shadow:
     4px 0 8px rgba(0, 0, 0, 0.3),
     0 4px 12px rgba(0, 0, 0, 0.2),
@@ -312,7 +353,6 @@ const handleDrop = (e: DragEvent) => {
     inset -1px 0 3px rgba(0, 0, 0, 0.15);
 }
 
-/* Dragging - botón se aplana y pierde profundidad */
 .stream-button.dragging {
   opacity: 0.5;
   cursor: grabbing;
@@ -322,14 +362,12 @@ const handleDrop = (e: DragEvent) => {
     0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* Drag Over - área de destino resaltada con más profundidad */
 .stream-button.drag-over {
   transform: perspective(1000px) rotateY(-4deg) translateZ(45px)
     translateY(-4px);
   border-color: rgba(139, 92, 246, 0.8);
   border-right-color: rgba(139, 92, 246, 0.6);
   border-bottom-color: rgba(139, 92, 246, 0.5);
-
   box-shadow:
     16px 0 32px rgba(139, 92, 246, 0.4),
     0 20px 40px rgba(139, 92, 246, 0.3),
@@ -349,13 +387,11 @@ const handleDrop = (e: DragEvent) => {
   );
 }
 
-/* Botón seleccionado en modo edición */
 .stream-button.selected {
   border-color: rgba(34, 197, 94, 0.8);
   border-right-color: rgba(34, 197, 94, 0.6);
   border-bottom-color: rgba(34, 197, 94, 0.5);
   transform: perspective(1000px) rotateY(-4deg) translateZ(40px) scale(1.05);
-
   box-shadow:
     14px 0 28px rgba(34, 197, 94, 0.4),
     0 18px 36px rgba(34, 197, 94, 0.3),
@@ -407,7 +443,6 @@ const handleDrop = (e: DragEvent) => {
   cursor: grab;
 }
 
-/* Botones vacíos - más planos, menos profundidad */
 .stream-button.empty {
   background: linear-gradient(
     145deg,
@@ -419,13 +454,11 @@ const handleDrop = (e: DragEvent) => {
   border: 2px dashed rgba(255, 255, 255, 0.12);
   border-right-color: rgba(255, 255, 255, 0.08);
   border-bottom-color: rgba(0, 0, 0, 0.2);
-
   box-shadow:
     4px 0 8px rgba(0, 0, 0, 0.2),
     0 6px 12px rgba(0, 0, 0, 0.15),
     inset 0 1px 2px rgba(255, 255, 255, 0.05),
     inset -1px 0 2px rgba(0, 0, 0, 0.15);
-
   transform: perspective(1000px) rotateY(-1deg) translateZ(10px);
 }
 
@@ -439,7 +472,6 @@ const handleDrop = (e: DragEvent) => {
   border-color: rgba(0, 0, 0, 0.12);
   border-right-color: rgba(0, 0, 0, 0.15);
   border-bottom-color: rgba(0, 0, 0, 0.18);
-
   box-shadow:
     4px 0 8px rgba(0, 0, 0, 0.08),
     0 6px 12px rgba(0, 0, 0, 0.06),
@@ -463,40 +495,6 @@ const handleDrop = (e: DragEvent) => {
     rgba(255, 255, 255, 0.3) 40%,
     transparent 70%
   );
-}
-
-.stream-button.empty:hover {
-  background: linear-gradient(
-    145deg,
-    rgba(40, 40, 60, 0.25) 0%,
-    rgba(30, 30, 50, 0.3) 50%,
-    rgba(25, 25, 45, 0.35) 100%
-  );
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: perspective(1000px) rotateY(-2deg) translateZ(20px)
-    translateY(-1px);
-
-  box-shadow:
-    6px 0 12px rgba(0, 0, 0, 0.3),
-    0 8px 16px rgba(0, 0, 0, 0.2),
-    inset 0 2px 3px rgba(255, 255, 255, 0.08),
-    inset -2px 0 3px rgba(0, 0, 0, 0.2);
-}
-
-:global([data-theme='light']) .stream-button.empty:hover {
-  background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.4) 0%,
-    rgba(245, 245, 250, 0.5) 50%,
-    rgba(240, 240, 245, 0.55) 100%
-  );
-  border-color: rgba(0, 0, 0, 0.18);
-
-  box-shadow:
-    6px 0 12px rgba(0, 0, 0, 0.12),
-    0 8px 16px rgba(0, 0, 0, 0.08),
-    inset 0 2px 3px rgba(255, 255, 255, 0.8),
-    inset -2px 0 3px rgba(0, 0, 0, 0.1);
 }
 
 .button-content {
@@ -532,6 +530,12 @@ const handleDrop = (e: DragEvent) => {
   line-height: 1.2;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   letter-spacing: 0.3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 2em;
 }
 
 .button-type {
@@ -566,13 +570,6 @@ const handleDrop = (e: DragEvent) => {
 
 :global([data-theme='light']) .plus-icon {
   opacity: 0.7;
-}
-
-.empty-text {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .empty-text {

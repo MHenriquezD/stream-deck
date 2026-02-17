@@ -18,7 +18,6 @@ const props = defineProps<{
   cols?: number
 }>()
 
-// Función para calcular rows y cols basado en el tamaño total
 const calculateGridDimensions = (totalButtons: number) => {
   const layouts: Record<number, { rows: number; cols: number }> = {
     8: { rows: 2, cols: 4 },
@@ -41,6 +40,7 @@ const gridRows = ref(dimensions.rows)
 const gridCols = ref(dimensions.cols)
 
 console.log('Final gridRows:', gridRows.value, 'gridCols:', gridCols.value)
+
 const buttons = ref<Map<string, ButtonType>>(new Map())
 const showEditor = ref(false)
 const showSettings = ref(false)
@@ -52,15 +52,18 @@ const connectionStatus = ref<'connected' | 'disconnected' | 'connecting'>(
   'disconnected',
 )
 
-// Modo edición para móviles
+// Detectar mobile
 const isMobileView = ref(false)
-const isTouchDevice = ref(false)
-const editMode = ref(false)
-const selectedButtonForMove = ref<ButtonType | null>(null)
 
-// Drag and drop state
+// Desktop Drag and drop state
 const draggedButton = ref<ButtonType | null>(null)
 const dragOverPosition = ref<{ row: number; col: number } | null>(null)
+
+// Touch Drag and drop state (Mobile - siempre activo)
+const touchDragButton = ref<ButtonType | null>(null)
+const touchOverPosition = ref<{ row: number; col: number } | null>(null)
+const touchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+const isPressing = ref<string | null>(null) // Para la animación visual
 
 const API_URL = getServerUrl()
 
@@ -79,17 +82,10 @@ const gridItems = computed(() => {
 })
 
 onMounted(() => {
-  // Detectar si es un dispositivo táctil o pantalla móvil
-  isTouchDevice.value = 'ontouchstart' in window || navigator.maxTouchPoints > 0
   isMobileView.value = window.innerWidth <= 850
 
-  // Listener para cambios de tamaño de ventana
   const handleResize = () => {
     isMobileView.value = window.innerWidth <= 850
-    if (!isMobileView.value) {
-      editMode.value = false
-      selectedButtonForMove.value = null
-    }
   }
   window.addEventListener('resize', handleResize)
 
@@ -116,10 +112,8 @@ const loadButtons = async () => {
     const response = await fetch(`${API_URL}/command`)
     if (response.ok) {
       const data = await response.json()
-      // Convertir comandos del backend a botones
       if (Array.isArray(data)) {
         data.forEach((cmd: any, index: number) => {
-          // Determinar el tipo de acción basado en el campo 'type' o inferirlo del payload
           let actionType = ActionType.COMMAND
           if (
             cmd.type === 'url' ||
@@ -144,7 +138,6 @@ const loadButtons = async () => {
             },
           }
 
-          // Solo agregar botones que estén dentro de los límites de la cuadrícula
           if (
             button.position.row < gridRows.value &&
             button.position.col < gridCols.value
@@ -181,17 +174,11 @@ const saveButtons = async () => {
 }
 
 const handleButtonClick = async (button: ButtonType | null) => {
-  if (!button) {
-    return
-  }
+  if (!button) return
 
-  // Si está en modo edición, seleccionar el botón en lugar de ejecutar
-  if (editMode.value) {
-    selectedButtonForMove.value = button
-    return
-  }
+  // No ejecutar si se está arrastrando en mobile
+  if (touchDragButton.value) return
 
-  // Detectar si es un botón de volumen para mostrar el controlador
   try {
     isExecuting.value = button.id
     const response = await fetch(`${API_URL}/command/execute/${button.id}`, {
@@ -238,99 +225,127 @@ const handleButtonEdit = (
   button: ButtonType | null,
   position: { row: number; col: number },
 ) => {
+  // No abrir editor en mobile/tablet
+  if (isMobileView.value) return
+
   editingButton.value = button
   editingPosition.value = position
   showEditor.value = true
 }
 
-const toggleEditMode = () => {
-  editMode.value = !editMode.value
-  if (!editMode.value) {
-    selectedButtonForMove.value = null
+// Touch drag & drop - siempre activo en mobile
+const startY = ref(0) // Para detectar si el usuario intenta hacer scroll
+
+const handleTouchStart = (
+  button: ButtonType | null,
+  position: { row: number; col: number },
+  event: TouchEvent,
+) => {
+  if (!button) return
+
+  // Guardamos la posición inicial del toque
+  startY.value = event.touches[0].clientY
+  isPressing.value = button.id
+
+  if (touchTimer.value) clearTimeout(touchTimer.value)
+
+  touchTimer.value = setTimeout(() => {
+    if (navigator.vibrate) navigator.vibrate(100)
+    touchDragButton.value = button
+    isPressing.value = null
+  }, 1000) // 1 segundos
+}
+
+const handleTouchMove = (event: TouchEvent) => {
+  // Si NO se ha activado el modo arrastre (no han pasado los 2s)
+  if (!touchDragButton.value) {
+    const currentY = event.touches[0].clientY
+    const diffY = Math.abs(currentY - startY.value)
+
+    // Si el usuario mueve el dedo más de 10px, asumimos que quiere hacer SCROLL
+    if (diffY > 10) {
+      if (touchTimer.value) {
+        clearTimeout(touchTimer.value)
+        touchTimer.value = null
+      }
+      isPressing.value = null
+    }
+    return // Salimos para dejar que el navegador haga scroll
+  }
+
+  // SI YA PASARON LOS 2 SEGUNDOS: Bloqueamos scroll y movemos el botón
+  if (event.cancelable) event.preventDefault()
+
+  const touch = event.touches[0]
+  const element = document.elementFromPoint(touch.clientX, touch.clientY)
+  const gridItem = element?.closest('[data-grid-row]')
+
+  if (gridItem) {
+    const row = parseInt(gridItem.getAttribute('data-grid-row') || '-1')
+    const col = parseInt(gridItem.getAttribute('data-grid-col') || '-1')
+    if (row !== -1 && col !== -1) {
+      touchOverPosition.value = { row, col }
+    }
   }
 }
 
-const moveSelectedButton = (direction: 'up' | 'down' | 'left' | 'right') => {
-  if (!selectedButtonForMove.value) return
-
-  const currentButton = selectedButtonForMove.value
-
-  // Convertir posición actual a índice lineal
-  const currentIndex =
-    currentButton.position.row * gridCols.value + currentButton.position.col
-  let newIndex = currentIndex
-
-  // Calcular nuevo índice según dirección
-  // En móvil (2 columnas): arriba/abajo mueven 2 espacios, izquierda/derecha mueven 1
-  // Siempre permite salto de línea
-  switch (direction) {
-    case 'up':
-      // Retroceder 2 posiciones (salta de línea si es necesario)
-      newIndex = Math.max(0, currentIndex - 2)
-      break
-    case 'down':
-      // Avanzar 2 posiciones (salta de línea si es necesario)
-      newIndex = Math.min(gridRows.value * gridCols.value - 1, currentIndex + 2)
-      break
-    case 'left':
-      // Retroceder 1 posición (salta de línea si es necesario)
-      newIndex = Math.max(0, currentIndex - 1)
-      break
-    case 'right':
-      // Avanzar 1 posición (salta de línea si es necesario)
-      newIndex = Math.min(gridRows.value * gridCols.value - 1, currentIndex + 1)
-      break
+const handleTouchEnd = () => {
+  // 1. Limpiamos el temporizador SIEMPRE
+  if (touchTimer.value) {
+    clearTimeout(touchTimer.value)
+    touchTimer.value = null
   }
 
-  // Convertir índice lineal de vuelta a row/col
-  const newPosition = {
-    row: Math.floor(newIndex / gridCols.value),
-    col: newIndex % gridCols.value,
-  }
+  // 2. Limpiamos la animación de pulso SIEMPRE
+  isPressing.value = null
 
-  // Verificar si la nueva posición está ocupada
-  const targetButton = Array.from(buttons.value.values()).find(
-    (b) =>
-      b.position.row === newPosition.row &&
-      b.position.col === newPosition.col &&
-      b.id !== currentButton.id,
-  )
+  // 3. Si no se llegó a activar el drag, salimos aquí
+  if (!touchDragButton.value) return
 
-  // Si hay un botón en la posición destino, intercambiar posiciones
-  if (targetButton) {
-    const tempPosition = { ...targetButton.position }
-    targetButton.position = { ...currentButton.position }
-    currentButton.position = newPosition
-    buttons.value.set(targetButton.id, targetButton)
-  } else {
-    // Si no hay botón, simplemente mover
-    currentButton.position = newPosition
-  }
+  // Lógica de intercambio de posición (tu lógica actual)
+  const sourceButton = touchDragButton.value
+  const targetPos = touchOverPosition.value
 
-  // Actualizar el botón actual
-  buttons.value.set(currentButton.id, currentButton)
-  selectedButtonForMove.value = currentButton
+  if (
+    targetPos &&
+    (sourceButton.position.row !== targetPos.row ||
+      sourceButton.position.col !== targetPos.col)
+  ) {
+    const targetButton = Array.from(buttons.value.values()).find(
+      (b) =>
+        b.position.row === targetPos.row && b.position.col === targetPos.col,
+    )
 
-  // Guardar cambios
-  saveButtons()
+    const oldPosition = { ...sourceButton.position }
+    sourceButton.position = { ...targetPos }
 
-  // Hacer scroll para mantener el botón visible
-  setTimeout(() => {
-    const gridElement = document.querySelector('.grid')
-    if (gridElement) {
-      const buttonElements = gridElement.querySelectorAll('.stream-button')
-      const buttonIndex = newIndex
-      const buttonElement = buttonElements[buttonIndex] as HTMLElement
-
-      if (buttonElement) {
-        buttonElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-          inline: 'center',
-        })
-      }
+    if (targetButton) {
+      targetButton.position = oldPosition
+      buttons.value.set(targetButton.id, targetButton)
     }
-  }, 50)
+
+    buttons.value.set(sourceButton.id, sourceButton)
+    saveButtons()
+
+    if (navigator.vibrate) navigator.vibrate([30, 10, 30])
+  }
+
+  // 4. Limpiamos el estado de arrastre al final
+  touchDragButton.value = null
+  touchOverPosition.value = null
+}
+
+const isTouchDragging = (button: ButtonType | null): boolean => {
+  if (!button || !touchDragButton.value) return false
+  return touchDragButton.value.id === button.id
+}
+
+const isTouchDragOver = (position: { row: number; col: number }): boolean => {
+  return !!(
+    touchOverPosition.value?.row === position.row &&
+    touchOverPosition.value?.col === position.col &&
+    touchDragButton.value !== null
+  )
 }
 
 const handleSaveButton = (button: ButtonType) => {
@@ -388,7 +403,6 @@ const showPresetsDialog = ref(false)
 const multimediaPresets = ref<any[]>([])
 
 const addPresetButton = (preset: any) => {
-  // Buscar primera posición vacía
   for (let row = 0; row < gridRows.value; row++) {
     for (let col = 0; col < gridCols.value; col++) {
       const exists = Array.from(buttons.value.values()).find(
@@ -429,7 +443,7 @@ const addPresetButton = (preset: any) => {
   })
 }
 
-// Drag and Drop handlers
+// Desktop Drag and Drop handlers
 const handleDragStart = (button: ButtonType | null) => {
   if (!button) return
   draggedButton.value = button
@@ -458,7 +472,6 @@ const handleDrop = (targetPosition: { row: number; col: number }) => {
       b.position.col === targetPosition.col,
   )
 
-  // Actualizar posiciones
   const oldPosition = { ...sourceButton.position }
   sourceButton.position = targetPosition
 
@@ -466,7 +479,6 @@ const handleDrop = (targetPosition: { row: number; col: number }) => {
     targetButton.position = oldPosition
   }
 
-  // Actualizar el mapa de botones
   buttons.value.set(sourceButton.id, sourceButton)
   if (targetButton) {
     buttons.value.set(targetButton.id, targetButton)
@@ -518,15 +530,12 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
       break
   }
 
-  // Si no hay cambio de posición, no hacer nada
   if (newRow === currentPos.row && newCol === currentPos.col) return
 
-  // Buscar si hay un botón en la posición objetivo
   const targetButton = Array.from(buttons.value.values()).find(
     (b) => b.position.row === newRow && b.position.col === newCol,
   )
 
-  // Intercambiar posiciones
   editingButton.value.position = { row: newRow, col: newCol }
   if (targetButton) {
     targetButton.position = currentPos
@@ -552,7 +561,13 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   <div class="stream-deck-container">
     <div class="header">
       <div class="title-section">
-        <h1>MHenriquez Spartan Hub</h1>
+        <img
+          src="/logo/SpartanHub-logo.png"
+          alt="SpartanHub Logo"
+          width="150"
+          class="logo"
+        />
+        <!-- <h1 style="text-align: center">MHenriquez Spartan Hub</h1> -->
         <div class="connection-status" :class="connectionStatus">
           <span class="status-dot"></span>
           <span class="status-text">
@@ -607,26 +622,15 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
           <img src="/icons/delete-grid.svg" alt="Eliminar" class="btn-svg" />
           <span class="btn-text">Limpiar Botones</span>
         </button>
-        <button
-          v-if="isMobileView || isTouchDevice"
-          @click="toggleEditMode"
-          class="btn-icon"
-          :class="{ 'btn-edit-active': editMode }"
-          title="Modo Edición"
-        >
-          <i class="pi" :class="editMode ? 'pi-check-circle' : 'pi-pencil'"></i>
-          <span class="btn-text">Modo Edición</span>
-        </button>
       </div>
     </div>
 
-    <p class="hint" v-if="!editMode">
+    <p class="hint" v-if="!isMobileView">
       Click para ejecutar • Click derecho para editar • Arrastra para
       reorganizar
     </p>
     <p class="hint" v-else>
-      🎯 Modo Edición: Toca un botón para seleccionarlo y usa las flechas para
-      moverlo
+      Toca para ejecutar • Mantén presionado 1s para reorganizar
     </p>
 
     <div
@@ -635,25 +639,35 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
         '--grid-cols': gridCols,
         '--grid-rows': gridRows,
       }"
+      @touchmove="handleTouchMove"
+      @touchend="handleTouchEnd"
     >
       <div
         v-for="item in gridItems"
         :key="`${item.row}-${item.col}`"
         class="grid-item"
-        :class="{ executing: isExecuting === item.button?.id }"
+        :class="{
+          executing: isExecuting === item.button?.id,
+          'is-pressing': isPressing === item.button?.id,
+          'touch-dragging': isTouchDragging(item.button),
+          'touch-drag-over': isTouchDragOver({ row: item.row, col: item.col }),
+        }"
+        :data-grid-row="item.row"
+        :data-grid-col="item.col"
+        @touchstart="
+          handleTouchStart(
+            item.button,
+            { row: item.row, col: item.col },
+            $event,
+          )
+        "
       >
         <StreamButton
           :button="item.button"
           :isEmpty="!item.button"
           :isDragging="isDragging(item.button)"
           :isDragOver="isDragOver({ row: item.row, col: item.col })"
-          :isSelected="
-            !!(
-              editMode &&
-              selectedButtonForMove &&
-              item.button?.id === selectedButtonForMove.id
-            )
-          "
+          :isSelected="false"
           @click="handleButtonClick(item.button)"
           @edit="
             handleButtonEdit(item.button, { row: item.row, col: item.col })
@@ -667,57 +681,13 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
       </div>
     </div>
 
-    <!-- Controles flotantes para mover botón seleccionado -->
-    <div v-if="editMode && selectedButtonForMove" class="floating-controls">
-      <div class="control-container">
-        <button
-          @click="moveSelectedButton('up')"
-          class="control-btn"
-          title="Mover arriba"
-        >
-          <i class="pi pi-arrow-up"></i>
-        </button>
-        <div class="control-row">
-          <button
-            @click="moveSelectedButton('left')"
-            class="control-btn"
-            title="Mover izquierda"
-          >
-            <i class="pi pi-arrow-left"></i>
-          </button>
-          <div class="control-info">
-            {{ selectedButtonForMove.label }}
-          </div>
-          <button
-            @click="moveSelectedButton('right')"
-            class="control-btn"
-            title="Mover derecha"
-          >
-            <i class="pi pi-arrow-right"></i>
-          </button>
-        </div>
-        <button
-          @click="moveSelectedButton('down')"
-          class="control-btn"
-          title="Mover abajo"
-        >
-          <i class="pi pi-arrow-down"></i>
-        </button>
-        <button
-          @click="selectedButtonForMove = null"
-          class="control-btn control-close"
-          title="Deseleccionar"
-        >
-          <i class="pi pi-times"></i>
-        </button>
-      </div>
-    </div>
-
     <ServerSettings v-model:show="showSettings" />
 
     <DownloadsPage v-if="showDownloads" @close="showDownloads = false" />
 
+    <!-- Editor solo en desktop -->
     <ButtonEditor
+      v-if="!isMobileView"
       :show="showEditor"
       :button="editingButton"
       :position="editingPosition"
@@ -769,8 +739,9 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
           href="https://mhenriquezdev.com/"
           target="_blank"
           rel="noopener noreferrer"
-          >Manuel Henriquez</a
         >
+          Manuel Henriquez
+        </a>
       </p>
       <p class="copyright">© 2026 - Todos los derechos reservados</p>
     </footer>
@@ -794,6 +765,24 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   }
 }
 
+/* Evita que el estado active/hover se quede pegado en móviles */
+@media (hover: none) {
+  .grid-item:active,
+  .btn-icon:active {
+    background: inherit;
+    transform: none;
+  }
+}
+.header {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
 .header h1 {
   margin: 0;
   font-size: 2rem;
@@ -805,14 +794,12 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   text-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
 }
 
-/* Ocultar botón de descarga en pantallas menores a 1024px */
 @media (max-width: 1024px) {
   .actions .btn-download {
     display: none !important;
   }
 }
 
-/* Botones en grid para pantallas menores a 850px */
 @media (max-width: 850px) {
   .actions {
     width: 100%;
@@ -840,6 +827,13 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
     gap: 16px;
     margin-bottom: 20px;
     padding-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
   }
 
   .header h1 {
@@ -855,13 +849,15 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.05);
   font-size: 0.85rem;
+  text-align: center;
+  width: max-content;
 }
 
 .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  animation: pulse 2s infinite;
+  animation: pulse 1s infinite;
 }
 
 .connection-status.connected .status-dot {
@@ -953,122 +949,30 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
 }
 
-.btn-icon.btn-edit-active {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
-}
-
-.btn-icon.btn-edit-active:hover {
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-}
-
-/* Controles flotantes para modo edición */
-.floating-controls {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  animation: slideUp 0.3s ease-out;
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
-.control-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 16px;
-  background: rgba(20, 20, 30, 0.95);
-  backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 16px;
-  border: 2px solid rgba(34, 197, 94, 0.3);
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.5),
-    0 0 20px rgba(34, 197, 94, 0.2),
-    inset 0 1px 2px rgba(255, 255, 255, 0.1);
-}
-
-.control-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.control-btn {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(34, 197, 94, 0.2);
-  border: 2px solid rgba(34, 197, 94, 0.4);
-  border-radius: 12px;
-  color: #22c55e;
-  font-size: 20px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(10px);
-}
-
-.control-btn:hover {
-  background: rgba(34, 197, 94, 0.3);
-  border-color: rgba(34, 197, 94, 0.6);
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
-}
-
-.control-btn:active {
-  transform: scale(0.95);
-}
-
-.control-btn.control-close {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #ef4444;
-  margin-top: 4px;
-}
-
-.control-btn.control-close:hover {
-  background: rgba(239, 68, 68, 0.3);
-  border-color: rgba(239, 68, 68, 0.6);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-}
-
-.control-info {
-  padding: 8px 16px;
-  background: rgba(139, 92, 246, 0.2);
-  border: 2px solid rgba(139, 92, 246, 0.3);
-  border-radius: 8px;
-  color: #a78bfa;
-  font-size: 14px;
-  font-weight: 600;
+.hint {
+  color: var(--hint-color);
+  font-size: 0.9rem;
+  margin: 0 0 16px 0;
   text-align: center;
-  min-width: 120px;
-  backdrop-filter: blur(10px);
+  transition: color 0.3s ease;
+}
+
+@media (max-width: 640px) {
+  .hint {
+    font-size: 0.75rem;
+    margin-bottom: 12px;
+  }
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(var(--grid-cols), 1fr);
   grid-template-rows: repeat(var(--grid-rows), 1fr);
-  gap: 12px;
+  gap: 20px;
   flex: 1;
   margin-bottom: 24px;
-  padding: 24px;
+  padding: 30px;
   border-radius: 16px;
-
-  /* Fondo tipo Stream Deck real */
   background: linear-gradient(145deg, #0a0a0a, #141414);
   box-shadow:
     inset 0 0 0 2px #000,
@@ -1077,9 +981,13 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
     0 8px 24px rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.05);
   position: relative;
+  touch-action: pan-y; /* PERMITE scroll vertical, bloquea el resto */
+  user-select: none;
+  grid-auto-rows: 1fr;
+  perspective: 1000px; /* La cámara ahora mira a toda la cuadrícula, no a cada botón */
+  perspective-origin: center;
 }
 
-/* Responsive: ajustar spacing en móvil y limitar columnas */
 @media (max-width: 640px) {
   .grid {
     grid-template-columns: repeat(2, 1fr) !important;
@@ -1092,7 +1000,6 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   }
 }
 
-/* Responsive: ajustar spacing en tablet */
 @media (min-width: 641px) and (max-width: 1024px) {
   .grid {
     gap: 10px;
@@ -1122,6 +1029,10 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
 
 .grid-item {
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  touch-action: inheritance;
+  will-change:
+    transform, opacity; /* Ayuda al navegador a optimizar la animación */
+  pointer-events: auto; /* Asegura que reciba eventos después de soltar */
 }
 
 .grid-item.executing {
@@ -1143,139 +1054,47 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   }
 }
 
-.hint {
-  color: var(--hint-color);
-  font-size: 0.9rem;
-  margin: 0 0 16px 0;
-  text-align: center;
-  transition: color 0.3s ease;
+/* Touch drag & drop */
+.grid-item.touch-dragging {
+  opacity: 0.4;
+  transform: scale(0.92);
 }
 
-/* Controles flotantes para mover botones en modo edición */
-.floating-controls {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
-.control-container {
-  background: rgba(30, 30, 45, 0.95);
-  backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 20px;
-  padding: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.15);
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: center;
-}
-
-.control-row {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.control-btn {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  background: rgba(60, 60, 80, 0.6);
-  backdrop-filter: blur(10px);
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.control-btn:hover {
-  background: rgba(80, 80, 110, 0.8);
-  border-color: rgba(139, 92, 246, 0.6);
-  transform: scale(1.05);
-}
-
-.control-btn:active {
+/* Indicador visual de dónde va a caer el botón */
+.grid-item.touch-drag-over {
   transform: scale(0.95);
+  outline: 2px solid #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+  border-radius: 12px;
 }
 
-.control-close {
-  background: rgba(239, 68, 68, 0.6);
-  border-color: rgba(239, 68, 68, 0.4);
+/* Animación de "carga" mientras mantiene presionado */
+.grid-item.is-pressing {
+  animation: pulse-wait 1s ease-in-out infinite;
+  filter: contrast(1.2) brightness(1.2);
 }
 
-.control-close:hover {
-  background: rgba(239, 68, 68, 0.8);
-  border-color: rgba(239, 68, 68, 0.6);
-}
-
-.control-info {
-  padding: 8px 16px;
-  background: rgba(40, 40, 60, 0.8);
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: white;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 120px;
-}
-
-/* Botón modo edición activo */
-.btn-edit-active {
-  background: rgba(34, 197, 94, 0.2) !important;
-  border-color: rgba(34, 197, 94, 0.5) !important;
-}
-
-.btn-edit-active:hover {
-  background: rgba(34, 197, 94, 0.3) !important;
-}
-
-@media (max-width: 640px) {
-  .hint {
-    font-size: 0.75rem;
-    margin-bottom: 12px;
+@keyframes pulse-wait {
+  0% {
+    transform: scale(1);
   }
-
-  .floating-controls {
-    bottom: 16px;
+  50% {
+    transform: scale(0.92);
   }
-
-  .control-container {
-    padding: 12px;
+  100% {
+    transform: scale(1.05);
   }
+}
 
-  .control-btn {
-    width: 44px;
-    height: 44px;
-  }
-
-  .control-info {
-    max-width: 100px;
-    font-size: 0.85rem;
-  }
+/* Cuando el botón ya se puede mover (después de los 1s) */
+.grid-item.touch-dragging {
+  z-index: 100;
+  opacity: 0.9;
+  transform: scale(1.15) translateY(-5px); /* Sobresale hacia arriba */
+  filter: brightness(1.1);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6); /* Sombra para efecto de elevación */
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  pointer-events: none; /* Evita interferencias mientras se arrastra */
 }
 
 .footer {
@@ -1320,16 +1139,30 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   margin: 0;
   opacity: 0.7;
 }
+.title-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
 
 @media (max-width: 768px) {
   .header {
     flex-direction: column;
     gap: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
   }
 
   .title-section {
     flex-direction: column;
     gap: 12px;
+    text-align: center;
   }
 
   .grid {
@@ -1367,10 +1200,10 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  animation: slideUp 0.3s;
+  animation: slideUpDialog 0.3s;
 }
 
-@keyframes slideUp {
+@keyframes slideUpDialog {
   from {
     transform: translateY(20px);
     opacity: 0;
@@ -1473,5 +1306,21 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
 .preset-description {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.6);
+}
+
+/* ⭐ Forzar limpieza de estado touch en grid */
+.grid-item {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Prevenir estados pegados en mobile */
+@media (max-width: 850px) {
+  .grid-item * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
 }
 </style>

@@ -10,8 +10,8 @@
   "scripts": {
     "dev": "vite",
     "dev:electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron electron-main.mjs\"",
-    "build:electron": "vite build",
-    "build": "vite build && electron-builder",
+    "build": "vite build",
+    "build:electron": "vite build && electron-builder",
     "preview": "vite preview"
   },
   "dependencies": {

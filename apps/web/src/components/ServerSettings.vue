@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { BarcodeScanner } from '@capacitor-community/barcode-scanner'
 import QRCode from 'qrcode'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useServerUrlStore } from '../store/serverUrl.store'
@@ -9,11 +10,11 @@ const serverUrl = ref(serverUrlStore.serverUrl)
 const isConnecting = ref(false)
 const connectionStatus = ref<'success' | 'error' | null>(null)
 const gridSize = ref(12)
-const serverLocalIP = ref<string | null>(null)
-const isLoadingIP = ref(false)
 const qrCodeUrl = ref<string | null>(null)
 
 const isMobile = ref(window.innerWidth <= 768)
+const isScanning = ref(false)
+const scanError = ref<string | null>(null)
 
 const gridSizeOptions = [
   { value: 8, label: '8 botones (2x4)' },
@@ -24,25 +25,18 @@ const gridSizeOptions = [
 ]
 
 onMounted(() => {
-  // Detectar si viene serverUrl por query parameter (desde QR)
   const urlParams = new URLSearchParams(window.location.search)
   const serverUrlFromQR = urlParams.get('serverUrl')
 
   if (serverUrlFromQR) {
-    // Configurar automáticamente la URL del servidor
     serverUrl.value = serverUrlFromQR
     serverUrlStore.setServerUrl(serverUrlFromQR)
-
-    // Limpiar el query parameter de la URL
     window.history.replaceState({}, '', window.location.pathname)
-
-    // Mostrar mensaje de éxito
     connectionStatus.value = 'success'
     setTimeout(() => {
       connectionStatus.value = null
     }, 3000)
   } else {
-    // Cargar configuración guardada
     const saved = localStorage.getItem('serverUrl')
     if (saved) {
       serverUrl.value = saved
@@ -51,96 +45,131 @@ onMounted(() => {
   }
 
   const savedGridSize = localStorage.getItem('gridSize')
-  if (savedGridSize) {
-    gridSize.value = parseInt(savedGridSize)
-  }
+  if (savedGridSize) gridSize.value = parseInt(savedGridSize)
 
-  // Cargar del caché si existe
-  const cachedIP = localStorage.getItem('serverLocalIP')
   const cachedQR = localStorage.getItem('qrCodeUrl')
-  if (cachedIP) {
-    serverLocalIP.value = cachedIP
-  }
-  if (cachedQR) {
-    qrCodeUrl.value = cachedQR
-  }
+  if (cachedQR) qrCodeUrl.value = cachedQR
 
-  // Listener para cambios de tamaño de ventana
   const handleResize = () => {
     isMobile.value = window.innerWidth <= 768
   }
   window.addEventListener('resize', handleResize)
 
-  loadServerIP()
-  generateQRCode()
+  if (!isMobile.value) generateQRCode()
 })
 
-onUnmounted(() => {
-  window.removeEventListener('resize', () => {
-    isMobile.value = window.innerWidth <= 768
-  })
+onUnmounted(async () => {
+  if (isScanning.value) await stopScanner()
 })
-
-const loadServerIP = async () => {
-  isLoadingIP.value = true
-  try {
-    const response = await fetch(`${serverUrl.value}/network-info`)
-    if (response.ok) {
-      const data = await response.json()
-      serverLocalIP.value = data.url
-
-      // Guardar en caché
-      if (data.url) {
-        localStorage.setItem('serverLocalIP', data.url)
-      }
-    }
-  } catch (error) {
-    // Si falla, usar caché si existe
-    const cachedIP = localStorage.getItem('serverLocalIP')
-    if (cachedIP) serverLocalIP.value = cachedIP
-  } finally {
-    isLoadingIP.value = false
-  }
-}
 
 const generateQRCode = async () => {
   try {
-    // Usar la URL del frontend actual e incluir serverUrl como query parameter
     const frontendUrl = window.location.origin
     const qrUrl = `${frontendUrl}?serverUrl=${encodeURIComponent(serverUrl.value)}`
-
     qrCodeUrl.value = await QRCode.toDataURL(qrUrl, {
       width: 200,
       margin: 2,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF',
-      },
+      color: { dark: '#000000', light: '#FFFFFF' },
     })
-
-    if (qrCodeUrl.value) {
-      localStorage.setItem('qrCodeUrl', qrCodeUrl.value)
-    }
+    if (qrCodeUrl.value) localStorage.setItem('qrCodeUrl', qrCodeUrl.value)
   } catch (error) {
     console.error('Error generando QR:', error)
+  }
+}
+
+const startScanner = async () => {
+  scanError.value = null
+
+  try {
+    const status = await BarcodeScanner.checkPermission({ force: true })
+    if (!status.granted) {
+      scanError.value = 'Se necesita permiso de cámara'
+      return
+    }
+
+    // ⭐ Preparar para escanear
+    isScanning.value = true
+
+    // ⭐ Agregar clase al body ANTES de hideBackground
+    document.body.classList.add('qr-scanning')
+    document.querySelector('.settings-overlay')?.classList.add('scanner-active')
+
+    // Pequeño delay para que el DOM se actualice
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    // Ocultar contenido y mostrar cámara
+    await BarcodeScanner.hideBackground()
+
+    const result = await BarcodeScanner.startScan()
+
+    // Cerrar scanner inmediatamente
+    await stopScanner()
+
+    if (result.hasContent) {
+      handleScanResult(result.content)
+    } else {
+      scanError.value = 'No se pudo leer el código QR'
+    }
+  } catch (error: any) {
+    console.error('Error al escanear:', error)
+    scanError.value = 'Error al acceder a la cámara'
+    await stopScanner()
+  }
+}
+
+const stopScanner = async () => {
+  try {
+    await BarcodeScanner.stopScan()
+    await BarcodeScanner.showBackground()
+  } catch (error) {
+    console.error('Error stopping scanner:', error)
+  } finally {
+    isScanning.value = false
+    document.body.classList.remove('qr-scanning')
+    document
+      .querySelector('.settings-overlay')
+      ?.classList.remove('scanner-active')
+  }
+}
+
+const handleScanResult = (content: string) => {
+  try {
+    const url = new URL(content)
+    const scannedServerUrl = url.searchParams.get('serverUrl')
+
+    if (scannedServerUrl) {
+      serverUrl.value = scannedServerUrl
+      serverUrlStore.setServerUrl(scannedServerUrl)
+    } else if (content.startsWith('http')) {
+      serverUrl.value = content
+    } else {
+      scanError.value = 'El QR no contiene una URL válida'
+      return
+    }
+
+    connectionStatus.value = 'success'
+    setTimeout(() => {
+      connectionStatus.value = null
+    }, 3000)
+  } catch {
+    if (content.startsWith('http')) {
+      serverUrl.value = content
+      connectionStatus.value = 'success'
+    } else {
+      scanError.value = 'El QR no contiene una URL válida'
+    }
   }
 }
 
 const testConnection = async () => {
   isConnecting.value = true
   connectionStatus.value = null
-
   try {
     const response = await fetch(`${serverUrl.value}/command`, {
       method: 'GET',
     })
-
-    if (response.ok) {
-      connectionStatus.value = 'success'
-    } else {
-      connectionStatus.value = 'error'
-    }
-  } catch (error) {
+    connectionStatus.value = response.ok ? 'success' : 'error'
+  } catch {
     connectionStatus.value = 'error'
   } finally {
     isConnecting.value = false
@@ -148,18 +177,35 @@ const testConnection = async () => {
 }
 
 const save = () => {
-  console.log('Saving gridSize:', gridSize.value)
   serverUrlStore.setServerUrl(serverUrl.value)
   localStorage.setItem('gridSize', gridSize.value.toString())
   window.location.reload()
 }
 
 const close = () => {
+  if (isScanning.value) stopScanner()
   show.value = false
 }
 </script>
 
 <template>
+  <!-- ⭐ Scanner fullscreen (fuera del modal, usando Teleport) -->
+  <Teleport to="body">
+    <div v-if="isScanning" class="scanner-fullscreen">
+      <div class="scanner-ui">
+        <div class="scanner-frame">
+          <div class="scanner-corner tl"></div>
+          <div class="scanner-corner tr"></div>
+          <div class="scanner-corner bl"></div>
+          <div class="scanner-corner br"></div>
+          <div class="scanner-line"></div>
+        </div>
+        <p class="scanner-hint">Apunta al código QR de tu PC</p>
+        <button @click="stopScanner" class="btn-cancel-scan">✕ Cancelar</button>
+      </div>
+    </div>
+  </Teleport>
+
   <div v-if="show" class="settings-overlay" @click="close">
     <div class="settings-dialog" @click.stop>
       <div class="settings-header">
@@ -168,27 +214,40 @@ const close = () => {
       </div>
 
       <div class="settings-content">
-        <div class="info-box">
+        <!-- Info box solo desktop -->
+        <div v-if="!isMobile" class="info-box">
           <p>
             <strong>Conecta desde otro dispositivo:</strong><br />
             1. Inicia el servidor en tu PC<br />
-            2. Anota la IP local que aparece en la consola<br />
-            3. En tu tablet/móvil, ingresa: http://[IP]:8765<br />
-            4. Guarda y recarga la página
+            2. Abre Configuración en tu móvil/tablet<br />
+            3. Escanea el QR que aparece aquí<br />
+            4. ¡Listo!
           </p>
         </div>
 
-        <div v-if="serverUrl && !isMobile" class="ip-display">
+        <!-- Desktop: QR para escanear -->
+        <div v-if="!isMobile && qrCodeUrl" class="ip-display">
           <label>🌐 URL configurada:</label>
           <div class="ip-box">
             <code>{{ serverUrl }}</code>
           </div>
-          <small>Usa esta URL en tu móvil/tablet para conectarte</small>
-
-          <div v-if="qrCodeUrl" class="qr-section">
+          <small>Escanea el QR desde tu móvil para conectarte</small>
+          <div class="qr-section">
             <div class="qr-label">📱 Escanea para conectar:</div>
             <img :src="qrCodeUrl" alt="QR Code" class="qr-code" />
           </div>
+        </div>
+
+        <!-- ⭐ Mobile: botón escanear -->
+        <div v-if="isMobile" class="scan-section">
+          <div class="scan-idle">
+            <button @click="startScanner" class="btn-scan">
+              📷 Escanear QR
+            </button>
+            <p class="scan-hint">Apunta al QR de la app en tu PC</p>
+          </div>
+
+          <div v-if="scanError" class="scan-error">⚠️ {{ scanError }}</div>
         </div>
 
         <div class="form-group">
@@ -197,10 +256,10 @@ const close = () => {
             id="serverUrl"
             v-model="serverUrl"
             type="text"
-            placeholder="http://192.168.1.100:8765"
+            placeholder="http://192.168.1.100:7500"
             class="server-input"
           />
-          <small>Ejemplo: http://192.168.1.100:8765</small>
+          <small>O ingresa la IP manualmente: http://192.168.1.100:7500</small>
         </div>
 
         <div class="form-group">
@@ -227,7 +286,7 @@ const close = () => {
 
         <div v-if="connectionStatus" class="connection-result">
           <div v-if="connectionStatus === 'success'" class="success">
-            ✅ Conexión exitosa
+            ✅ {{ isMobile ? 'URL configurada desde QR' : 'Conexión exitosa' }}
           </div>
           <div v-else class="error">
             ❌ No se pudo conectar. Verifica la IP y que el servidor esté
@@ -245,6 +304,104 @@ const close = () => {
 </template>
 
 <style scoped>
+/* ⭐ Scanner fullscreen */
+.scanner-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.scanner-ui {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.scanner-frame {
+  width: 220px;
+  height: 220px;
+  position: relative;
+}
+
+.scanner-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-color: #8b5cf6;
+  border-style: solid;
+}
+
+.scanner-corner.tl {
+  top: 0;
+  left: 0;
+  border-width: 4px 0 0 4px;
+  border-radius: 4px 0 0 0;
+}
+.scanner-corner.tr {
+  top: 0;
+  right: 0;
+  border-width: 4px 4px 0 0;
+  border-radius: 0 4px 0 0;
+}
+.scanner-corner.bl {
+  bottom: 0;
+  left: 0;
+  border-width: 0 0 4px 4px;
+  border-radius: 0 0 0 4px;
+}
+.scanner-corner.br {
+  bottom: 0;
+  right: 0;
+  border-width: 0 4px 4px 0;
+  border-radius: 0 0 4px 0;
+}
+
+.scanner-line {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #8b5cf6, transparent);
+  animation: scan 2s linear infinite;
+}
+
+@keyframes scan {
+  0% {
+    top: 8px;
+  }
+  100% {
+    top: calc(100% - 8px);
+  }
+}
+
+.scanner-hint {
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  text-align: center;
+}
+
+.btn-cancel-scan {
+  padding: 12px 32px;
+  background: rgba(239, 68, 68, 0.9);
+  backdrop-filter: blur(8px);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Settings modal */
 .settings-overlay {
   position: fixed;
   inset: 0;
@@ -358,7 +515,6 @@ const close = () => {
 .ip-box {
   display: flex;
   align-items: center;
-  gap: 8px;
   background: rgba(0, 0, 0, 0.3);
   padding: 12px 16px;
   border-radius: 8px;
@@ -371,26 +527,6 @@ const close = () => {
   font-size: 1.1rem;
   color: #4ade80;
   font-weight: 600;
-}
-
-.btn-copy {
-  padding: 6px 12px;
-  background: rgba(34, 197, 94, 0.2);
-  border: 1px solid rgba(34, 197, 94, 0.4);
-  border-radius: 6px;
-  color: #22c55e;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.2s;
-}
-
-.btn-copy:hover {
-  background: rgba(34, 197, 94, 0.3);
-  transform: scale(1.1);
-}
-
-.btn-copy:active {
-  transform: scale(0.95);
 }
 
 .ip-display small {
@@ -422,10 +558,56 @@ const close = () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-@media (max-width: 768px) {
-  .hide-mobile {
-    display: none !important;
-  }
+/* Scanner button section */
+.scan-section {
+  margin-bottom: 20px;
+}
+
+.scan-idle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 12px;
+}
+
+.btn-scan {
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+.btn-scan:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.scan-hint {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  text-align: center;
+  margin: 0;
+}
+
+.scan-error {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #ef4444;
+  font-size: 0.85rem;
 }
 
 .form-group {
@@ -459,7 +641,6 @@ select.server-input {
 select.server-input option {
   background: #1e1e1e;
   color: #fff;
-  padding: 10px;
 }
 
 .server-input:focus {
@@ -500,7 +681,6 @@ select.server-input option {
 }
 
 .connection-result {
-  padding: 12px;
   border-radius: 10px;
   font-weight: 600;
 }
@@ -509,12 +689,16 @@ select.server-input option {
   background: rgba(74, 222, 128, 0.1);
   border: 1px solid rgba(74, 222, 128, 0.3);
   color: #4ade80;
+  padding: 12px;
+  border-radius: 8px;
 }
 
 .connection-result .error {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: #ef4444;
+  padding: 12px;
+  border-radius: 8px;
 }
 
 .settings-footer {
@@ -553,5 +737,27 @@ select.server-input option {
 .btn-save:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+}
+</style>
+
+<!-- Global style para ocultar app mientras escanea -->
+<style>
+/* ⭐ Cuando está escaneando, ocultar TODO excepto el scanner */
+body.qr-scanning {
+  overflow: hidden;
+}
+
+body.qr-scanning .settings-overlay.scanner-active {
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+
+body.qr-scanning .settings-dialog {
+  display: none !important;
+}
+
+/* Asegurar que el scanner tenga el z-index más alto */
+.scanner-fullscreen {
+  z-index: 99999 !important;
 }
 </style>

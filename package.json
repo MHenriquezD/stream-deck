@@ -12,7 +12,7 @@
     "build": "pnpm --parallel build:server build:web",
     "build:server": "pnpm --filter server build",
     "build:web": "pnpm --filter web build",
-    "build:electron": "pnpm run build:server && pnpm --filter web build:electron",
+    "build:electron": "pnpm run build:server && pnpm --filter web build",
     "build:electron:win": "pnpm run build:electron && pnpm -C apps/web exec electron-builder --win --publish never",
     "build:web:android": "pnpm run build:web && cd apps/web && npx cap build android",
     "build:apk": "pnpm run build:web:android",
