@@ -31,57 +31,11 @@ onMounted(() => {
 
 <template>
   <button
-    class="theme-toggle"
     @click="toggleTheme"
     :title="isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
+    class="fixed top-4 right-4 w-12 h-12 rounded-xl border-2 flex items-center justify-center text-[1.25rem] transition-all duration-300 z-[1000] shadow-lg border-white/10 bg-[#23233a] text-white/90 hover:bg-[#28283c] hover:border-white/20 hover:scale-105 active:scale-95 dark:bg-[#23233a] dark:text-white/90 dark:border-white/10 dark:hover:bg-[#28283c] dark:hover:border-white/20 dark:active:scale-95 [data-theme='light']:bg-white [data-theme='light']:border-black/10 [data-theme='light']:text-black/80 [data-theme='light']:shadow-md [data-theme='light']:hover:bg-[#f5f5f5] [data-theme='light']:hover:border-black/15"
   >
     <i v-if="isDark" class="pi pi-sun"></i>
     <i v-else class="pi pi-moon"></i>
   </button>
 </template>
-
-<style scoped>
-.theme-toggle {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  background: rgba(30, 30, 46, 0.8);
-  backdrop-filter: blur(10px);
-  color: rgba(255, 255, 255, 0.9);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-  transition: all 0.3s ease;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.theme-toggle:hover {
-  background: rgba(40, 40, 60, 0.9);
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: scale(1.05);
-}
-
-.theme-toggle:active {
-  transform: scale(0.95);
-}
-
-/* Estilos para tema claro */
-:global([data-theme='light']) .theme-toggle {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(0, 0, 0, 0.1);
-  color: rgba(0, 0, 0, 0.8);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-:global([data-theme='light']) .theme-toggle:hover {
-  background: rgba(240, 240, 240, 1);
-  border-color: rgba(0, 0, 0, 0.15);
-}
-</style>

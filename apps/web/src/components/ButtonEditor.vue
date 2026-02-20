@@ -178,13 +178,12 @@ const iconCatalog = [
 const iconSuggestions = computed(() => {
   const query = formData.icon.toLowerCase().trim()
   if (!query || query.length < 2) return []
-
   return iconCatalog
     .filter(
       (item) =>
         item.label.toLowerCase().includes(query) ||
         item.keywords.some((kw) => kw.includes(query)) ||
-        item.icon.includes(query)
+        item.icon.includes(query),
     )
     .slice(0, 8)
 })
@@ -196,7 +195,7 @@ watch(
       iconInputFocused.value &&
       newVal.length >= 2 &&
       iconSuggestions.value.length > 0
-  }
+  },
 )
 
 watch(
@@ -214,7 +213,7 @@ watch(
         resetForm()
       }
     }
-  }
+  },
 )
 
 const resetForm = () => {
@@ -245,7 +244,6 @@ const handleSave = () => {
 
 const handleDelete = () => {
   if (!props.button) return
-
   confirm.require({
     message: '¿Estás seguro de que quieres eliminar este botón?',
     header: 'Confirmar eliminación',
@@ -259,28 +257,22 @@ const handleDelete = () => {
   })
 }
 
-const handleClose = () => {
-  emit('close')
-}
-
+const handleClose = () => emit('close')
 const setEmoji = (emoji: string) => {
   formData.icon = emoji
 }
 
 const handleIconSelect = (icon: string) => {
-  console.log('Icon selected:', icon)
   formData.icon = icon
   showIconPicker.value = false
 }
 
 const handleCommandSelect = (command: string) => {
-  console.log('Command selected:', command)
   formData.payload = command
   showCommandPicker.value = false
 }
 
 const handleAppSelect = (app: string) => {
-  console.log('App selected:', app)
   formData.payload = app
   showAppPicker.value = false
 }
@@ -418,7 +410,6 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
                 class="color-input"
               />
             </div>
-
             <div class="form-group">
               <label>Color de Fondo</label>
               <input
@@ -448,10 +439,10 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
                 formData.actionType === 'COMMAND'
                   ? 'Comando'
                   : formData.actionType === 'HOTKEY'
-                  ? 'Atajo (Ej: Ctrl+C)'
-                  : formData.actionType === 'OPEN_APP'
-                  ? 'Ruta de la App'
-                  : 'URL'
+                    ? 'Atajo (Ej: Ctrl+C)'
+                    : formData.actionType === 'OPEN_APP'
+                      ? 'Ruta de la App'
+                      : 'URL'
               }}
             </label>
             <div
@@ -634,6 +625,9 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
 </template>
 
 <style scoped>
+/* ===========================
+   OVERLAY — FIX PRINCIPAL
+   =========================== */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -648,6 +642,13 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   padding: 20px;
 }
 
+:global([data-theme='light']) .modal-overlay {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* ===========================
+   CONTAINER
+   =========================== */
 .modal-container {
   background: #1e1e1e;
   border-radius: 16px;
@@ -658,6 +659,14 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
+:global([data-theme='light']) .modal-container {
+  background: #ffffff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+/* ===========================
+   HEADER
+   =========================== */
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -666,10 +675,18 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+:global([data-theme='light']) .modal-header {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
 .modal-header h2 {
   margin: 0;
   font-size: 1.5rem;
   color: #fff;
+}
+
+:global([data-theme='light']) .modal-header h2 {
+  color: rgba(0, 0, 0, 0.87);
 }
 
 .close-btn {
@@ -692,6 +709,17 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   background: rgba(255, 255, 255, 0.1);
 }
 
+:global([data-theme='light']) .close-btn {
+  color: rgba(0, 0, 0, 0.7);
+}
+
+:global([data-theme='light']) .close-btn:hover {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+/* ===========================
+   BODY / FORM
+   =========================== */
 .modal-body {
   padding: 24px;
 }
@@ -714,6 +742,10 @@ label {
   font-weight: 500;
 }
 
+:global([data-theme='light']) label {
+  color: rgba(0, 0, 0, 0.55);
+}
+
 .form-input,
 .form-select,
 .form-textarea {
@@ -726,6 +758,24 @@ label {
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.2s;
+}
+
+:global([data-theme='light']) .form-input,
+:global([data-theme='light']) .form-select,
+:global([data-theme='light']) .form-textarea {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: rgba(0, 0, 0, 0.87);
+}
+
+:global([data-theme='light']) .form-input::placeholder,
+:global([data-theme='light']) .form-textarea::placeholder {
+  color: rgba(0, 0, 0, 0.35);
+}
+
+:global([data-theme='light']) .form-select option {
+  background: #ffffff;
+  color: rgba(0, 0, 0, 0.87);
 }
 
 .form-input:focus,
@@ -750,6 +800,14 @@ label {
   cursor: pointer;
 }
 
+:global([data-theme='light']) .color-input {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+/* ===========================
+   ICON INPUT & SUGGESTIONS
+   =========================== */
 .icon-input-wrapper {
   display: flex;
   gap: 8px;
@@ -780,6 +838,12 @@ label {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
+:global([data-theme='light']) .icon-suggestions {
+  background: #ffffff;
+  border-color: rgba(139, 92, 246, 0.25);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
 .suggestion-item {
   width: 100%;
   display: flex;
@@ -794,12 +858,24 @@ label {
   text-align: left;
 }
 
+:global([data-theme='light']) .suggestion-item {
+  color: rgba(0, 0, 0, 0.87);
+}
+
 .suggestion-item:hover {
   background: rgba(139, 92, 246, 0.2);
 }
 
+:global([data-theme='light']) .suggestion-item:hover {
+  background: rgba(139, 92, 246, 0.08);
+}
+
 .suggestion-item:not(:last-child) {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+:global([data-theme='light']) .suggestion-item:not(:last-child) {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
 }
 
 .suggestion-icon {
@@ -821,10 +897,220 @@ label {
   color: rgba(255, 255, 255, 0.9);
 }
 
-.icon-input-wrapper .form-input {
+:global([data-theme='light']) .suggestion-label {
+  color: rgba(0, 0, 0, 0.75);
+}
+
+/* ===========================
+   ICON PREVIEW
+   =========================== */
+.icon-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+:global([data-theme='light']) .icon-preview {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.preview-label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+:global([data-theme='light']) .preview-label {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.icon-display {
+  font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.custom-icon-display {
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
+}
+
+.icon-display i {
+  color: #fff;
+}
+
+:global([data-theme='light']) .icon-display i {
+  color: rgba(0, 0, 0, 0.75);
+}
+
+.emoji-display {
+  font-size: 2.5rem;
+}
+
+/* ===========================
+   EMOJI PRESETS
+   =========================== */
+.emoji-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.emoji-btn {
+  background: #2a2a2a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.emoji-btn:hover {
+  background: #3a3a3a;
+  transform: scale(1.1);
+}
+
+:global([data-theme='light']) .emoji-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+:global([data-theme='light']) .emoji-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* ===========================
+   PREVIEW BOX
+   =========================== */
+.preview {
+  margin-top: 24px;
+  padding: 20px;
+  background: #2a2a2a;
+  border-radius: 8px;
+}
+
+:global([data-theme='light']) .preview {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.preview-button {
+  aspect-ratio: 1;
+  max-width: 150px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  margin: 0 auto;
+}
+
+.preview-icon {
+  font-size: 2.5rem;
+}
+
+.preview-custom-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: contain;
+}
+
+.preview-text {
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* ===========================
+   FOOTER
+   =========================== */
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  padding: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+:global([data-theme='light']) .modal-footer {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+.spacer {
   flex: 1;
 }
 
+/* ===========================
+   BUTTONS
+   =========================== */
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #4a9eff;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #3a8eef;
+}
+
+.btn-secondary {
+  background: #3a3a3a;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #4a4a4a;
+}
+
+:global([data-theme='light']) .btn-secondary {
+  background: rgba(0, 0, 0, 0.07);
+  color: rgba(0, 0, 0, 0.8);
+}
+
+:global([data-theme='light']) .btn-secondary:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.btn-danger {
+  background: #ff4a4a;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #ef3a3a;
+}
+
+/* ===========================
+   ICON / COMMAND PICKER BUTTONS
+   =========================== */
 .icon-picker-btn {
   background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
   border: none;
@@ -881,165 +1167,9 @@ label {
   font-size: 1rem;
 }
 
-.icon-preview {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.preview-label {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.icon-display {
-  font-size: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.custom-icon-display {
-  width: 2rem;
-  height: 2rem;
-  object-fit: contain;
-}
-
-.icon-display i {
-  color: #fff;
-}
-
-.emoji-display {
-  font-size: 2.5rem;
-}
-
-.emoji-presets {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-
-.emoji-btn {
-  background: #2a2a2a;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  width: 40px;
-  height: 40px;
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.emoji-btn:hover {
-  background: #3a3a3a;
-  transform: scale(1.1);
-}
-
-.preview {
-  margin-top: 24px;
-  padding: 20px;
-  background: #2a2a2a;
-  border-radius: 8px;
-}
-
-.preview-label {
-  color: #aaa;
-  font-size: 0.9rem;
-  margin-bottom: 12px;
-}
-
-.preview-button {
-  aspect-ratio: 1;
-  max-width: 150px;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 16px;
-  margin: 0 auto;
-}
-
-.preview-icon {
-  font-size: 2.5rem;
-}
-
-.preview-custom-icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  object-fit: contain;
-}
-
-.preview-text {
-  font-weight: 600;
-  font-size: 0.9rem;
-  text-align: center;
-}
-
-.modal-footer {
-  display: flex;
-  gap: 12px;
-  padding: 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.spacer {
-  flex: 1;
-}
-
-.btn {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: #4a9eff;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #3a8eef;
-}
-
-.btn-secondary {
-  background: #3a3a3a;
-  color: white;
-}
-
-.btn-secondary:hover {
-  background: #4a4a4a;
-}
-
-.btn-danger {
-  background: #ff4a4a;
-  color: white;
-}
-
-.btn-danger:hover {
-  background: #ef3a3a;
-}
-
+/* ===========================
+   POSITION CONTROLS
+   =========================== */
 .position-controls {
   display: none;
   flex-direction: column;
@@ -1050,6 +1180,10 @@ label {
   border-radius: 8px;
   width: 100%;
   margin: 0 auto;
+}
+
+:global([data-theme='light']) .position-controls {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .position-row {
@@ -1082,6 +1216,16 @@ label {
   transform: scale(0.95);
 }
 
+:global([data-theme='light']) .btn-position {
+  background: rgba(0, 0, 0, 0.07);
+  color: rgba(0, 0, 0, 0.8);
+}
+
+:global([data-theme='light']) .btn-position:hover {
+  background: rgba(139, 92, 246, 0.15);
+  color: rgba(0, 0, 0, 0.87);
+}
+
 .position-info {
   padding: 6px 12px;
   background: rgba(139, 92, 246, 0.2);
@@ -1092,11 +1236,19 @@ label {
   text-align: center;
 }
 
+:global([data-theme='light']) .position-info {
+  color: rgba(0, 0, 0, 0.75);
+  background: rgba(139, 92, 246, 0.1);
+}
+
 .position-section {
   display: none;
   margin-top: 24px;
 }
 
+/* ===========================
+   TRANSITIONS
+   =========================== */
 .modal-enter-active,
 .modal-leave-active {
   transition: opacity 0.3s;
@@ -1117,7 +1269,9 @@ label {
   transform: scale(0.9);
 }
 
-/* Responsive: solo iconos en móvil */
+/* ===========================
+   RESPONSIVE
+   =========================== */
 @media (max-width: 640px) {
   .btn .btn-text {
     display: none;
@@ -1132,7 +1286,6 @@ label {
     font-size: 1.2rem;
   }
 
-  /* Mostrar controles de posición solo en móvil */
   .position-section {
     display: block;
   }

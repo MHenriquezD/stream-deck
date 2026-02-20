@@ -88,39 +88,6 @@
     }
   },
   {
-    "id": "f1c94b93-d579-45cc-baf7-44eb6da0d3e3",
-    "label": "HBO Max",
-    "icon": "svg:hbo-max.svg",
-    "type": "command",
-    "payload": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=bjejpbepolkplfohnddceimlpnboflam",
-    "position": {
-      "row": 2,
-      "col": 0
-    }
-  },
-  {
-    "id": "2a63b4ce-c3a3-4561-bd1b-afdbaeb984d0",
-    "label": "Youtube",
-    "icon": "svg:youtube.svg",
-    "type": "command",
-    "payload": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=agimnkijcaahngcdmfeangaknmldooml",
-    "position": {
-      "row": 2,
-      "col": 1
-    }
-  },
-  {
-    "id": "50c90259-1610-437c-b295-09c38c26c272",
-    "label": "Facebook",
-    "icon": "fas fa-house",
-    "type": "command",
-    "payload": "www.facebook.com",
-    "position": {
-      "row": 2,
-      "col": 3
-    }
-  },
-  {
     "id": "2cdbcaae-fd47-4bb9-86e8-8665b8ba22dd",
     "label": "Twitter",
     "icon": "fab fa-twitter",
@@ -129,6 +96,17 @@
     "position": {
       "row": 2,
       "col": 2
+    }
+  },
+  {
+    "id": "3e415c35-c53b-4dae-a92a-961acd3d8333",
+    "label": "Facebook",
+    "icon": "fas fa-home",
+    "type": "command",
+    "payload": "www.facebook.com",
+    "position": {
+      "row": 2,
+      "col": 3
     }
   }
 ]

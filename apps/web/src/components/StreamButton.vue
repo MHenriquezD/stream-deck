@@ -24,11 +24,32 @@ const emit = defineEmits<{
 let longPressTimer: number | null = null
 const isLongPressing = ref(false)
 
+// Ref reactivo para el tema
+const theme = ref(document.documentElement.getAttribute('data-theme') || 'dark')
+
+// Watcher para detectar cambios en el atributo data-theme
+const observer = new MutationObserver(() => {
+  theme.value = document.documentElement.getAttribute('data-theme') || 'dark'
+})
+observer.observe(document.documentElement, {
+  attributes: true,
+  attributeFilter: ['data-theme'],
+})
 const buttonStyle = computed(() => {
-  if (!props.button) return {}
+  // Si hay botón, color y fondo normales
+  if (props.button) {
+    let color = theme.value === 'dark' ? '#FFF' : '#2E333B'
+    let backgroundColor = theme.value === 'dark' ? '#4D6178' : '#ffffff'
+    return { color, backgroundColor }
+  }
+  // Si está vacío, fondo degradado adaptado al tema
+  let emptyBg =
+    theme.value === 'dark'
+      ? 'linear-gradient(145deg, rgba(34,34,58,0.7) 0%, rgba(34,34,58,0.3) 100%)'
+      : 'linear-gradient(145deg, rgba(255,255,255,0.8) 0%, rgba(220,220,240,0.4) 100%)'
   return {
-    backgroundColor: props.button.backgroundColor || '#2c3e50',
-    color: props.button.color || '#ffffff',
+    background: emptyBg,
+    color: theme.value === 'dark' ? '#FFF' : '#000',
   }
 })
 

@@ -301,7 +301,7 @@ const filteredCommands = computed(() => {
       (item) =>
         item.label.toLowerCase().includes(query) ||
         item.description.toLowerCase().includes(query) ||
-        item.command.toLowerCase().includes(query)
+        item.command.toLowerCase().includes(query),
     )
     if (matchingCommands.length > 0) {
       filtered[category] = matchingCommands
@@ -377,6 +377,11 @@ const selectCommand = (command: string) => {
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
+}
+[data-theme='light'] .command-picker-overlay {
+  background: #fff;
+}
+.command-picker-overlay {
   display: flex;
   align-items: center;
   justify-content: center;

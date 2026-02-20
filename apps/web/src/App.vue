@@ -5,7 +5,7 @@ import ThemeToggle from './components/ThemeToggle.vue'
 
 <template>
   <div class="app-container">
-    <div class="app dark">
+    <div class="app">
       <Toast position="top-right" />
       <ConfirmDialog />
       <ThemeToggle />
@@ -32,9 +32,14 @@ import ThemeToggle from './components/ThemeToggle.vue'
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
-
   min-height: 100vh;
-  background: #1a1a1a; /* Tu color de fondo */
+}
+
+:global([data-theme='dark']) .app-container {
+  background: #1a1a1a;
+}
+:global([data-theme='light']) .app-container {
+  background: #f5f5f5;
 }
 
 /* ⭐ IMPORTANTE: Configurar viewport para safe areas */
@@ -45,5 +50,32 @@ body {
   width: 100%;
   height: 100%;
   overflow-x: hidden;
+}
+</style>
+
+<style>
+/* ⭐ Scanner QR - Ocultar toda la app cuando está escaneando */
+body.qr-scanning {
+  background: transparent !important;
+  overflow: hidden !important;
+}
+
+html.qr-scanning {
+  background: transparent !important;
+}
+
+/* Ocultar todo el contenido de la app */
+body.qr-scanning > #app > *:not(.scanner-fullscreen) {
+  display: none !important;
+}
+
+/* Asegurar que SOLO el scanner sea visible */
+.scanner-fullscreen {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 999999 !important;
+  position: fixed !important;
+  inset: 0 !important;
 }
 </style>

@@ -16,6 +16,12 @@ const isMobile = ref(window.innerWidth <= 768)
 const isScanning = ref(false)
 const scanError = ref<string | null>(null)
 
+// ⭐ Detección de IPs locales (solo desktop)
+const localIPs = ref<string[]>([])
+const selectedIP = ref<string>('')
+const isDetectingIPs = ref(false)
+const isTestingConnection = ref(false)
+
 const gridSizeOptions = [
   { value: 8, label: '8 botones (2x4)' },
   { value: 12, label: '12 botones (3x4)' },
@@ -55,8 +61,90 @@ onMounted(() => {
   }
   window.addEventListener('resize', handleResize)
 
-  if (!isMobile.value) generateQRCode()
+  // ⭐ Detectar IPs locales en desktop
+  if (!isMobile.value) {
+    detectLocalIPs()
+  }
 })
+
+// ⭐ Detectar IPs locales usando WebRTC
+const detectLocalIPs = async () => {
+  isDetectingIPs.value = true
+  const ips = new Set<string>()
+
+  try {
+    const pc = new RTCPeerConnection({ iceServers: [] })
+    pc.createDataChannel('')
+
+    pc.onicecandidate = (ice) => {
+      if (!ice || !ice.candidate || !ice.candidate.candidate) return
+
+      const match = /([0-9]{1,3}(\.[0-9]{1,3}){3})/.exec(
+        ice.candidate.candidate,
+      )
+      if (match) {
+        const ip = match[1]
+        if (
+          ip.startsWith('192.168.') ||
+          ip.startsWith('10.') ||
+          ip.startsWith('172.')
+        ) {
+          ips.add(ip)
+        }
+      }
+    }
+
+    await pc.createOffer().then((offer) => pc.setLocalDescription(offer))
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    pc.close()
+
+    localIPs.value = Array.from(ips).sort()
+
+    if (serverUrl.value) {
+      const match = serverUrl.value.match(/http:\/\/([\d.]+):/)
+      if (match && localIPs.value.includes(match[1])) {
+        selectedIP.value = match[1]
+      }
+    }
+
+    if (localIPs.value.length === 1 && !selectedIP.value) {
+      selectedIP.value = localIPs.value[0]
+      await handleIPSelection()
+    }
+  } catch (error) {
+    console.error('Error detecting IPs:', error)
+  } finally {
+    isDetectingIPs.value = false
+  }
+}
+
+const handleIPSelection = async () => {
+  if (!selectedIP.value) return
+
+  const testUrl = `http://${selectedIP.value}:7500`
+  isTestingConnection.value = true
+  connectionStatus.value = null
+
+  try {
+    const response = await fetch(`${testUrl}/command`, { method: 'GET' })
+
+    if (response.ok) {
+      serverUrl.value = testUrl
+      serverUrlStore.setServerUrl(testUrl)
+      connectionStatus.value = 'success'
+      await generateQRCode()
+    } else {
+      connectionStatus.value = 'error'
+      qrCodeUrl.value = null
+    }
+  } catch (error) {
+    console.error('Connection test failed:', error)
+    connectionStatus.value = 'error'
+    qrCodeUrl.value = null
+  } finally {
+    isTestingConnection.value = false
+  }
+}
 
 onUnmounted(async () => {
   if (isScanning.value) await stopScanner()
@@ -87,22 +175,17 @@ const startScanner = async () => {
       return
     }
 
-    // ⭐ Preparar para escanear
     isScanning.value = true
-
-    // ⭐ Agregar clase al body ANTES de hideBackground
     document.body.classList.add('qr-scanning')
-    document.querySelector('.settings-overlay')?.classList.add('scanner-active')
+    document.documentElement.classList.add('qr-scanning')
+    document.body.style.background = 'transparent'
+    document.documentElement.style.background = 'transparent'
 
-    // Pequeño delay para que el DOM se actualice
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    await new Promise((resolve) => setTimeout(resolve, 150))
 
-    // Ocultar contenido y mostrar cámara
-    await BarcodeScanner.hideBackground()
-
+    BarcodeScanner.hideBackground()
     const result = await BarcodeScanner.startScan()
 
-    // Cerrar scanner inmediatamente
     await stopScanner()
 
     if (result.hasContent) {
@@ -126,11 +209,19 @@ const stopScanner = async () => {
   } finally {
     isScanning.value = false
     document.body.classList.remove('qr-scanning')
-    document
-      .querySelector('.settings-overlay')
-      ?.classList.remove('scanner-active')
+    document.documentElement.classList.remove('qr-scanning')
+    document.body.style.background = ''
+    document.documentElement.style.background = ''
   }
 }
+
+// Protección extra: restaurar fondo si el escaneo falla o el componente se desmonta
+onUnmounted(() => {
+  document.body.classList.remove('qr-scanning')
+  document.documentElement.classList.remove('qr-scanning')
+  document.body.style.background = ''
+  document.documentElement.style.background = ''
+})
 
 const handleScanResult = (content: string) => {
   try {
@@ -218,15 +309,52 @@ const close = () => {
         <div v-if="!isMobile" class="info-box">
           <p>
             <strong>Conecta desde otro dispositivo:</strong><br />
-            1. Inicia el servidor en tu PC<br />
-            2. Abre Configuración en tu móvil/tablet<br />
-            3. Escanea el QR que aparece aquí<br />
+            1. Selecciona tu IP local de la lista<br />
+            2. Si conecta, aparecerá el QR automáticamente<br />
+            3. Escanea el QR desde tu móvil/tablet<br />
             4. ¡Listo!
           </p>
         </div>
 
+        <!-- ⭐ Selector de IPs locales (solo desktop) -->
+        <div v-if="!isMobile" class="ip-selector-section">
+          <label>🔍 Selecciona tu IP local:</label>
+
+          <div v-if="isDetectingIPs" class="detecting-ips">
+            <i class="pi pi-spin pi-spinner"></i>
+            <span>Detectando IPs locales...</span>
+          </div>
+
+          <div v-else-if="localIPs.length > 0" class="ip-selector-container">
+            <select
+              v-model="selectedIP"
+              @change="handleIPSelection"
+              class="ip-select"
+              :disabled="isTestingConnection"
+            >
+              <option value="">-- Selecciona una IP --</option>
+              <option v-for="ip in localIPs" :key="ip" :value="ip">
+                {{ ip }} (http://{{ ip }}:7500)
+              </option>
+            </select>
+
+            <div v-if="isTestingConnection" class="testing-indicator">
+              <i class="pi pi-spin pi-spinner"></i>
+              <span>Probando conexión...</span>
+            </div>
+          </div>
+
+          <div v-else class="no-ips-detected">
+            <p>⚠️ No se detectaron IPs locales automáticamente.</p>
+            <small>Ingresa la IP manualmente abajo</small>
+          </div>
+        </div>
+
         <!-- Desktop: QR para escanear -->
-        <div v-if="!isMobile && qrCodeUrl" class="ip-display">
+        <div
+          v-if="!isMobile && qrCodeUrl && connectionStatus === 'success'"
+          class="ip-display"
+        >
           <label>🌐 URL configurada:</label>
           <div class="ip-box">
             <code>{{ serverUrl }}</code>
@@ -391,7 +519,6 @@ const close = () => {
 .btn-cancel-scan {
   padding: 12px 32px;
   background: rgba(239, 68, 68, 0.9);
-  backdrop-filter: blur(8px);
   color: white;
   border: none;
   border-radius: 50px;
@@ -401,7 +528,9 @@ const close = () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-/* Settings modal */
+/* ===========================
+   SETTINGS OVERLAY — FIX PRINCIPAL
+   =========================== */
 .settings-overlay {
   position: fixed;
   inset: 0;
@@ -414,14 +543,9 @@ const close = () => {
   animation: fadeIn 0.2s;
 }
 
-.settings-dialog {
-  background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
-  border-radius: 20px;
-  max-width: 500px;
-  width: 90%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  animation: slideUp 0.3s;
+:global([data-theme='light']) .settings-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
 }
 
 @keyframes fadeIn {
@@ -444,6 +568,28 @@ const close = () => {
   }
 }
 
+/* ===========================
+   DIALOG
+   =========================== */
+.settings-dialog {
+  background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
+  border-radius: 20px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: slideUp 0.3s;
+}
+
+:global([data-theme='light']) .settings-dialog {
+  background: #ffffff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+/* ===========================
+   HEADER
+   =========================== */
 .settings-header {
   display: flex;
   justify-content: space-between;
@@ -452,10 +598,18 @@ const close = () => {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+:global([data-theme='light']) .settings-header {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
 .settings-header h2 {
   margin: 0;
   font-size: 1.4rem;
-  color: #fff;
+  color: #f5f5f5;
+}
+
+:global([data-theme='light']) .settings-header h2 {
+  color: rgba(0, 0, 0, 0.87);
 }
 
 .close-btn {
@@ -464,7 +618,7 @@ const close = () => {
   border-radius: 8px;
   border: none;
   background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: #f5f5f5;
   cursor: pointer;
   font-size: 1.2rem;
   transition: all 0.2s;
@@ -475,6 +629,18 @@ const close = () => {
   transform: rotate(90deg);
 }
 
+:global([data-theme='light']) .close-btn {
+  background: rgba(0, 0, 0, 0.07);
+  color: rgba(0, 0, 0, 0.8);
+}
+
+:global([data-theme='light']) .close-btn:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+/* ===========================
+   CONTENT
+   =========================== */
 .settings-content {
   padding: 24px;
   max-height: 70vh;
@@ -482,6 +648,7 @@ const close = () => {
   overflow-x: hidden;
 }
 
+/* Info box */
 .info-box {
   background: rgba(139, 92, 246, 0.1);
   border: 1px solid rgba(139, 92, 246, 0.3);
@@ -496,6 +663,13 @@ const close = () => {
   color: #8b5cf6;
 }
 
+:global([data-theme='light']) .info-box {
+  background: rgba(139, 92, 246, 0.06);
+  border-color: rgba(139, 92, 246, 0.25);
+  color: rgba(0, 0, 0, 0.75);
+}
+
+/* IP display (conexión exitosa) */
 .ip-display {
   background: rgba(34, 197, 94, 0.1);
   border: 2px solid rgba(34, 197, 94, 0.3);
@@ -521,6 +695,10 @@ const close = () => {
   margin-bottom: 8px;
 }
 
+:global([data-theme='light']) .ip-box {
+  background: rgba(0, 0, 0, 0.06);
+}
+
 .ip-box code {
   flex: 1;
   font-family: 'Courier New', monospace;
@@ -529,11 +707,19 @@ const close = () => {
   font-weight: 600;
 }
 
+:global([data-theme='light']) .ip-box code {
+  color: #16a34a;
+}
+
 .ip-display small {
   display: block;
   color: rgba(255, 255, 255, 0.6);
   font-size: 0.85rem;
   margin-top: 4px;
+}
+
+:global([data-theme='light']) .ip-display small {
+  color: rgba(0, 0, 0, 0.5);
 }
 
 .qr-section {
@@ -558,7 +744,152 @@ const close = () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Scanner button section */
+/* IP selector */
+.ip-selector-section {
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+:global([data-theme='light']) .ip-selector-section {
+  background: rgba(59, 130, 246, 0.06);
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.ip-selector-section label {
+  display: block;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #3b82f6;
+  font-size: 0.95rem;
+}
+
+.detecting-ips {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+:global([data-theme='light']) .detecting-ips {
+  background: rgba(0, 0, 0, 0.05);
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.detecting-ips i {
+  font-size: 1.2rem;
+  color: #3b82f6;
+}
+
+.ip-selector-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ip-select {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(59, 130, 246, 0.4);
+  border-radius: 10px;
+  color: #f5f5f5;
+  font-size: 0.95rem;
+  font-family: 'Courier New', monospace;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+:global([data-theme='light']) .ip-select {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.ip-select:hover:not(:disabled) {
+  border-color: rgba(59, 130, 246, 0.6);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+:global([data-theme='light']) .ip-select:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+.ip-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.ip-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ip-select option {
+  background: #1a1a1a;
+  color: #f5f5f5;
+  padding: 10px;
+}
+
+:global([data-theme='light']) .ip-select option {
+  background: #ffffff;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.testing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(139, 92, 246, 0.15);
+  border-radius: 8px;
+  color: #a78bfa;
+  font-size: 0.9rem;
+}
+
+:global([data-theme='light']) .testing-indicator {
+  background: rgba(139, 92, 246, 0.08);
+  color: #7c3aed;
+}
+
+.testing-indicator i {
+  font-size: 1rem;
+}
+
+.no-ips-detected {
+  padding: 12px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.no-ips-detected p {
+  margin: 0 0 4px 0;
+  color: #fbbf24;
+  font-size: 0.9rem;
+}
+
+:global([data-theme='light']) .no-ips-detected p {
+  color: #d97706;
+}
+
+.no-ips-detected small {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85rem;
+}
+
+:global([data-theme='light']) .no-ips-detected small {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+/* Scanner section */
 .scan-section {
   margin-bottom: 20px;
 }
@@ -600,6 +931,10 @@ const close = () => {
   margin: 0;
 }
 
+:global([data-theme='light']) .scan-hint {
+  color: rgba(0, 0, 0, 0.5);
+}
+
 .scan-error {
   margin-top: 12px;
   padding: 10px 14px;
@@ -610,6 +945,7 @@ const close = () => {
   font-size: 0.85rem;
 }
 
+/* Form */
 .form-group {
   margin-bottom: 20px;
 }
@@ -621,16 +957,30 @@ const close = () => {
   color: rgba(255, 255, 255, 0.9);
 }
 
+:global([data-theme='light']) .form-group label {
+  color: rgba(0, 0, 0, 0.75);
+}
+
 .server-input {
   width: 100%;
   padding: 12px 16px;
   background: rgba(255, 255, 255, 0.05);
   border: 2px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
-  color: #fff;
+  color: #f5f5f5;
   font-size: 1rem;
   font-family: 'Courier New', monospace;
   transition: all 0.3s;
+}
+
+:global([data-theme='light']) .server-input {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: rgba(0, 0, 0, 0.87);
+}
+
+:global([data-theme='light']) .server-input::placeholder {
+  color: rgba(0, 0, 0, 0.35);
 }
 
 select.server-input {
@@ -640,13 +990,22 @@ select.server-input {
 
 select.server-input option {
   background: #1e1e1e;
-  color: #fff;
+  color: #f5f5f5;
+}
+
+:global([data-theme='light']) select.server-input option {
+  background: #ffffff;
+  color: rgba(0, 0, 0, 0.87);
 }
 
 .server-input:focus {
   outline: none;
   border-color: #8b5cf6;
   background: rgba(255, 255, 255, 0.08);
+}
+
+:global([data-theme='light']) .server-input:focus {
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .form-group small {
@@ -656,13 +1015,18 @@ select.server-input option {
   font-size: 0.85rem;
 }
 
+:global([data-theme='light']) .form-group small {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+/* Buttons */
 .btn-test {
   width: 100%;
   padding: 12px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
   border-radius: 10px;
-  color: #fff;
+  color: #f5f5f5;
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
@@ -693,6 +1057,12 @@ select.server-input option {
   border-radius: 8px;
 }
 
+:global([data-theme='light']) .connection-result .success {
+  color: #16a34a;
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
 .connection-result .error {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
@@ -701,11 +1071,18 @@ select.server-input option {
   border-radius: 8px;
 }
 
+/* ===========================
+   FOOTER
+   =========================== */
 .settings-footer {
   display: flex;
   gap: 12px;
   padding: 20px 24px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+:global([data-theme='light']) .settings-footer {
+  border-top-color: rgba(0, 0, 0, 0.08);
 }
 
 .btn-cancel,
@@ -722,42 +1099,29 @@ select.server-input option {
 
 .btn-cancel {
   background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: #f5f5f5;
 }
 
 .btn-cancel:hover {
   background: rgba(255, 255, 255, 0.15);
 }
 
+:global([data-theme='light']) .btn-cancel {
+  background: rgba(0, 0, 0, 0.07);
+  color: rgba(0, 0, 0, 0.8);
+}
+
+:global([data-theme='light']) .btn-cancel:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+
 .btn-save {
   background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-  color: #fff;
+  color: #f5f5f5;
 }
 
 .btn-save:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
-}
-</style>
-
-<!-- Global style para ocultar app mientras escanea -->
-<style>
-/* ⭐ Cuando está escaneando, ocultar TODO excepto el scanner */
-body.qr-scanning {
-  overflow: hidden;
-}
-
-body.qr-scanning .settings-overlay.scanner-active {
-  background: transparent !important;
-  backdrop-filter: none !important;
-}
-
-body.qr-scanning .settings-dialog {
-  display: none !important;
-}
-
-/* Asegurar que el scanner tenga el z-index más alto */
-.scanner-fullscreen {
-  z-index: 99999 !important;
 }
 </style>
