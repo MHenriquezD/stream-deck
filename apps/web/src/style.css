@@ -1,6 +1,38 @@
 @import 'tailwindcss';
 @import 'tailwindcss-primeui';
 :root {
+  }
+
+  /* Tailwind Light Theme: Aplica colores base para modo claro */
+  [data-theme="light"] {
+    color-scheme: light;
+    color: #23233a;
+    background: #f5f5f5;
+  }
+
+  [data-theme="light"] body {
+    background: #f5f5f5;
+    color: #23233a;
+    /* Variables de color para tema oscuro */
+    --hint-color: rgba(5, 5, 5, 0.5);
+    --credits-color: rgba(5, 5, 5, 0.4);
+    --connect-color: rgba(5, 5, 5, 0.8);
+  }
+
+  [data-theme="light"] a {
+    color: #3b82f6;
+  }
+  [data-theme="light"] a:hover {
+    color: #2563eb;
+  }
+
+  body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background 0.3s ease, color 0.3s ease;
+
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -16,103 +48,98 @@
 
   /* Variables de color para tema oscuro */
   --hint-color: rgba(255, 255, 255, 0.5);
-  --credits-color: rgba(255, 255, 255, 0.4);
+  --credits-color: rgba(141, 141, 141, 0.8);
+  --connect-color: rgba(255, 255, 255, 0.5);
 }
-
-/* Tema claro */
-[data-theme="light"] {
-  color-scheme: dark;
-  color: rgba(0, 0, 0, 0.87);
-  background: #f5f5f5;
-
-  /* Variables de color para tema claro */
-  --hint-color: rgba(0, 0, 0, 0.5);
-  --credits-color: rgba(0, 0, 0, 0.4);
-}
-
-[data-theme="light"] a:hover {
-  color: #2420e0;
-}
-
-/* Scrollbar tema claro */
-[data-theme="light"] ::-webkit-scrollbar-track {
-  /* Ocultar scrollbar en todos los navegadores compatibles */
-  body, * {
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE y Edge */
-  }
-  body::-webkit-scrollbar, *::-webkit-scrollbar {
-    display: none;
-  }
-  background: rgba(0, 0, 0, 0.04);
-}
-
-[data-theme="light"] ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  margin: 0;
+  
+/* ===========================
+   PRIMEVUE CONFIRMDIALOG — VISUAL ENHANCEMENT
+   =========================== */
+.p-confirm-dialog {
+  border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  background: var(--confirm-bg, #1e1e1e);
+  color: var(--confirm-text, #fff);
   min-width: 320px;
-  min-height: 100vh;
-  overflow-x: hidden;
-  background: #23233a;
-  transition: background 0.3s ease, color 0.3s ease;
+  padding: 32px 32px 28px 32px !important;
 }
-
-[data-theme="light"] body {
-  background: #f5f5f5;
+.p-confirm-dialog .p-dialog-header {
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  font-size: 1.3rem;
+  color: var(--confirm-header, #fff);
+  padding-left: 4px;
+  padding-right: 4px;
 }
-
-#app {
-  width: 100%;
-  min-height: 100vh;
+.p-confirm-dialog .p-dialog-content {
+  font-size: 1rem;
+  color: var(--confirm-text, #fff);
+  padding-bottom: 20px;
+  padding-left: 4px;
+  padding-right: 4px;
 }
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-  transition: color 0.2s ease;
+.p-confirm-dialog .p-dialog-footer {
+  display: flex;
+  gap: 16px;
+  justify-content: flex-end;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding-top: 20px;
+  padding-left: 4px;
+  padding-right: 4px;
 }
-
-a:hover {
-  color: #535bf2;
+.p-confirm-dialog .p-icon {
+  color: #ffb300;
+  font-size: 2rem;
+  margin-right: 16px;
 }
-
-button {
-  font-family: inherit;
+.p-confirm-dialog .p-confirm-dialog-reject {
+  background: #3a3a3a !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+  padding: 12px 28px !important;
+  font-weight: 600;
+  border: none !important;
+  transition: background 0.2s;
 }
-
-input,
-select,
-textarea {
-  font-family: inherit;
+.p-confirm-dialog .p-confirm-dialog-reject:hover {
+  background: #4a4a4a !important;
 }
-
-::-webkit-scrollbar {
-  width: 10px;
+.p-confirm-dialog .p-confirm-dialog-accept {
+  background: #ff4a4a !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+  padding: 12px 28px !important;
+  font-weight: 600;
+  border: none !important;
+  transition: background 0.2s;
 }
-
-::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+.p-confirm-dialog .p-confirm-dialog-accept:hover {
+  background: #ef3a3a !important;
 }
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 5px;
+/* Light theme adaptation */
+[data-theme="light"] .p-confirm-dialog {
+  background: var(--confirm-bg-light, #fff);
+  color: var(--confirm-text-light, #222);
 }
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+[data-theme="light"] .p-confirm-dialog .p-dialog-header,
+[data-theme="light"] .p-confirm-dialog .p-dialog-content {
+  color: var(--confirm-text-light, #222);
+}
+[data-theme="light"] .p-confirm-dialog .p-dialog-footer {
+  border-top: 1px solid rgba(0,0,0,0.08);
+}
+[data-theme="light"] .p-confirm-dialog .p-confirm-dialog-reject {
+  background: #f3f3f3 !important;
+  color: #222 !important;
+}
+[data-theme="light"] .p-confirm-dialog .p-confirm-dialog-reject:hover {
+  background: #e0e0e0 !important;
+}
+[data-theme="light"] .p-confirm-dialog .p-confirm-dialog-accept {
+  background: #ff4a4a !important;
+  color: #fff !important;
+}
+[data-theme="light"] .p-confirm-dialog .p-confirm-dialog-accept:hover {
+  background: #ef3a3a !important;
 }

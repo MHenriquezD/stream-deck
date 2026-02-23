@@ -7,7 +7,6 @@ import ThemeToggle from './components/ThemeToggle.vue'
   <div class="app-container">
     <div class="app">
       <Toast position="top-right" />
-      <ConfirmDialog />
       <ThemeToggle />
       <StreamDeckGrid :rows="3" :cols="4" />
     </div>
@@ -33,13 +32,6 @@ import ThemeToggle from './components/ThemeToggle.vue'
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
   min-height: 100vh;
-}
-
-:global([data-theme='dark']) .app-container {
-  background: #1a1a1a;
-}
-:global([data-theme='light']) .app-container {
-  background: #f5f5f5;
 }
 
 /* ⭐ IMPORTANTE: Configurar viewport para safe areas */

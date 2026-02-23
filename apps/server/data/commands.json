@@ -7,7 +7,7 @@
     "payload": "explorer \"%USERPROFILE%\\Desktop\"",
     "position": {
       "row": 1,
-      "col": 3
+      "col": 2
     }
   },
   {
@@ -30,17 +30,6 @@
     "position": {
       "row": 0,
       "col": 0
-    }
-  },
-  {
-    "id": "e1a98731-953c-406b-94fa-ccf059279961",
-    "label": "Disney+",
-    "icon": "svg:Disney_logo.svg",
-    "type": "command",
-    "payload": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=mbjafbmjpcimpkkihihoideiofnoalmh",
-    "position": {
-      "row": 1,
-      "col": 2
     }
   },
   {
@@ -85,28 +74,6 @@
     "position": {
       "row": 1,
       "col": 1
-    }
-  },
-  {
-    "id": "2cdbcaae-fd47-4bb9-86e8-8665b8ba22dd",
-    "label": "Twitter",
-    "icon": "fab fa-twitter",
-    "type": "command",
-    "payload": "https://x.com",
-    "position": {
-      "row": 2,
-      "col": 2
-    }
-  },
-  {
-    "id": "3e415c35-c53b-4dae-a92a-961acd3d8333",
-    "label": "Facebook",
-    "icon": "fas fa-home",
-    "type": "command",
-    "payload": "www.facebook.com",
-    "position": {
-      "row": 2,
-      "col": 3
     }
   }
 ]

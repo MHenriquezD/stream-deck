@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ActionType, type StreamButton as ButtonType } from '@shared/core'
-import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref } from 'vue'
 import { useServerUrl } from '../composables/useServerUrl'
@@ -8,9 +7,9 @@ import ButtonEditor from './ButtonEditor.vue'
 import DownloadsPage from './DownloadsPage.vue'
 import ServerSettings from './ServerSettings.vue'
 import StreamButton from './StreamButton.vue'
+import TailwindConfirmDialog from './TailwindConfirmDialog.vue'
 
 const toast = useToast()
-const confirm = useConfirm()
 const { getServerUrl } = useServerUrl()
 
 const props = defineProps<{
@@ -359,24 +358,7 @@ const handleDeleteButton = (id: string) => {
 }
 
 const clearAll = () => {
-  confirm.require({
-    message: '¿Estás seguro de que quieres eliminar todos los botones?',
-    header: 'Confirmar eliminación',
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: 'Sí, eliminar',
-    rejectLabel: 'Cancelar',
-    accept: () => {
-      buttons.value.clear()
-      saveButtons()
-      toast.removeAllGroups()
-      toast.add({
-        severity: 'info',
-        summary: 'Botones eliminados',
-        detail: 'Todos los botones han sido eliminados',
-        life: 3000,
-      })
-    },
-  })
+  // Aquí irá el nuevo diálogo de confirmación con Tailwind
 }
 
 const loadMultimediaPresets = async () => {
@@ -555,6 +537,27 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
     life: 2000,
   })
 }
+
+// Confirmación para limpiar todos los botones
+const showClearAllDialog = ref(false)
+function openClearAllDialog() {
+  showClearAllDialog.value = true
+}
+function handleClearAllConfirm() {
+  buttons.value.clear()
+  saveButtons()
+  toast.removeAllGroups()
+  toast.add({
+    severity: 'info',
+    summary: 'Botones eliminados',
+    detail: 'Todos los botones han sido eliminados',
+    life: 3000,
+  })
+  showClearAllDialog.value = false
+}
+function handleClearAllCancel() {
+  showClearAllDialog.value = false
+}
 </script>
 
 <template>
@@ -584,7 +587,7 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
         <button
           @click="showDownloads = true"
           title="Descargar Servidor"
-          class="btn-icon btn-download flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-gray-900 hover:from-yellow-500 hover:to-yellow-700 dark:bg-gradient-to-r dark:from-yellow-500 dark:to-yellow-700 dark:text-yellow-100 light:bg-gradient-to-r light:from-yellow-300 light:to-yellow-500 light:text-yellow-900"
+          class="btn-icon btn-download flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-linear-to-r from-yellow-400 to-yellow-600 text-white hover:from-yellow-500 hover:to-yellow-700 dark:bg-linear-to-r dark:from-yellow-500 dark:to-yellow-700 dark:text-yellow-100"
         >
           <img src="/icons/download-blue.svg" alt="Descargar" class="btn-svg" />
           <span class="btn-text">Descargar</span>
@@ -592,7 +595,7 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
         <button
           @click="showSettings = true"
           title="Configuración"
-          class="btn-icon btn-settings flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gradient-to-r from-green-500 to-green-700 text-white hover:from-green-600 hover:to-green-800 dark:bg-gradient-to-r dark:from-green-600 dark:to-green-800 dark:text-green-100 light:bg-gradient-to-r light:from-green-300 light:to-green-500 light:text-green-900"
+          class="btn-icon btn-settings flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-linear-to-r from-green-500 to-green-700 text-white hover:from-green-600 hover:to-green-800 dark:bg-linear-to-r dark:from-green-600 dark:to-green-800 dark:text-green-100"
         >
           <img src="/icons/config.svg" alt="Configuración" class="btn-svg" />
           <span class="btn-text">Configuración</span>
@@ -600,7 +603,7 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
         <button
           @click="loadMultimediaPresets"
           title="Comandos multimedia"
-          class="btn-icon btn-multimedia flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 dark:bg-gradient-to-r dark:from-purple-600 dark:to-indigo-700 dark:text-purple-100 light:bg-gradient-to-r light:from-purple-300 light:to-indigo-400 light:text-purple-900"
+          class="btn-icon btn-multimedia flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-linear-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 dark:bg-linear-to-r dark:from-purple-600 dark:to-indigo-700 dark:text-purple-100"
         >
           <img src="/icons/note-music.svg" alt="Multimedia" class="btn-svg" />
           <span class="btn-text">Multimedia</span>
@@ -622,7 +625,7 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
           <span class="btn-text">Recargar</span>
         </button>
         <button
-          @click="clearAll"
+          @click="openClearAllDialog"
           title="Limpiar todo"
           class="btn-icon btn-clear flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200/100 text-red-700 hover:bg-gray-300/100 dark:bg-gray-700/100 dark:text-red-200 dark:hover:bg-gray-600/100 border border-gray-300 dark:border-gray-600"
         >
@@ -752,6 +755,15 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
       </p>
       <p class="copyright">© 2026 - Todos los derechos reservados</p>
     </footer>
+
+    <TailwindConfirmDialog
+      :show="showClearAllDialog"
+      title="Confirmar eliminación"
+      message="¿Estás seguro de que quieres eliminar todos los botones?"
+      @confirm="handleClearAllConfirm"
+      @cancel="handleClearAllCancel"
+      @close="handleClearAllCancel"
+    />
   </div>
 </template>
 
@@ -850,6 +862,7 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
 }
 
 .connection-status {
+  color: var(--connect-color);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1021,16 +1034,10 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   padding: 2px;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.1) 0%,
-    rgba(255, 255, 255, 0.02) 50%,
-    rgba(0, 0, 0, 0.1) 100%
+    var(--grid-gradient-start, rgba(255, 255, 255, 0.1)) 0%,
+    var(--grid-gradient-mid, rgba(255, 255, 255, 0.02)) 50%,
+    var(--grid-gradient-end, rgba(0, 0, 0, 0.1)) 100%
   );
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
 }
 
 .grid-item {
@@ -1126,15 +1133,6 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   border-bottom-color: rgba(139, 92, 246, 0.5);
 }
 
-:global([data-theme='light']) .credits a {
-  color: rgba(139, 92, 246, 1);
-}
-
-:global([data-theme='light']) .credits a:hover {
-  color: rgb(109, 62, 216);
-  border-bottom-color: rgba(139, 92, 246, 0.8);
-}
-
 .copyright {
   color: var(--credits-color);
   font-size: 0.8rem;
@@ -1147,6 +1145,7 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   flex-direction: column;
   align-items: center;
   gap: 16px;
+  padding-bottom: 10px;
 }
 
 @media (max-width: 768px) {
@@ -1329,93 +1328,4 @@ const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
 /* ===========================
    LIGHT THEME OVERRIDES
    =========================== */
-
-/* Header y Footer — bordes visibles */
-:global([data-theme='light']) .header {
-  border-bottom-color: rgba(0, 0, 0, 0.1);
-}
-
-:global([data-theme='light']) .footer {
-  border-top-color: rgba(0, 0, 0, 0.1);
-}
-
-/* Botones del header */
-:global([data-theme='light']) .btn-icon {
-  background: rgba(0, 0, 0, 0.07);
-  color: rgba(0, 0, 0, 0.8);
-}
-
-:global([data-theme='light']) .btn-icon:hover {
-  background: rgba(0, 0, 0, 0.12);
-}
-
-:global([data-theme='light']) .btn-icon.btn-danger:hover {
-  background: rgba(239, 68, 68, 0.15);
-}
-
-/* Estado de conexión */
-:global([data-theme='light']) .connection-status {
-  background: rgba(0, 0, 0, 0.05);
-  color: rgba(0, 0, 0, 0.7);
-}
-
-/* Grid — fondo claro y moderno para light mode */
-:global([data-theme='light']) .grid {
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.04),
-    0 8px 24px rgba(0, 0, 0, 0.08);
-  border-color: rgba(0, 0, 0, 0.08);
-}
-
-/* Overlay del diálogo de presets — FIX PRINCIPAL */
-:global([data-theme='light']) .presets-dialog-overlay {
-  background: rgba(0, 0, 0, 0.5);
-}
-
-/* Diálogo de presets */
-:global([data-theme='light']) .presets-dialog {
-  background: #ffffff;
-  box-shadow: 0 20px 60px rgba(255, 254, 254, 0.15);
-  border-color: rgba(0, 0, 0, 0.08);
-}
-
-:global([data-theme='light']) .presets-header {
-  border-bottom-color: rgba(0, 0, 0, 0.08);
-}
-
-:global([data-theme='light']) .presets-header h2 {
-  color: rgba(0, 0, 0, 0.87);
-}
-
-:global([data-theme='light']) .close-btn {
-  background: rgba(0, 0, 0, 0.07);
-  color: rgba(0, 0, 0, 0.8);
-}
-
-:global([data-theme='light']) .close-btn:hover {
-  background: rgba(0, 0, 0, 0.12);
-}
-
-:global([data-theme='light']) .presets-description {
-  color: rgba(0, 0, 0, 0.6);
-}
-
-:global([data-theme='light']) .preset-card {
-  background: rgba(0, 0, 0, 0.03);
-  border-color: rgba(0, 0, 0, 0.08);
-}
-
-:global([data-theme='light']) .preset-card:hover {
-  background: rgba(139, 92, 246, 0.08);
-  border-color: rgba(139, 92, 246, 0.4);
-}
-
-:global([data-theme='light']) .preset-label {
-  color: rgba(0, 0, 0, 0.87);
-}
-
-:global([data-theme='light']) .preset-description {
-  color: rgba(0, 0, 0, 0.55);
-}
 </style>

@@ -378,9 +378,6 @@ const selectCommand = (command: string) => {
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
 }
-[data-theme='light'] .command-picker-overlay {
-  background: #fff;
-}
 .command-picker-overlay {
   display: flex;
   align-items: center;

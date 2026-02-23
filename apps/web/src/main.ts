@@ -3,8 +3,6 @@ import Lara from '@primevue/themes/lara'
 import { createPinia } from 'pinia'
 import 'primeicons/primeicons.css'
 import PrimeVue from 'primevue/config'
-import ConfirmationService from 'primevue/confirmationservice'
-import ConfirmDialog from 'primevue/confirmdialog'
 import Toast from 'primevue/toast'
 import ToastService from 'primevue/toastservice'
 import { createApp } from 'vue'
@@ -51,10 +49,8 @@ app.use(pinia)
 
 // Registro global de componentes
 app.component('Toast', Toast)
-app.component('ConfirmDialog', ConfirmDialog)
 
 // Servicios
 app.use(ToastService)
-app.use(ConfirmationService)
 
 app.mount('#app')

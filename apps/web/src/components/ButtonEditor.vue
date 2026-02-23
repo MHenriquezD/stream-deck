@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { ActionType, type StreamButton } from '@shared/core'
-import { useConfirm } from 'primevue/useconfirm'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, reactive, ref, watch } from 'vue'
 import AppPicker from './AppPicker.vue'
 import CommandPicker from './CommandPicker.vue'
 import IconPicker from './IconPicker.vue'
-
-const confirm = useConfirm()
+import TailwindConfirmDialog from './TailwindConfirmDialog.vue'
 
 const props = defineProps<{
   button: StreamButton | null
@@ -27,6 +25,7 @@ const showCommandPicker = ref(false)
 const showAppPicker = ref(false)
 const showIconSuggestions = ref(false)
 const iconInputFocused = ref(false)
+const showDeleteDialog = ref(false)
 
 const formData = reactive({
   label: '',
@@ -244,17 +243,21 @@ const handleSave = () => {
 
 const handleDelete = () => {
   if (!props.button) return
-  confirm.require({
-    message: '¿Estás seguro de que quieres eliminar este botón?',
-    header: 'Confirmar eliminación',
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: 'Sí, eliminar',
-    rejectLabel: 'Cancelar',
-    accept: () => {
-      emit('delete', props.button!.id)
-      emit('close')
-    },
-  })
+  openDeleteDialog()
+}
+
+const openDeleteDialog = () => {
+  showDeleteDialog.value = true
+}
+const handleDeleteConfirm = () => {
+  if (props.button) {
+    emit('delete', props.button.id)
+    emit('close')
+  }
+  showDeleteDialog.value = false
+}
+const handleDeleteCancel = () => {
+  showDeleteDialog.value = false
 }
 
 const handleClose = () => emit('close')
@@ -576,7 +579,6 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
               </div>
             </div>
           </div>
-
           <div class="modal-footer">
             <button v-if="button" class="btn btn-danger" @click="handleDelete">
               <i class="pi pi-trash"></i>
@@ -607,6 +609,14 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
     :currentIcon="formData.icon"
     @select="handleIconSelect"
     @close="showIconPicker = false"
+  />
+  <TailwindConfirmDialog
+    :show="showDeleteDialog"
+    title="Confirmar eliminación"
+    message="¿Estás seguro de que quieres eliminar este botón?"
+    @confirm="handleDeleteConfirm"
+    @cancel="handleDeleteCancel"
+    @close="handleDeleteCancel"
   />
 
   <CommandPicker
@@ -642,10 +652,6 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   padding: 20px;
 }
 
-:global([data-theme='light']) .modal-overlay {
-  background: rgba(0, 0, 0, 0.5);
-}
-
 /* ===========================
    CONTAINER
    =========================== */
@@ -659,11 +665,6 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
-:global([data-theme='light']) .modal-container {
-  background: #ffffff;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-}
-
 /* ===========================
    HEADER
    =========================== */
@@ -675,18 +676,10 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-:global([data-theme='light']) .modal-header {
-  border-bottom-color: rgba(0, 0, 0, 0.08);
-}
-
 .modal-header h2 {
   margin: 0;
   font-size: 1.5rem;
   color: #fff;
-}
-
-:global([data-theme='light']) .modal-header h2 {
-  color: rgba(0, 0, 0, 0.87);
 }
 
 .close-btn {
@@ -707,14 +700,6 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
 
 .close-btn:hover {
   background: rgba(255, 255, 255, 0.1);
-}
-
-:global([data-theme='light']) .close-btn {
-  color: rgba(0, 0, 0, 0.7);
-}
-
-:global([data-theme='light']) .close-btn:hover {
-  background: rgba(0, 0, 0, 0.07);
 }
 
 /* ===========================
@@ -742,10 +727,6 @@ label {
   font-weight: 500;
 }
 
-:global([data-theme='light']) label {
-  color: rgba(0, 0, 0, 0.55);
-}
-
 .form-input,
 .form-select,
 .form-textarea {
@@ -758,24 +739,6 @@ label {
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.2s;
-}
-
-:global([data-theme='light']) .form-input,
-:global([data-theme='light']) .form-select,
-:global([data-theme='light']) .form-textarea {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: rgba(0, 0, 0, 0.12);
-  color: rgba(0, 0, 0, 0.87);
-}
-
-:global([data-theme='light']) .form-input::placeholder,
-:global([data-theme='light']) .form-textarea::placeholder {
-  color: rgba(0, 0, 0, 0.35);
-}
-
-:global([data-theme='light']) .form-select option {
-  background: #ffffff;
-  color: rgba(0, 0, 0, 0.87);
 }
 
 .form-input:focus,
@@ -798,11 +761,6 @@ label {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   cursor: pointer;
-}
-
-:global([data-theme='light']) .color-input {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: rgba(0, 0, 0, 0.12);
 }
 
 /* ===========================
@@ -838,12 +796,6 @@ label {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
-:global([data-theme='light']) .icon-suggestions {
-  background: #ffffff;
-  border-color: rgba(139, 92, 246, 0.25);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
-
 .suggestion-item {
   width: 100%;
   display: flex;
@@ -858,24 +810,12 @@ label {
   text-align: left;
 }
 
-:global([data-theme='light']) .suggestion-item {
-  color: rgba(0, 0, 0, 0.87);
-}
-
 .suggestion-item:hover {
   background: rgba(139, 92, 246, 0.2);
 }
 
-:global([data-theme='light']) .suggestion-item:hover {
-  background: rgba(139, 92, 246, 0.08);
-}
-
 .suggestion-item:not(:last-child) {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-:global([data-theme='light']) .suggestion-item:not(:last-child) {
-  border-bottom-color: rgba(0, 0, 0, 0.06);
 }
 
 .suggestion-icon {
@@ -897,10 +837,6 @@ label {
   color: rgba(255, 255, 255, 0.9);
 }
 
-:global([data-theme='light']) .suggestion-label {
-  color: rgba(0, 0, 0, 0.75);
-}
-
 /* ===========================
    ICON PREVIEW
    =========================== */
@@ -915,20 +851,10 @@ label {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-:global([data-theme='light']) .icon-preview {
-  background: rgba(0, 0, 0, 0.03);
-  border-color: rgba(0, 0, 0, 0.08);
-}
-
 .preview-label {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.6);
 }
-
-:global([data-theme='light']) .preview-label {
-  color: rgba(0, 0, 0, 0.5);
-}
-
 .icon-display {
   font-size: 2rem;
   display: flex;
@@ -944,10 +870,6 @@ label {
 
 .icon-display i {
   color: #fff;
-}
-
-:global([data-theme='light']) .icon-display i {
-  color: rgba(0, 0, 0, 0.75);
 }
 
 .emoji-display {
@@ -980,15 +902,6 @@ label {
   transform: scale(1.1);
 }
 
-:global([data-theme='light']) .emoji-btn {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: rgba(0, 0, 0, 0.1);
-}
-
-:global([data-theme='light']) .emoji-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
-}
-
 /* ===========================
    PREVIEW BOX
    =========================== */
@@ -997,10 +910,6 @@ label {
   padding: 20px;
   background: #2a2a2a;
   border-radius: 8px;
-}
-
-:global([data-theme='light']) .preview {
-  background: rgba(0, 0, 0, 0.04);
 }
 
 .preview-button {
@@ -1040,10 +949,6 @@ label {
   gap: 12px;
   padding: 24px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-:global([data-theme='light']) .modal-footer {
-  border-top-color: rgba(0, 0, 0, 0.08);
 }
 
 .spacer {
@@ -1088,15 +993,6 @@ label {
 
 .btn-secondary:hover {
   background: #4a4a4a;
-}
-
-:global([data-theme='light']) .btn-secondary {
-  background: rgba(0, 0, 0, 0.07);
-  color: rgba(0, 0, 0, 0.8);
-}
-
-:global([data-theme='light']) .btn-secondary:hover {
-  background: rgba(0, 0, 0, 0.12);
 }
 
 .btn-danger {
@@ -1182,10 +1078,6 @@ label {
   margin: 0 auto;
 }
 
-:global([data-theme='light']) .position-controls {
-  background: rgba(0, 0, 0, 0.04);
-}
-
 .position-row {
   display: flex;
   align-items: center;
@@ -1216,16 +1108,6 @@ label {
   transform: scale(0.95);
 }
 
-:global([data-theme='light']) .btn-position {
-  background: rgba(0, 0, 0, 0.07);
-  color: rgba(0, 0, 0, 0.8);
-}
-
-:global([data-theme='light']) .btn-position:hover {
-  background: rgba(139, 92, 246, 0.15);
-  color: rgba(0, 0, 0, 0.87);
-}
-
 .position-info {
   padding: 6px 12px;
   background: rgba(139, 92, 246, 0.2);
@@ -1234,11 +1116,6 @@ label {
   color: rgba(255, 255, 255, 0.9);
   min-width: 100px;
   text-align: center;
-}
-
-:global([data-theme='light']) .position-info {
-  color: rgba(0, 0, 0, 0.75);
-  background: rgba(139, 92, 246, 0.1);
 }
 
 .position-section {

@@ -348,11 +348,6 @@ const selectIcon = (icon: string) => {
   animation: fadeIn 0.2s;
 }
 
-:global([data-theme='light']) .icon-picker-overlay {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(6px);
-}
-
 .icon-picker {
   background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
   border-radius: 16px;
@@ -365,12 +360,6 @@ const selectIcon = (icon: string) => {
   border: 1px solid rgba(255, 255, 255, 0.1);
   animation: slideUp 0.3s;
   overflow: hidden;
-}
-
-:global([data-theme='light']) .icon-picker {
-  background: #ffffff;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-  border-color: rgba(0, 0, 0, 0.08);
 }
 
 @keyframes fadeIn {
@@ -401,18 +390,10 @@ const selectIcon = (icon: string) => {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-:global([data-theme='light']) .picker-header {
-  border-bottom-color: rgba(0, 0, 0, 0.08);
-}
-
 .picker-header h3 {
   margin: 0;
   font-size: 1.3rem;
   color: #fff;
-}
-
-:global([data-theme='light']) .picker-header h3 {
-  color: rgba(0, 0, 0, 0.87);
 }
 
 .close-btn {
@@ -432,15 +413,6 @@ const selectIcon = (icon: string) => {
   transform: rotate(90deg);
 }
 
-:global([data-theme='light']) .close-btn {
-  background: rgba(0, 0, 0, 0.07);
-  color: rgba(0, 0, 0, 0.8);
-}
-
-:global([data-theme='light']) .close-btn:hover {
-  background: rgba(0, 0, 0, 0.12);
-}
-
 .picker-search {
   padding: 16px 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -449,17 +421,9 @@ const selectIcon = (icon: string) => {
   gap: 12px;
 }
 
-:global([data-theme='light']) .picker-search {
-  border-bottom-color: rgba(0, 0, 0, 0.08);
-}
-
 .picker-search i {
   color: rgba(255, 255, 255, 0.5);
   font-size: 1.1rem;
-}
-
-:global([data-theme='light']) .picker-search i {
-  color: rgba(0, 0, 0, 0.4);
 }
 
 .search-input {
@@ -476,21 +440,6 @@ const selectIcon = (icon: string) => {
 
 .search-input:focus {
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(139, 92, 246, 0.5);
-}
-
-:global([data-theme='light']) .search-input {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: rgba(0, 0, 0, 0.1);
-  color: rgba(0, 0, 0, 0.87);
-}
-
-:global([data-theme='light']) .search-input::placeholder {
-  color: rgba(0, 0, 0, 0.35);
-}
-
-:global([data-theme='light']) .search-input:focus {
-  background: rgba(0, 0, 0, 0.06);
   border-color: rgba(139, 92, 246, 0.5);
 }
 
@@ -515,10 +464,6 @@ const selectIcon = (icon: string) => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 600;
-}
-
-:global([data-theme='light']) .category-title {
-  color: rgba(0, 0, 0, 0.5);
 }
 
 .icons-grid {
@@ -554,28 +499,9 @@ const selectIcon = (icon: string) => {
   box-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
 }
 
-:global([data-theme='light']) .icon-item {
-  background: rgba(0, 0, 0, 0.03);
-  border-color: rgba(0, 0, 0, 0.08);
-}
-
-:global([data-theme='light']) .icon-item:hover {
-  background: rgba(139, 92, 246, 0.08);
-  border-color: rgba(139, 92, 246, 0.4);
-}
-
-:global([data-theme='light']) .icon-item.active {
-  background: rgba(139, 92, 246, 0.15);
-  border-color: #8b5cf6;
-}
-
 .icon-item i {
   font-size: 1.8rem;
   color: #fff;
-}
-
-:global([data-theme='light']) .icon-item i {
-  color: rgba(0, 0, 0, 0.75);
 }
 
 .custom-icon-preview {
@@ -599,10 +525,6 @@ const selectIcon = (icon: string) => {
   max-width: 100%;
 }
 
-:global([data-theme='light']) .icon-label {
-  color: rgba(0, 0, 0, 0.6);
-}
-
 .no-results {
   display: flex;
   flex-direction: column;
@@ -611,10 +533,6 @@ const selectIcon = (icon: string) => {
   padding: 60px 20px;
   color: rgba(255, 255, 255, 0.5);
   text-align: center;
-}
-
-:global([data-theme='light']) .no-results {
-  color: rgba(0, 0, 0, 0.4);
 }
 
 /* Scrollbar */
@@ -633,17 +551,5 @@ const selectIcon = (icon: string) => {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
-}
-
-:global([data-theme='light']) ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.04);
-}
-
-:global([data-theme='light']) ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-:global([data-theme='light']) ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
 }
 </style>

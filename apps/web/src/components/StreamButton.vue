@@ -223,26 +223,6 @@ const handleDrop = (e: DragEvent) => {
   transform: rotateY(-3deg) translateZ(30px);
 }
 
-:global([data-theme='light']) .stream-button {
-  background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.5) 0%,
-    rgba(245, 245, 250, 0.6) 50%,
-    rgba(240, 240, 245, 0.7) 100%
-  );
-  border-color: rgba(0, 0, 0, 0.1);
-  border-right-color: rgba(0, 0, 0, 0.15);
-  border-bottom-color: rgba(0, 0, 0, 0.2);
-
-  box-shadow:
-    8px 0 16px rgba(0, 0, 0, 0.15),
-    0 12px 24px rgba(0, 0, 0, 0.1),
-    0 4px 8px rgba(0, 0, 0, 0.08),
-    inset 0 2px 4px rgba(255, 255, 255, 0.9),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.05),
-    inset -2px 0 4px rgba(0, 0, 0, 0.08);
-}
-
 .stream-button::before {
   content: '';
   position: absolute;
@@ -257,16 +237,6 @@ const handleDrop = (e: DragEvent) => {
   );
   pointer-events: none;
   transform: translateZ(1px);
-}
-
-:global([data-theme='light']) .stream-button::before {
-  background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.9) 0%,
-    rgba(255, 255, 255, 0.4) 30%,
-    transparent 60%,
-    rgba(0, 0, 0, 0.05) 100%
-  );
 }
 
 .stream-button::after {
@@ -300,16 +270,6 @@ const handleDrop = (e: DragEvent) => {
       inset -3px 0 6px rgba(0, 0, 0, 0.25);
   }
 
-  :global([data-theme='light']) .stream-button:hover {
-    box-shadow:
-      12px 0 24px rgba(0, 0, 0, 0.2),
-      0 16px 32px rgba(0, 0, 0, 0.15),
-      0 6px 12px rgba(0, 0, 0, 0.12),
-      inset 0 3px 6px rgba(255, 255, 255, 1),
-      inset 0 -3px 6px rgba(0, 0, 0, 0.08),
-      inset -3px 0 6px rgba(0, 0, 0, 0.1);
-  }
-
   .stream-button:hover::before {
     opacity: 1;
   }
@@ -334,21 +294,6 @@ const handleDrop = (e: DragEvent) => {
       inset 0 2px 3px rgba(255, 255, 255, 0.08),
       inset -2px 0 3px rgba(0, 0, 0, 0.2);
   }
-
-  :global([data-theme='light']) .stream-button.empty:hover {
-    background: linear-gradient(
-      145deg,
-      rgba(255, 255, 255, 0.4) 0%,
-      rgba(245, 245, 250, 0.5) 50%,
-      rgba(240, 240, 245, 0.55) 100%
-    );
-    border-color: rgba(0, 0, 0, 0.18);
-    box-shadow:
-      6px 0 12px rgba(0, 0, 0, 0.12),
-      0 8px 16px rgba(0, 0, 0, 0.08),
-      inset 0 2px 3px rgba(255, 255, 255, 0.8),
-      inset -2px 0 3px rgba(0, 0, 0, 0.1);
-  }
 }
 
 /* ⭐ Active con transición rápida para evitar stuck */
@@ -362,16 +307,6 @@ const handleDrop = (e: DragEvent) => {
     inset 0 1px 3px rgba(255, 255, 255, 0.08),
     inset 0 -1px 3px rgba(0, 0, 0, 0.5),
     inset -1px 0 3px rgba(0, 0, 0, 0.3);
-}
-
-:global([data-theme='light']) .stream-button:active {
-  box-shadow:
-    4px 0 8px rgba(0, 0, 0, 0.12),
-    0 4px 12px rgba(0, 0, 0, 0.1),
-    0 2px 4px rgba(0, 0, 0, 0.08),
-    inset 0 1px 3px rgba(255, 255, 255, 0.7),
-    inset 0 -1px 3px rgba(0, 0, 0, 0.12),
-    inset -1px 0 3px rgba(0, 0, 0, 0.15);
 }
 
 .stream-button.dragging {
@@ -483,37 +418,11 @@ const handleDrop = (e: DragEvent) => {
   transform: perspective(1000px) rotateY(-1deg) translateZ(10px);
 }
 
-:global([data-theme='light']) .stream-button.empty {
-  background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.25) 0%,
-    rgba(245, 245, 250, 0.35) 50%,
-    rgba(240, 240, 245, 0.4) 100%
-  );
-  border-color: rgba(0, 0, 0, 0.12);
-  border-right-color: rgba(0, 0, 0, 0.15);
-  border-bottom-color: rgba(0, 0, 0, 0.18);
-  box-shadow:
-    4px 0 8px rgba(0, 0, 0, 0.08),
-    0 6px 12px rgba(0, 0, 0, 0.06),
-    inset 0 1px 2px rgba(255, 255, 255, 0.5),
-    inset -1px 0 2px rgba(0, 0, 0, 0.08);
-}
-
 .stream-button.empty::before {
   background: linear-gradient(
     145deg,
     rgba(255, 255, 255, 0.1) 0%,
     rgba(255, 255, 255, 0.03) 40%,
-    transparent 70%
-  );
-}
-
-:global([data-theme='light']) .stream-button.empty::before {
-  background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.7) 0%,
-    rgba(255, 255, 255, 0.3) 40%,
     transparent 70%
   );
 }
@@ -579,20 +488,11 @@ const handleDrop = (e: DragEvent) => {
   z-index: 1;
 }
 
-:global([data-theme='light']) .empty-content {
-  opacity: 0.5;
-}
-
 .plus-icon {
   font-size: 2.5rem;
   font-weight: 200;
   opacity: 0.6;
 }
-
-:global([data-theme='light']) .plus-icon {
-  opacity: 0.7;
-}
-
 .empty-text {
   font-size: 0.75rem;
   font-weight: 600;

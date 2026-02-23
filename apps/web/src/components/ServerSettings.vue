@@ -543,11 +543,6 @@ const close = () => {
   animation: fadeIn 0.2s;
 }
 
-:global([data-theme='light']) .settings-overlay {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
-}
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -581,12 +576,6 @@ const close = () => {
   animation: slideUp 0.3s;
 }
 
-:global([data-theme='light']) .settings-dialog {
-  background: #ffffff;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-  border-color: rgba(0, 0, 0, 0.08);
-}
-
 /* ===========================
    HEADER
    =========================== */
@@ -598,18 +587,10 @@ const close = () => {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-:global([data-theme='light']) .settings-header {
-  border-bottom-color: rgba(0, 0, 0, 0.08);
-}
-
 .settings-header h2 {
   margin: 0;
   font-size: 1.4rem;
   color: #f5f5f5;
-}
-
-:global([data-theme='light']) .settings-header h2 {
-  color: rgba(0, 0, 0, 0.87);
 }
 
 .close-btn {
@@ -627,15 +608,6 @@ const close = () => {
 .close-btn:hover {
   background: rgba(255, 255, 255, 0.2);
   transform: rotate(90deg);
-}
-
-:global([data-theme='light']) .close-btn {
-  background: rgba(0, 0, 0, 0.07);
-  color: rgba(0, 0, 0, 0.8);
-}
-
-:global([data-theme='light']) .close-btn:hover {
-  background: rgba(0, 0, 0, 0.12);
 }
 
 /* ===========================
@@ -661,12 +633,6 @@ const close = () => {
 
 .info-box strong {
   color: #8b5cf6;
-}
-
-:global([data-theme='light']) .info-box {
-  background: rgba(139, 92, 246, 0.06);
-  border-color: rgba(139, 92, 246, 0.25);
-  color: rgba(0, 0, 0, 0.75);
 }
 
 /* IP display (conexión exitosa) */
@@ -695,10 +661,6 @@ const close = () => {
   margin-bottom: 8px;
 }
 
-:global([data-theme='light']) .ip-box {
-  background: rgba(0, 0, 0, 0.06);
-}
-
 .ip-box code {
   flex: 1;
   font-family: 'Courier New', monospace;
@@ -707,19 +669,11 @@ const close = () => {
   font-weight: 600;
 }
 
-:global([data-theme='light']) .ip-box code {
-  color: #16a34a;
-}
-
 .ip-display small {
   display: block;
   color: rgba(255, 255, 255, 0.6);
   font-size: 0.85rem;
   margin-top: 4px;
-}
-
-:global([data-theme='light']) .ip-display small {
-  color: rgba(0, 0, 0, 0.5);
 }
 
 .qr-section {
@@ -753,11 +707,6 @@ const close = () => {
   margin-bottom: 24px;
 }
 
-:global([data-theme='light']) .ip-selector-section {
-  background: rgba(59, 130, 246, 0.06);
-  border-color: rgba(59, 130, 246, 0.25);
-}
-
 .ip-selector-section label {
   display: block;
   margin-bottom: 12px;
@@ -774,11 +723,6 @@ const close = () => {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.8);
-}
-
-:global([data-theme='light']) .detecting-ips {
-  background: rgba(0, 0, 0, 0.05);
-  color: rgba(0, 0, 0, 0.7);
 }
 
 .detecting-ips i {
@@ -805,19 +749,9 @@ const close = () => {
   transition: all 0.3s;
 }
 
-:global([data-theme='light']) .ip-select {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: rgba(59, 130, 246, 0.35);
-  color: rgba(0, 0, 0, 0.87);
-}
-
 .ip-select:hover:not(:disabled) {
   border-color: rgba(59, 130, 246, 0.6);
   background: rgba(0, 0, 0, 0.4);
-}
-
-:global([data-theme='light']) .ip-select:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.07);
 }
 
 .ip-select:focus {
@@ -837,11 +771,6 @@ const close = () => {
   padding: 10px;
 }
 
-:global([data-theme='light']) .ip-select option {
-  background: #ffffff;
-  color: rgba(0, 0, 0, 0.87);
-}
-
 .testing-indicator {
   display: flex;
   align-items: center;
@@ -851,11 +780,6 @@ const close = () => {
   border-radius: 8px;
   color: #a78bfa;
   font-size: 0.9rem;
-}
-
-:global([data-theme='light']) .testing-indicator {
-  background: rgba(139, 92, 246, 0.08);
-  color: #7c3aed;
 }
 
 .testing-indicator i {
@@ -876,17 +800,9 @@ const close = () => {
   font-size: 0.9rem;
 }
 
-:global([data-theme='light']) .no-ips-detected p {
-  color: #d97706;
-}
-
 .no-ips-detected small {
   color: rgba(255, 255, 255, 0.6);
   font-size: 0.85rem;
-}
-
-:global([data-theme='light']) .no-ips-detected small {
-  color: rgba(0, 0, 0, 0.5);
 }
 
 /* Scanner section */
@@ -931,10 +847,6 @@ const close = () => {
   margin: 0;
 }
 
-:global([data-theme='light']) .scan-hint {
-  color: rgba(0, 0, 0, 0.5);
-}
-
 .scan-error {
   margin-top: 12px;
   padding: 10px 14px;
@@ -957,10 +869,6 @@ const close = () => {
   color: rgba(255, 255, 255, 0.9);
 }
 
-:global([data-theme='light']) .form-group label {
-  color: rgba(0, 0, 0, 0.75);
-}
-
 .server-input {
   width: 100%;
   padding: 12px 16px;
@@ -973,16 +881,6 @@ const close = () => {
   transition: all 0.3s;
 }
 
-:global([data-theme='light']) .server-input {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: rgba(0, 0, 0, 0.12);
-  color: rgba(0, 0, 0, 0.87);
-}
-
-:global([data-theme='light']) .server-input::placeholder {
-  color: rgba(0, 0, 0, 0.35);
-}
-
 select.server-input {
   font-family: inherit;
   cursor: pointer;
@@ -993,19 +891,10 @@ select.server-input option {
   color: #f5f5f5;
 }
 
-:global([data-theme='light']) select.server-input option {
-  background: #ffffff;
-  color: rgba(0, 0, 0, 0.87);
-}
-
 .server-input:focus {
   outline: none;
   border-color: #8b5cf6;
   background: rgba(255, 255, 255, 0.08);
-}
-
-:global([data-theme='light']) .server-input:focus {
-  background: rgba(0, 0, 0, 0.06);
 }
 
 .form-group small {
@@ -1013,10 +902,6 @@ select.server-input option {
   margin-top: 6px;
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.85rem;
-}
-
-:global([data-theme='light']) .form-group small {
-  color: rgba(0, 0, 0, 0.45);
 }
 
 /* Buttons */
@@ -1057,12 +942,6 @@ select.server-input option {
   border-radius: 8px;
 }
 
-:global([data-theme='light']) .connection-result .success {
-  color: #16a34a;
-  background: rgba(34, 197, 94, 0.08);
-  border-color: rgba(34, 197, 94, 0.3);
-}
-
 .connection-result .error {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
@@ -1079,10 +958,6 @@ select.server-input option {
   gap: 12px;
   padding: 20px 24px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-:global([data-theme='light']) .settings-footer {
-  border-top-color: rgba(0, 0, 0, 0.08);
 }
 
 .btn-cancel,
@@ -1104,15 +979,6 @@ select.server-input option {
 
 .btn-cancel:hover {
   background: rgba(255, 255, 255, 0.15);
-}
-
-:global([data-theme='light']) .btn-cancel {
-  background: rgba(0, 0, 0, 0.07);
-  color: rgba(0, 0, 0, 0.8);
-}
-
-:global([data-theme='light']) .btn-cancel:hover {
-  background: rgba(0, 0, 0, 0.12);
 }
 
 .btn-save {
