@@ -1,16 +1,35 @@
 <script setup lang="ts">
 import { ActionType, type StreamButton as ButtonType } from '@shared/core'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useAuth } from '../composables/useAuth'
 import { useServerUrl } from '../composables/useServerUrl'
+import { useSocket } from '../composables/useSocket'
 import ButtonEditor from './ButtonEditor.vue'
-import DownloadsPage from './DownloadsPage.vue'
 import ServerSettings from './ServerSettings.vue'
 import StreamButton from './StreamButton.vue'
 import TailwindConfirmDialog from './TailwindConfirmDialog.vue'
 
 const toast = useToast()
+const {
+  getAuthHeaders,
+  checkPinStatus,
+  login,
+  isAuthenticated,
+  pinConfigured,
+} = useAuth()
 const { getServerUrl } = useServerUrl()
+const {
+  isConnected,
+  connect: socketConnect,
+  disconnect: socketDisconnect,
+  execute: socketExecute,
+  saveCommands: socketSaveCommands,
+  on: socketOn,
+  off: socketOff,
+  getSettings: socketGetSettings,
+  setGridSize: socketSetGridSize,
+} = useSocket()
 
 const props = defineProps<{
   rows?: number
@@ -28,25 +47,28 @@ const calculateGridDimensions = (totalButtons: number) => {
   return layouts[totalButtons] || { rows: 3, cols: 4 }
 }
 
-const savedGridSize = parseInt(localStorage.getItem('gridSize') || '12')
-const dimensions = calculateGridDimensions(savedGridSize)
+// Inicializar con valor por defecto, luego se actualiza desde el servidor
+const gridRows = ref(3)
+const gridCols = ref(4)
 
-console.log('Grid size from localStorage:', savedGridSize)
-console.log('Calculated dimensions:', dimensions)
-console.log('Props rows/cols:', props.rows, props.cols)
-
-const gridRows = ref(dimensions.rows)
-const gridCols = ref(dimensions.cols)
-
-console.log('Final gridRows:', gridRows.value, 'gridCols:', gridCols.value)
+const updateGridFromSize = (gridSize: number) => {
+  const dims = calculateGridDimensions(gridSize)
+  gridRows.value = dims.rows
+  gridCols.value = dims.cols
+  console.log('Grid actualizado:', gridSize, '->', dims)
+}
 
 const buttons = ref<Map<string, ButtonType>>(new Map())
 const showEditor = ref(false)
 const showSettings = ref(false)
-const showDownloads = ref(false)
 const editingButton = ref<ButtonType | null>(null)
 const editingPosition = ref({ row: 0, col: 0 })
 const isExecuting = ref<string | null>(null)
+const isReloadingGrid = ref(false)
+const showPinGate = ref(false)
+const pinGateInput = ref('')
+const pinGateError = ref('')
+const pinGateLoading = ref(false)
 const connectionStatus = ref<'connected' | 'disconnected' | 'connecting'>(
   'disconnected',
 )
@@ -80,7 +102,7 @@ const gridItems = computed(() => {
   return items
 })
 
-onMounted(() => {
+onMounted(async () => {
   isMobileView.value = window.innerWidth <= 850
 
   const handleResize = () => {
@@ -88,14 +110,46 @@ onMounted(() => {
   }
   window.addEventListener('resize', handleResize)
 
-  loadButtons()
+  // Conectar WebSocket
+  socketConnect()
+
+  // Escuchar cambios de gridSize desde otros clientes
+  socketOn('settings:gridSizeChanged', (data: { gridSize: number }) => {
+    updateGridFromSize(data.gridSize)
+  })
+
+  // Escuchar actualizaciones de comandos desde otros clientes
+  socketOn('commands:updated', (commands: any[]) => {
+    buttons.value.clear()
+    parseAndSetButtons(commands)
+  })
+
+  // Cargar settings y botones (con fallback HTTP si el socket no conecta rápido)
+  await loadSettings()
+  await loadButtons()
   checkConnection()
+
+  // Check PIN status for settings gate
+  checkPinStatus()
+})
+
+onUnmounted(() => {
+  socketOff('settings:gridSizeChanged')
+  socketOff('commands:updated')
 })
 
 const checkConnection = async () => {
+  // El estado de conexión se maneja automáticamente por el socket
+  if (isConnected.value) {
+    connectionStatus.value = 'connected'
+    return
+  }
+  // Fallback HTTP
   try {
     connectionStatus.value = 'connecting'
-    const response = await fetch(`${API_URL}/command`)
+    const response = await fetch(`${API_URL}/command`, {
+      headers: { ...getAuthHeaders() },
+    })
     if (response.ok) {
       connectionStatus.value = 'connected'
     } else {
@@ -106,49 +160,122 @@ const checkConnection = async () => {
   }
 }
 
+// Observar el estado del socket para actualizar connectionStatus
+const stopWatchConnection = setInterval(() => {
+  if (isConnected.value) {
+    connectionStatus.value = 'connected'
+  }
+}, 1000)
+
+onUnmounted(() => clearInterval(stopWatchConnection))
+
+const loadSettings = async () => {
+  try {
+    // Intentar via HTTP (más confiable en carga inicial)
+    const response = await fetch(`${API_URL}/command/settings`, {
+      headers: { ...getAuthHeaders() },
+    })
+    if (response.ok) {
+      const settings = await response.json()
+      updateGridFromSize(settings.gridSize || 12)
+      return
+    }
+  } catch {
+    // Fallback: valor por defecto
+    updateGridFromSize(12)
+  }
+}
+
+const parseAndSetButtons = (data: any[]) => {
+  data.forEach((cmd: any, index: number) => {
+    let actionType = ActionType.COMMAND
+    if (cmd.type === 'url' || (cmd.payload && cmd.payload.startsWith('http'))) {
+      actionType = ActionType.URL
+    }
+
+    const button: ButtonType = {
+      id: cmd.id,
+      label: cmd.label || 'Sin nombre',
+      icon: cmd.icon || '⚙️',
+      color: cmd.color || '#ffffff',
+      backgroundColor: cmd.backgroundColor || '#2c3e50',
+      action: {
+        type: actionType,
+        payload: cmd.payload,
+      },
+      position: cmd.position || {
+        row: Math.floor(index / gridCols.value),
+        col: index % gridCols.value,
+      },
+    }
+
+    if (
+      button.position.row < gridRows.value &&
+      button.position.col < gridCols.value
+    ) {
+      buttons.value.set(button.id, button)
+    }
+  })
+}
+
 const loadButtons = async () => {
   try {
-    const response = await fetch(`${API_URL}/command`)
+    const response = await fetch(`${API_URL}/command`, {
+      headers: { ...getAuthHeaders() },
+    })
     if (response.ok) {
       const data = await response.json()
       if (Array.isArray(data)) {
-        data.forEach((cmd: any, index: number) => {
-          let actionType = ActionType.COMMAND
-          if (
-            cmd.type === 'url' ||
-            (cmd.payload && cmd.payload.startsWith('http'))
-          ) {
-            actionType = ActionType.URL
-          }
-
-          const button: ButtonType = {
-            id: cmd.id,
-            label: cmd.label || 'Sin nombre',
-            icon: cmd.icon || '⚙️',
-            color: cmd.color || '#ffffff',
-            backgroundColor: cmd.backgroundColor || '#2c3e50',
-            action: {
-              type: actionType,
-              payload: cmd.payload,
-            },
-            position: cmd.position || {
-              row: Math.floor(index / gridCols.value),
-              col: index % gridCols.value,
-            },
-          }
-
-          if (
-            button.position.row < gridRows.value &&
-            button.position.col < gridCols.value
-          ) {
-            buttons.value.set(button.id, button)
-          }
-        })
+        parseAndSetButtons(data)
       }
     }
   } catch (error) {
     console.error('Error loading buttons:', error)
   }
+}
+
+const reloadButtonsWithAnimation = async () => {
+  isReloadingGrid.value = true
+  await loadButtons()
+  setTimeout(() => {
+    isReloadingGrid.value = false
+  }, 600)
+}
+
+/** Open settings — if PIN is configured and user not authenticated, ask PIN first */
+const openSettings = async () => {
+  if (pinConfigured.value && !isAuthenticated.value) {
+    showPinGate.value = true
+    pinGateInput.value = ''
+    pinGateError.value = ''
+    return
+  }
+  showSettings.value = true
+}
+
+const handlePinGateSubmit = async () => {
+  pinGateError.value = ''
+  if (!/^\d{4}$/.test(pinGateInput.value)) {
+    pinGateError.value = 'El PIN debe ser de 4 dígitos'
+    return
+  }
+  pinGateLoading.value = true
+  const result = await login(pinGateInput.value)
+  pinGateLoading.value = false
+  if (result.success) {
+    showPinGate.value = false
+    pinGateInput.value = ''
+    showSettings.value = true
+  } else {
+    pinGateError.value = result.message || 'PIN incorrecto'
+    pinGateInput.value = ''
+  }
+}
+
+const cancelPinGate = () => {
+  showPinGate.value = false
+  pinGateInput.value = ''
+  pinGateError.value = ''
 }
 
 const saveButtons = async () => {
@@ -157,16 +284,24 @@ const saveButtons = async () => {
       id: btn.id,
       label: btn.label,
       icon: btn.icon,
+      color: btn.color,
+      backgroundColor: btn.backgroundColor,
       type: 'command',
       payload: btn.action.payload,
       position: btn.position,
     }))
 
-    await fetch(`${API_URL}/command`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(commandsToSave),
-    })
+    if (isConnected.value) {
+      // Via WebSocket (más rápido + sincroniza con otros clientes)
+      socketSaveCommands(commandsToSave)
+    } else {
+      // Fallback HTTP
+      await fetch(`${API_URL}/command`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(commandsToSave),
+      })
+    }
   } catch (error) {
     console.error('Error saving buttons:', error)
   }
@@ -180,12 +315,23 @@ const handleButtonClick = async (button: ButtonType | null) => {
 
   try {
     isExecuting.value = button.id
-    const response = await fetch(`${API_URL}/command/execute/${button.id}`, {
-      method: 'POST',
-    })
 
-    if (response.ok) {
-      const result = await response.json()
+    let result: { success: boolean; output?: string; message?: string }
+
+    if (isConnected.value) {
+      // Via WebSocket (más rápido)
+      result = await socketExecute(button.id)
+    } else {
+      // Fallback HTTP
+      const response = await fetch(`${API_URL}/command/execute/${button.id}`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders() },
+      })
+      result = await response.json()
+      if (!response.ok) result.success = false
+    }
+
+    if (result.success) {
       toast.removeAllGroups()
       toast.add({
         severity: 'success',
@@ -193,14 +339,12 @@ const handleButtonClick = async (button: ButtonType | null) => {
         detail: `${button.label} ejecutado correctamente`,
         life: 3000,
       })
-      console.log('Comando ejecutado:', result)
     } else {
-      const error = await response.json()
       toast.removeAllGroups()
       toast.add({
         severity: 'error',
         summary: 'Error',
-        detail: error.message || 'No se pudo ejecutar el comando',
+        detail: result.message || 'No se pudo ejecutar el comando',
         life: 5000,
       })
     }
@@ -363,7 +507,9 @@ const clearAll = () => {
 
 const loadMultimediaPresets = async () => {
   try {
-    const response = await fetch(`${API_URL}/command/presets/multimedia`)
+    const response = await fetch(`${API_URL}/command/presets/multimedia`, {
+      headers: { ...getAuthHeaders() },
+    })
     if (response.ok) {
       const presets = await response.json()
       showPresetsDialog.value = true
@@ -585,115 +731,159 @@ function handleClearAllCancel() {
       </div>
       <div class="actions">
         <button
-          @click="showDownloads = true"
-          title="Descargar Servidor"
-          class="btn-icon btn-download flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-linear-to-r from-yellow-400 to-yellow-600 text-white hover:from-yellow-500 hover:to-yellow-700 dark:bg-linear-to-r dark:from-yellow-500 dark:to-yellow-700 dark:text-yellow-100"
-        >
-          <img src="/icons/download-blue.svg" alt="Descargar" class="btn-svg" />
-          <span class="btn-text">Descargar</span>
-        </button>
-        <button
-          @click="showSettings = true"
+          @click="openSettings"
           title="Configuración"
           class="btn-icon btn-settings flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-linear-to-r from-green-500 to-green-700 text-white hover:from-green-600 hover:to-green-800 dark:bg-linear-to-r dark:from-green-600 dark:to-green-800 dark:text-green-100"
         >
           <img src="/icons/config.svg" alt="Configuración" class="btn-svg" />
           <span class="btn-text">Configuración</span>
         </button>
-        <button
-          @click="loadMultimediaPresets"
-          title="Comandos multimedia"
-          class="btn-icon btn-multimedia flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-linear-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 dark:bg-linear-to-r dark:from-purple-600 dark:to-indigo-700 dark:text-purple-100"
-        >
-          <img src="/icons/note-music.svg" alt="Multimedia" class="btn-svg" />
-          <span class="btn-text">Multimedia</span>
-        </button>
-        <button
-          @click="checkConnection"
-          title="Reconectar"
-          class="btn-icon btn-reconnect flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200 text-neutral-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-neutral-100 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600"
-        >
-          <img src="/icons/reconect.svg" alt="Reconectar" class="btn-svg" />
-          <span class="btn-text">Reconectar</span>
-        </button>
-        <button
-          @click="loadButtons"
-          title="Recargar"
-          class="btn-icon btn-reload flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200/100 text-neutral-800 hover:bg-gray-300/100 dark:bg-gray-700/100 dark:text-neutral-100 dark:hover:bg-gray-600/100 border border-gray-300 dark:border-gray-600"
-        >
-          <img src="/icons/reload.svg" alt="Recargar" class="btn-svg" />
-          <span class="btn-text">Recargar</span>
-        </button>
-        <button
-          @click="openClearAllDialog"
-          title="Limpiar todo"
-          class="btn-icon btn-clear flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200/100 text-red-700 hover:bg-gray-300/100 dark:bg-gray-700/100 dark:text-red-200 dark:hover:bg-gray-600/100 border border-gray-300 dark:border-gray-600"
-        >
-          <img src="/icons/delete-grid.svg" alt="Eliminar" class="btn-svg" />
-          <span class="btn-text">Limpiar Botones</span>
-        </button>
+        <template v-if="pinConfigured">
+          <button
+            @click="loadMultimediaPresets"
+            title="Comandos multimedia"
+            class="btn-icon btn-multimedia flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-linear-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 dark:bg-linear-to-r dark:from-purple-600 dark:to-indigo-700 dark:text-purple-100"
+          >
+            <img src="/icons/note-music.svg" alt="Multimedia" class="btn-svg" />
+            <span class="btn-text">Multimedia</span>
+          </button>
+          <button
+            @click="checkConnection"
+            title="Reconectar"
+            class="btn-icon btn-reconnect flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200 text-neutral-800 hover:bg-gray-900 dark:bg-gray-700 dark:text-neutral-100 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600"
+          >
+            <img src="/icons/reconect.svg" alt="Reconectar" class="btn-svg" />
+            <span class="btn-text">Reconectar</span>
+          </button>
+          <button
+            @click="reloadButtonsWithAnimation"
+            title="Recargar"
+            class="btn-icon btn-reload flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200/100 text-neutral-800 hover:bg-gray-300/100 dark:bg-gray-700/100 dark:text-neutral-100 dark:hover:bg-gray-600/100 border border-gray-300 dark:border-gray-600"
+          >
+            <img src="/icons/reload.svg" alt="Recargar" class="btn-svg" />
+            <span class="btn-text">Recargar Botones</span>
+          </button>
+          <button
+            @click="openClearAllDialog"
+            title="Limpiar todo"
+            class="btn-icon btn-clear flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200/100 text-red-700 hover:bg-gray-300/100 dark:bg-gray-700/100 dark:text-red-200 dark:hover:bg-gray-600/100 border border-gray-300 dark:border-gray-600"
+          >
+            <img src="/icons/delete-grid.svg" alt="Eliminar" class="btn-svg" />
+            <span class="btn-text">Limpiar Botones</span>
+          </button>
+        </template>
       </div>
     </div>
 
-    <p class="hint" v-if="!isMobileView">
-      Click para ejecutar • Click derecho para editar • Arrastra para
-      reorganizar
-    </p>
-    <p class="hint" v-else>
-      Toca para ejecutar • Mantén presionado 1s para reorganizar
-    </p>
+    <!-- Mensaje cuando no hay PIN configurado -->
+    <div v-if="!pinConfigured" class="no-pin-message">
+      <div class="no-pin-icon">🔐</div>
+      <h2 class="no-pin-title">Configura un PIN para comenzar</h2>
+      <p class="no-pin-desc">
+        Necesitas configurar un PIN de 4 dígitos desde
+        <strong>Configuración</strong> para poder usar los botones.
+      </p>
+      <button @click="openSettings" class="no-pin-btn">
+        ⚙️ Ir a Configuración
+      </button>
+    </div>
 
-    <div
-      class="grid"
-      :style="{
-        '--grid-cols': gridCols,
-        '--grid-rows': gridRows,
-      }"
-      @touchmove="handleTouchMove"
-      @touchend="handleTouchEnd"
-    >
+    <template v-if="pinConfigured">
+      <p class="hint" v-if="!isMobileView">
+        Click para ejecutar • Click derecho para editar • Arrastra para
+        reorganizar
+      </p>
+      <p class="hint" v-else>
+        Toca para ejecutar • Mantén presionado 1s para reorganizar
+      </p>
+
       <div
-        v-for="item in gridItems"
-        :key="`${item.row}-${item.col}`"
-        class="grid-item"
-        :class="{
-          executing: isExecuting === item.button?.id,
-          'is-pressing': isPressing === item.button?.id,
-          'touch-dragging': isTouchDragging(item.button),
-          'touch-drag-over': isTouchDragOver({ row: item.row, col: item.col }),
+        class="grid"
+        :class="{ 'grid-reloading': isReloadingGrid }"
+        :style="{
+          '--grid-cols': gridCols,
+          '--grid-rows': gridRows,
         }"
-        :data-grid-row="item.row"
-        :data-grid-col="item.col"
-        @touchstart="
-          handleTouchStart(
-            item.button,
-            { row: item.row, col: item.col },
-            $event,
-          )
-        "
+        @touchmove="handleTouchMove"
+        @touchend="handleTouchEnd"
       >
-        <StreamButton
-          :button="item.button"
-          :isEmpty="!item.button"
-          :isDragging="isDragging(item.button)"
-          :isDragOver="isDragOver({ row: item.row, col: item.col })"
-          :isSelected="false"
-          @click="handleButtonClick(item.button)"
-          @edit="
-            handleButtonEdit(item.button, { row: item.row, col: item.col })
+        <div
+          v-for="item in gridItems"
+          :key="`${item.row}-${item.col}`"
+          class="grid-item"
+          :class="{
+            executing: isExecuting === item.button?.id,
+            'is-pressing': isPressing === item.button?.id,
+            'touch-dragging': isTouchDragging(item.button),
+            'touch-drag-over': isTouchDragOver({
+              row: item.row,
+              col: item.col,
+            }),
+          }"
+          :data-grid-row="item.row"
+          :data-grid-col="item.col"
+          @touchstart="
+            handleTouchStart(
+              item.button,
+              { row: item.row, col: item.col },
+              $event,
+            )
           "
-          @dragstart="handleDragStart(item.button)"
-          @dragend="handleDragEnd"
-          @dragover="handleDragOver({ row: item.row, col: item.col })"
-          @dragleave="handleDragLeave"
-          @drop="handleDrop({ row: item.row, col: item.col })"
-        />
+        >
+          <StreamButton
+            :button="item.button"
+            :isEmpty="!item.button"
+            :isDragging="isDragging(item.button)"
+            :isDragOver="isDragOver({ row: item.row, col: item.col })"
+            :isSelected="false"
+            @click="handleButtonClick(item.button)"
+            @edit="
+              handleButtonEdit(item.button, { row: item.row, col: item.col })
+            "
+            @dragstart="handleDragStart(item.button)"
+            @dragend="handleDragEnd"
+            @dragover="handleDragOver({ row: item.row, col: item.col })"
+            @dragleave="handleDragLeave"
+            @drop="handleDrop({ row: item.row, col: item.col })"
+          />
+        </div>
       </div>
-    </div>
+    </template>
 
     <ServerSettings v-model:show="showSettings" />
 
-    <DownloadsPage v-if="showDownloads" @close="showDownloads = false" />
+    <!-- PIN Gate Dialog -->
+    <div v-if="showPinGate" class="confirm-overlay" @click.self="cancelPinGate">
+      <div class="pin-gate-dialog">
+        <h3 class="pin-gate-title">🔐 Ingresa el PIN</h3>
+        <p class="pin-gate-hint">
+          Ingresa el PIN de 4 dígitos para acceder a la configuración
+        </p>
+        <input
+          v-model="pinGateInput"
+          type="tel"
+          inputmode="numeric"
+          maxlength="4"
+          placeholder="PIN"
+          class="pin-gate-input"
+          @keyup.enter="handlePinGateSubmit"
+          autofocus
+        />
+        <p v-if="pinGateError" class="pin-gate-error">{{ pinGateError }}</p>
+        <div class="pin-gate-actions">
+          <button
+            @click="handlePinGateSubmit"
+            :disabled="pinGateLoading"
+            class="pin-gate-btn-ok"
+          >
+            {{ pinGateLoading ? '🔄...' : '🔓 Acceder' }}
+          </button>
+          <button @click="cancelPinGate" class="pin-gate-btn-cancel">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Editor solo en desktop -->
     <ButtonEditor
@@ -774,6 +964,7 @@ function handleClearAllCancel() {
   margin: 0 auto;
   padding: 20px;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -812,12 +1003,6 @@ function handleClearAllCancel() {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   text-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
-}
-
-@media (max-width: 1024px) {
-  .actions .btn-download {
-    display: none !important;
-  }
 }
 
 @media (max-width: 850px) {
@@ -862,13 +1047,14 @@ function handleClearAllCancel() {
 }
 
 .connection-status {
+  background-color: var(--connect-bg-color);
   color: var(--connect-color);
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--connect-bg-color);
   font-size: 0.85rem;
   text-align: center;
   width: max-content;
@@ -944,14 +1130,6 @@ function handleClearAllCancel() {
 
 .btn-icon.btn-danger:hover {
   background: rgba(239, 68, 68, 0.3);
-}
-
-.btn-icon.btn-download {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-}
-
-.btn-icon.btn-download:hover {
-  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
 }
 
 .btn-icon.btn-settings {
@@ -1193,11 +1371,12 @@ function handleClearAllCancel() {
 }
 
 .presets-dialog {
-  background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
+  background: var(--edit-bg-color);
   border-radius: 16px;
   max-width: 600px;
   width: 90%;
   max-height: 80vh;
+  max-height: 80dvh;
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1226,7 +1405,7 @@ function handleClearAllCancel() {
 .presets-header h2 {
   margin: 0;
   font-size: 1.5rem;
-  color: #fff;
+  color: var(--edit-text-color);
 }
 
 .close-btn {
@@ -1234,8 +1413,8 @@ function handleClearAllCancel() {
   height: 32px;
   border-radius: 8px;
   border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--edit-bg-color);
+  color: var(--edit-text-color);
   cursor: pointer;
   font-size: 1.2rem;
   transition: all 0.2s;
@@ -1250,10 +1429,11 @@ function handleClearAllCancel() {
   padding: 24px;
   overflow-y: auto;
   max-height: calc(80vh - 100px);
+  max-height: calc(80dvh - 100px);
 }
 
 .presets-description {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--edit-text-color);
   margin-bottom: 20px;
   font-size: 0.9rem;
 }
@@ -1268,7 +1448,7 @@ function handleClearAllCancel() {
   align-items: center;
   gap: 16px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--form-bg-color);
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   cursor: pointer;
@@ -1301,12 +1481,12 @@ function handleClearAllCancel() {
   font-weight: 600;
   font-size: 1rem;
   margin-bottom: 4px;
-  color: #fff;
+  color: var(--edit-text-color);
 }
 
 .preset-description {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--edit-text-color);
 }
 
 /* ⭐ Forzar limpieza de estado touch en grid */
@@ -1325,7 +1505,214 @@ function handleClearAllCancel() {
   }
 }
 
-/* ===========================
-   LIGHT THEME OVERRIDES
-   =========================== */
+.btn-reconnect,
+.btn-reload,
+.btn-clear {
+  background-color: var(--confirm-bg-light);
+  color: var(--confirm-text-light);
+}
+
+.btn-reconnect:hover,
+.btn-reload:hover,
+.btn-clear:hover {
+  background-color: var(--confirm-bg-light-hover);
+  color: var(--confirm-text-light-hover);
+}
+
+.grid-reloading {
+  animation: gridReload 0.6s ease;
+}
+
+@keyframes gridReload {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  30% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  60% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+::-webkit-scrollbar {
+  width: 0px;
+}
+
+/* PIN Gate Dialog */
+.confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.pin-gate-dialog {
+  background: var(--bg-secondary, #1e1e2e);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 16px;
+  padding: 2rem;
+  min-width: 300px;
+  max-width: 90vw;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: pinGateIn 0.2s ease-out;
+}
+
+@keyframes pinGateIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.pin-gate-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: var(--text-primary, #fff);
+}
+
+.pin-gate-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #aaa);
+  margin: 0 0 1.2rem;
+}
+
+.pin-gate-input {
+  width: 140px;
+  padding: 0.7rem 1rem;
+  font-size: 1.6rem;
+  text-align: center;
+  letter-spacing: 0.5em;
+  border: 2px solid var(--border-color, #555);
+  border-radius: 10px;
+  background: var(--bg-primary, #11111b);
+  color: var(--text-primary, #fff);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.pin-gate-input:focus {
+  border-color: var(--accent-color, #89b4fa);
+}
+
+.pin-gate-error {
+  color: #f38ba8;
+  font-size: 0.85rem;
+  margin: 0.6rem 0 0;
+}
+
+.pin-gate-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.2rem;
+}
+
+.pin-gate-btn-ok {
+  padding: 0.6rem 1.5rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent-color, #89b4fa);
+  color: var(--bg-primary, #11111b);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.pin-gate-btn-ok:hover {
+  opacity: 0.85;
+}
+
+.pin-gate-btn-ok:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pin-gate-btn-cancel {
+  padding: 0.6rem 1.5rem;
+  border: 1px solid var(--border-color, #555);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary, #aaa);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.pin-gate-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* No PIN configured message */
+.no-pin-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+  flex: 1;
+  gap: 0.75rem;
+}
+
+.no-pin-icon {
+  font-size: 4rem;
+  margin-bottom: 0.5rem;
+}
+
+.no-pin-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary, #fff);
+  margin: 0;
+}
+
+.no-pin-desc {
+  font-size: 0.95rem;
+  color: var(--text-secondary, #aaa);
+  max-width: 400px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.no-pin-btn {
+  margin-top: 1rem;
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent-color, #89b4fa);
+  color: var(--bg-primary, #11111b);
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition:
+    opacity 0.2s,
+    transform 0.15s;
+}
+
+.no-pin-btn:hover {
+  opacity: 0.85;
+  transform: scale(1.03);
+}
 </style>

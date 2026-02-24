@@ -3,6 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import * as os from 'os';
 import * as path from 'path';
 import { AppModule } from './app.module';
+import { AuthService } from './auth/auth.service';
 
 function getLocalIpAddress(): string {
   const interfaces = os.networkInterfaces();
@@ -61,18 +62,25 @@ async function bootstrap() {
 
   await app.listen(httpPort, '0.0.0.0');
 
+  // Check PIN status
+  const authService = app.get(AuthService);
+  const pinConfigured = authService.isPinConfigured();
+
   console.log('');
   console.log('🚀 ====================================');
-  console.log('   Stream Deck Server Started! 🔓');
+  console.log('   Stream Deck Server Started! 🔒');
   console.log('🚀 ====================================');
+  console.log('');
+  if (pinConfigured) {
+    console.log('🔑 PIN configurado ✅');
+  } else {
+    console.log('⚠️  PIN no configurado — configúralo desde la app');
+  }
   console.log('');
   console.log(`📍 Local:    http://localhost:${httpPort}`);
   allIps.forEach((ip) => {
     console.log(`📱 Network:  http://${ip}:${httpPort}`);
   });
-  console.log('');
-  console.log('💡 Conecta desde tu app Electron:');
-  console.log(`   - http://localhost:${httpPort}`);
   console.log('');
 }
 bootstrap().catch((err) => {

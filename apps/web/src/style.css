@@ -1,39 +1,66 @@
-@import 'tailwindcss';
+@layer tailwind-base, primevue, tailwind-utilities;
+@import 'tailwindcss/preflight' layer(tailwind-base);
+@import 'tailwindcss/theme' layer(tailwind-base);
+@import 'tailwindcss/utilities' layer(tailwind-utilities);
 @import 'tailwindcss-primeui';
-:root {
-  }
 
-  /* Tailwind Light Theme: Aplica colores base para modo claro */
-  [data-theme="light"] {
-    color-scheme: light;
-    color: #23233a;
-    background: #f5f5f5;
-  }
+/* Tailwind Light Theme: Aplica colores base para modo claro */
+[data-theme='light'] {
+  color-scheme: light;
+  color: #23233a;
+  background: #f5f5f5;
+}
 
-  [data-theme="light"] body {
-    background: #f5f5f5;
-    color: #23233a;
-    /* Variables de color para tema oscuro */
-    --hint-color: rgba(5, 5, 5, 0.5);
-    --credits-color: rgba(5, 5, 5, 0.4);
-    --connect-color: rgba(5, 5, 5, 0.8);
-  }
+[data-theme='light'] body {
+  background: #f5f5f5;
+  color: #23233a;
+  /* Variables de color para tema oscuro */
+  --hint-color: rgba(5, 5, 5, 0.5);
+  --credits-color: rgba(5, 5, 5, 0.4);
+  --connect-color: rgba(5, 5, 5, 0.5);
+  --confirm-bg-light: rgba(245, 245, 245, 0.96);
+  --confirm-text-light: rgba(87, 87, 87, 0.96);
+  --confirm-bg-light-hover: rgba(168, 168, 168, 0.96);
+  --confirm-text-light-hover: rgba(245, 245, 245, 0.98);
+  --connect-bg-color: rgba(5, 5, 5, 0.1);
+  --edit-bg-color: rgba(255, 255, 255, 0.9);
+  --edit-color: rgba(0, 0, 0, 0.9);
+  --form-bg-color: rgba(0, 0, 0, 0.15);
+  --form-bg-text-color: rgba(0, 0, 0, 0.7);
+  --ip-bg-color: rgba(34, 197, 94, 0.1);
+  --ip-text-color: rgba(255, 255, 255, 0.9);
+  --ip-box-bg-color: rgba(69, 233, 129, 0.1);
+  --app-item-hover-bg: rgba(0, 0, 0, 0.05);
+  --app-path-color: rgba(100, 52, 211, 0.8);
+}
 
-  [data-theme="light"] a {
-    color: #3b82f6;
-  }
-  [data-theme="light"] a:hover {
-    color: #2563eb;
-  }
+[data-theme='light'] a {
+  color: #3b82f6;
+}
+[data-theme='light'] a:hover {
+  color: #2563eb;
+}
 
-  body {
+body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
-  transition: background 0.3s ease, color 0.3s ease;
+  transition:
+    background 0.3s ease,
+    color 0.3s ease;
 
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -49,22 +76,37 @@
   /* Variables de color para tema oscuro */
   --hint-color: rgba(255, 255, 255, 0.5);
   --credits-color: rgba(141, 141, 141, 0.8);
+  --connect-color: rgba(255, 255, 255, 0.7);
+  --confirm-bg-light: rgba(100, 100, 104, 0.96);
+  --confirm-text-light: rgba(255, 255, 255, 0.98);
   --connect-color: rgba(255, 255, 255, 0.5);
+  --confirm-bg-light-hover: rgba(255, 255, 255, 0.96);
+  --confirm-text-light-hover: rgba(119, 119, 119, 0.98);
+  --connect-bg-color: rgba(255, 255, 255, 0.1);
+  --edit-bg-color: rgba(41, 41, 41, 0.9);
+  --edit-color: rgba(255, 255, 255, 0.9);
+  --form-bg-color: rgba(255, 255, 255, 0.1);
+  --form-bg-text-color: rgba(255, 255, 255, 0.9);
+  --ip-bg-color: rgba(34, 197, 94, 0.1);
+  --ip-text-color: rgba(255, 255, 255, 0.9);
+  --ip-box-bg-color: rgba(69, 233, 129, 0.1);
+  --app-item-hover-bg: rgba(255, 255, 255, 0.05);
+  --app-path-color: rgba(139, 92, 246, 0.8);
 }
-  
+
 /* ===========================
    PRIMEVUE CONFIRMDIALOG — VISUAL ENHANCEMENT
    =========================== */
 .p-confirm-dialog {
   border-radius: 16px !important;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   background: var(--confirm-bg, #1e1e1e);
   color: var(--confirm-text, #fff);
   min-width: 320px;
   padding: 32px 32px 28px 32px !important;
 }
 .p-confirm-dialog .p-dialog-header {
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding-bottom: 20px;
   margin-bottom: 20px;
   font-size: 1.3rem;
@@ -83,7 +125,7 @@
   display: flex;
   gap: 16px;
   justify-content: flex-end;
-  border-top: 1px solid rgba(255,255,255,0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   padding-top: 20px;
   padding-left: 4px;
   padding-right: 4px;
@@ -118,28 +160,28 @@
   background: #ef3a3a !important;
 }
 /* Light theme adaptation */
-[data-theme="light"] .p-confirm-dialog {
-  background: var(--confirm-bg-light, #fff);
-  color: var(--confirm-text-light, #222);
+[data-theme='light'] .p-confirm-dialog {
+  background: var(--confirm-bg-light);
+  color: var(--confirm-text-light);
 }
-[data-theme="light"] .p-confirm-dialog .p-dialog-header,
-[data-theme="light"] .p-confirm-dialog .p-dialog-content {
-  color: var(--confirm-text-light, #222);
+[data-theme='light'] .p-confirm-dialog .p-dialog-header,
+[data-theme='light'] .p-confirm-dialog .p-dialog-content {
+  color: var(--confirm-text-light);
 }
-[data-theme="light"] .p-confirm-dialog .p-dialog-footer {
-  border-top: 1px solid rgba(0,0,0,0.08);
+[data-theme='light'] .p-confirm-dialog .p-dialog-footer {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
-[data-theme="light"] .p-confirm-dialog .p-confirm-dialog-reject {
+[data-theme='light'] .p-confirm-dialog .p-confirm-dialog-reject {
   background: #f3f3f3 !important;
   color: #222 !important;
 }
-[data-theme="light"] .p-confirm-dialog .p-confirm-dialog-reject:hover {
+[data-theme='light'] .p-confirm-dialog .p-confirm-dialog-reject:hover {
   background: #e0e0e0 !important;
 }
-[data-theme="light"] .p-confirm-dialog .p-confirm-dialog-accept {
+[data-theme='light'] .p-confirm-dialog .p-confirm-dialog-accept {
   background: #ff4a4a !important;
   color: #fff !important;
 }
-[data-theme="light"] .p-confirm-dialog .p-confirm-dialog-accept:hover {
+[data-theme='light'] .p-confirm-dialog .p-confirm-dialog-accept:hover {
   background: #ef3a3a !important;
 }

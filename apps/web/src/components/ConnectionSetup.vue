@@ -276,9 +276,9 @@ onMounted(() => {
 .url-text {
   font-family: monospace;
   font-size: 1.1rem;
-  color: #2c3e50;
+  color: var(--edit-text-color);
   padding: 0.5rem 1rem;
-  background: #f0f0f0;
+  background: var(--form-bg-color);
   border-radius: 8px;
   word-break: break-all;
 }

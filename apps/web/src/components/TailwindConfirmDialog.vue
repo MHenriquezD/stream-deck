@@ -2,17 +2,17 @@
   <Teleport to="body">
     <div
       v-if="show"
-      class="fixed inset-0 z-[1200] flex items-center justify-center pointer-events-none"
+      class="fixed inset-0 z-[1200] flex items-center justify-center"
+      @click.self="$emit('close')"
     >
-      <div class="absolute inset-0"></div>
       <div
-        class="confirm-dialog relative pointer-events-auto rounded-2xl shadow-xl max-w-md w-full p-8"
+        class="confirm-dialog relative rounded-2xl shadow-xl max-w-sm w-full p-8"
       >
         <button
           @click="$emit('close')"
           class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl font-bold focus:outline-none"
         >
-          ×
+          <i class="pi pi-times"></i>
         </button>
         <div class="flex flex-col items-center text-center">
           <div class="mb-4">
@@ -66,14 +66,15 @@ defineEmits(['confirm', 'cancel', 'close'])
 
 <style scoped>
 .confirm-dialog {
-  background-color: rgba(30, 30, 30, 0.9);
-  color: #e0e0e0;
+  background: var(--confirm-bg-light);
+  background-color: var(--confirm-bg-light);
+  color: var(--confirm-text-light);
 }
 
 /* Light theme adaptation */
 [data-theme='light'] .confirm-dialog {
-  background: var(--confirm-bg-light, #f5f5f500);
-  background-color: rgba(245, 245, 245, 0.9);
-  color: var(--confirm-text-light, #222);
+  background: var(--confirm-bg-light);
+  background-color: var(--confirm-bg-light);
+  color: var(--confirm-text-light);
 }
 </style>

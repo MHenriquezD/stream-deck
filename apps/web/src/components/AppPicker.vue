@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useAuth } from '../composables/useAuth'
 import { useServerUrlStore } from '../store/serverUrl.store'
 
 interface InstalledApp {
@@ -23,6 +24,7 @@ const apps = ref<InstalledApp[]>([])
 const loading = ref(false)
 
 const serverUrlStore = useServerUrlStore()
+const { getAuthHeaders } = useAuth()
 const API_URL = serverUrlStore.serverUrl
 
 watch(
@@ -37,7 +39,9 @@ watch(
 const loadApps = async () => {
   loading.value = true
   try {
-    const response = await fetch(`${API_URL}/command/installed-apps`)
+    const response = await fetch(`${API_URL}/command/installed-apps`, {
+      headers: { ...getAuthHeaders() },
+    })
     if (response.ok) {
       const data = await response.json()
       if (data.success && Array.isArray(data.apps)) {
@@ -168,11 +172,12 @@ const selectApp = (app: InstalledApp) => {
 }
 
 .app-picker {
-  background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
+  background: var(--confirm-bg-light);
   border-radius: 16px;
   width: 90%;
   max-width: 800px;
   max-height: 85vh;
+  max-height: 85dvh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -212,7 +217,7 @@ const selectApp = (app: InstalledApp) => {
 .picker-header h3 {
   margin: 0;
   font-size: 1.3rem;
-  color: #fff;
+  color: var(--confirm-text-light);
 }
 
 .close-btn {
@@ -220,8 +225,8 @@ const selectApp = (app: InstalledApp) => {
   height: 32px;
   border-radius: 8px;
   border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--edit-bg-color);
+  color: var(--confirm-text-light);
   cursor: pointer;
   font-size: 1.2rem;
   transition: all 0.2s;
@@ -241,17 +246,17 @@ const selectApp = (app: InstalledApp) => {
 }
 
 .picker-search i {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--edit-text-color);
   font-size: 1.1rem;
 }
 
 .search-input {
   flex: 1;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--form-bg-color);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 10px 16px;
-  color: #fff;
+  color: var(--edit-text-color);
   font-size: 0.95rem;
   outline: none;
   transition: all 0.2s;
@@ -275,7 +280,7 @@ const selectApp = (app: InstalledApp) => {
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--edit-text-color);
   text-align: center;
 }
 
@@ -294,7 +299,7 @@ const selectApp = (app: InstalledApp) => {
 .app-item {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--form-bg-color);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   cursor: pointer;
@@ -304,7 +309,7 @@ const selectApp = (app: InstalledApp) => {
 }
 
 .app-item:hover {
-  background: rgba(139, 92, 246, 0.2);
+  background: var(--app-item-hover-bg);
   border-color: rgba(139, 92, 246, 0.5);
   transform: translateX(4px);
 }
@@ -317,24 +322,25 @@ const selectApp = (app: InstalledApp) => {
 
 .app-info {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .app-name {
   font-weight: 600;
   font-size: 1rem;
-  color: #fff;
+  color: var(--edit-text-color);
   margin-bottom: 4px;
 }
 
 .app-path {
   font-size: 0.75rem;
   font-family: 'Courier New', monospace;
-  color: rgba(139, 92, 246, 0.8);
-  background: rgba(139, 92, 246, 0.1);
+  color: var(--app-path-color);
+  background: var(--form-bg-color);
   padding: 4px 8px;
   border-radius: 4px;
-  display: inline-block;
-  max-width: 100%;
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -349,16 +355,16 @@ const selectApp = (app: InstalledApp) => {
 .hint {
   margin: 0;
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--edit-text-color);
   text-align: center;
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 0px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--form-bg-color);
 }
 
 ::-webkit-scrollbar-thumb {

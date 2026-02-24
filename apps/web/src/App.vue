@@ -1,14 +1,36 @@
 <script setup>
+import { onMounted, ref } from 'vue'
 import StreamDeckGrid from './components/StreamDeckGrid.vue'
 import ThemeToggle from './components/ThemeToggle.vue'
+import { useAuth } from './composables/useAuth'
+
+const { isAuthenticated, checkAuth, checkPinStatus } = useAuth()
+const ready = ref(false)
+
+onMounted(async () => {
+  // 1. Check if PIN is configured on the server
+  const hasPIN = await checkPinStatus()
+
+  if (!hasPIN) {
+    // No PIN configured → app loads without auth
+    isAuthenticated.value = true
+  } else {
+    // 2. PIN exists → check if token is still valid
+    await checkAuth()
+  }
+
+  ready.value = true
+})
 </script>
 
 <template>
   <div class="app-container">
     <div class="app">
-      <Toast position="top-right" />
-      <ThemeToggle />
-      <StreamDeckGrid :rows="3" :cols="4" />
+      <template v-if="ready">
+        <Toast position="top-right" />
+        <ThemeToggle />
+        <StreamDeckGrid :rows="3" :cols="4" />
+      </template>
     </div>
   </div>
 </template>
@@ -16,6 +38,7 @@ import ThemeToggle from './components/ThemeToggle.vue'
 <style scoped>
 .app {
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
 }
 
@@ -32,6 +55,7 @@ import ThemeToggle from './components/ThemeToggle.vue'
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ⭐ IMPORTANTE: Configurar viewport para safe areas */
@@ -42,6 +66,10 @@ body {
   width: 100%;
   height: 100%;
   overflow-x: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 0px;
 }
 </style>
 

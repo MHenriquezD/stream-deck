@@ -530,55 +530,6 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
             </div>
           </div>
 
-          <!-- Controles de posición -->
-          <div v-if="button" class="form-group position-section">
-            <label>Posición en la cuadrícula</label>
-            <div class="preview">
-              <div class="position-controls">
-                <div class="position-row">
-                  <button
-                    type="button"
-                    class="btn-position"
-                    @click="movePosition('up')"
-                    title="Mover arriba"
-                  >
-                    ↑
-                  </button>
-                </div>
-                <div class="position-row">
-                  <button
-                    type="button"
-                    class="btn-position"
-                    @click="movePosition('left')"
-                    title="Mover izquierda"
-                  >
-                    ←
-                  </button>
-                  <div class="position-info">
-                    Fila {{ position.row + 1 }}, Col {{ position.col + 1 }}
-                  </div>
-                  <button
-                    type="button"
-                    class="btn-position"
-                    @click="movePosition('right')"
-                    title="Mover derecha"
-                  >
-                    →
-                  </button>
-                </div>
-                <div class="position-row">
-                  <button
-                    type="button"
-                    class="btn-position"
-                    @click="movePosition('down')"
-                    title="Mover abajo"
-                  >
-                    ↓
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
           <div class="modal-footer">
             <button v-if="button" class="btn btn-danger" @click="handleDelete">
               <i class="pi pi-trash"></i>
@@ -644,7 +595,7 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--edit-bg-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -656,11 +607,12 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
    CONTAINER
    =========================== */
 .modal-container {
-  background: #1e1e1e;
+  background: var(--edit-bg-color);
   border-radius: 16px;
   width: 100%;
   max-width: 600px;
   max-height: 90vh;
+  max-height: 90dvh;
   overflow: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
@@ -679,13 +631,13 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
 .modal-header h2 {
   margin: 0;
   font-size: 1.5rem;
-  color: #fff;
+  color: var(--edit-color);
 }
 
 .close-btn {
   background: transparent;
   border: none;
-  color: #fff;
+  color: var(--edit-color);
   font-size: 1.5rem;
   cursor: pointer;
   padding: 0;
@@ -699,7 +651,8 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
 }
 
 .close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(90deg);
 }
 
 /* ===========================
@@ -732,10 +685,10 @@ label {
 .form-textarea {
   width: 100%;
   padding: 12px;
-  background: #2a2a2a;
+  background: var(--form-bg-color);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  color: #fff;
+  color: var(--edit-color);
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.2s;
@@ -757,7 +710,7 @@ label {
   width: 100%;
   height: 50px;
   padding: 4px;
-  background: #2a2a2a;
+  background: var(--form-bg-color);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   cursor: pointer;
@@ -846,14 +799,14 @@ label {
   gap: 12px;
   margin-top: 12px;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--form-bg-color);
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .preview-label {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--edit-color);
 }
 .icon-display {
   font-size: 2rem;
@@ -869,7 +822,7 @@ label {
 }
 
 .icon-display i {
-  color: #fff;
+  color: var(--edit-color);
 }
 
 .emoji-display {
@@ -887,7 +840,7 @@ label {
 }
 
 .emoji-btn {
-  background: #2a2a2a;
+  background: var(--form-bg-color);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   width: 40px;
@@ -898,7 +851,7 @@ label {
 }
 
 .emoji-btn:hover {
-  background: #3a3a3a;
+  background: var(--edit-bg-color);
   transform: scale(1.1);
 }
 
@@ -908,14 +861,14 @@ label {
 .preview {
   margin-top: 24px;
   padding: 20px;
-  background: #2a2a2a;
+  background: var(--form-bg-color);
   border-radius: 8px;
 }
 
 .preview-button {
   aspect-ratio: 1;
   max-width: 150px;
-  border-radius: 12px;
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -923,6 +876,48 @@ label {
   gap: 8px;
   padding: 16px;
   margin: 0 auto;
+  position: relative;
+  overflow: visible;
+  transform-style: preserve-3d;
+
+  background: linear-gradient(
+    145deg,
+    rgba(40, 40, 60, 0.15) 0%,
+    rgba(25, 25, 40, 0.2) 50%,
+    rgba(20, 20, 35, 0.25) 100%
+  );
+  backdrop-filter: blur(40px) saturate(200%);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-right-width: 3px;
+  border-bottom-width: 3px;
+  border-right-color: rgba(255, 255, 255, 0.15);
+  border-bottom-color: rgba(0, 0, 0, 0.4);
+
+  box-shadow:
+    12px 0 24px rgba(0, 0, 0, 0.6),
+    0 16px 32px rgba(0, 0, 0, 0.5),
+    0 6px 12px rgba(0, 0, 0, 0.3),
+    inset 0 3px 6px rgba(255, 255, 255, 0.15),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.4),
+    inset -3px 0 6px rgba(0, 0, 0, 0.3);
+
+  transform: rotateY(-3deg) translateZ(30px);
+}
+
+.preview-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.15) 30%,
+    transparent 60%,
+    rgba(0, 0, 0, 0.15) 100%
+  );
+  pointer-events: none;
+  transform: translateZ(1px);
 }
 
 .preview-icon {
@@ -1190,5 +1185,9 @@ label {
     font-size: 0.75rem;
     min-width: 80px;
   }
+}
+
+::-webkit-scrollbar {
+  width: 0px;
 }
 </style>

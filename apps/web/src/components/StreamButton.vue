@@ -36,11 +36,15 @@ observer.observe(document.documentElement, {
   attributeFilter: ['data-theme'],
 })
 const buttonStyle = computed(() => {
-  // Si hay botón, color y fondo normales
+  // Si hay botón, usar los colores elegidos por el usuario
   if (props.button) {
-    let color = theme.value === 'dark' ? '#FFF' : '#2E333B'
-    let backgroundColor = theme.value === 'dark' ? '#4D6178' : '#ffffff'
-    return { color, backgroundColor }
+    return {
+      color:
+        props.button.color || (theme.value === 'dark' ? '#FFF' : '#2E333B'),
+      backgroundColor:
+        props.button.backgroundColor ||
+        (theme.value === 'dark' ? '#4D6178' : '#ffffff'),
+    }
   }
   // Si está vacío, fondo degradado adaptado al tema
   let emptyBg =
@@ -498,5 +502,9 @@ const handleDrop = (e: DragEvent) => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+::-webkit-scrollbar {
+  width: 0px;
 }
 </style>

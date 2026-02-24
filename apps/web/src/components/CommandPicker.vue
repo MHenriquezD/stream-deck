@@ -387,11 +387,12 @@ const selectCommand = (command: string) => {
 }
 
 .command-picker {
-  background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
+  background: var(--edit-bg-color);
   border-radius: 16px;
   width: 90%;
   max-width: 800px;
   max-height: 85vh;
+  max-height: 85dvh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -431,7 +432,7 @@ const selectCommand = (command: string) => {
 .picker-header h3 {
   margin: 0;
   font-size: 1.3rem;
-  color: #fff;
+  color: var(--edit-text-color);
 }
 
 .close-btn {
@@ -439,15 +440,15 @@ const selectCommand = (command: string) => {
   height: 32px;
   border-radius: 8px;
   border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--form-bg-color);
+  color: var(--edit-btn-text-color);
   cursor: pointer;
   font-size: 1.2rem;
   transition: all 0.2s;
 }
 
 .close-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--confirm-bg-light-hover);
   transform: rotate(90deg);
 }
 
@@ -460,24 +461,24 @@ const selectCommand = (command: string) => {
 }
 
 .picker-search i {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--edit-text-color);
   font-size: 1.1rem;
 }
 
 .search-input {
   flex: 1;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--form-bg-color);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 10px 16px;
-  color: #fff;
+  color: var(--edit-text-color);
   font-size: 0.95rem;
   outline: none;
   transition: all 0.2s;
 }
 
 .search-input:focus {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--form-bg-color);
   border-color: rgba(139, 92, 246, 0.5);
 }
 
@@ -498,7 +499,7 @@ const selectCommand = (command: string) => {
 .category-title {
   margin: 0 0 12px 0;
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--edit-text-color);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 600;
@@ -513,7 +514,7 @@ const selectCommand = (command: string) => {
 .command-item {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--form-bg-color);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   cursor: pointer;
@@ -523,7 +524,7 @@ const selectCommand = (command: string) => {
 }
 
 .command-item:hover {
-  background: rgba(139, 92, 246, 0.2);
+  background: var(--edit-bg-hover-color);
   border-color: rgba(139, 92, 246, 0.5);
   transform: translateX(4px);
 }
@@ -541,13 +542,13 @@ const selectCommand = (command: string) => {
 .command-label {
   font-weight: 600;
   font-size: 1rem;
-  color: #fff;
+  color: var(--edit-text-color);
   margin-bottom: 4px;
 }
 
 .command-description {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--edit-text-color);
   margin-bottom: 6px;
 }
 
@@ -571,7 +572,7 @@ const selectCommand = (command: string) => {
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--edit-text-color);
   text-align: center;
 }
 

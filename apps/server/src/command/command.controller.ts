@@ -1,12 +1,26 @@
-import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { networkInterfaces } from 'os';
+import { AuthGuard } from '../auth/auth.guard';
 import { CommandService } from './command.service';
 import { StreamCommand } from './interfaces/command.interface';
 import { NetworkInfo } from './interfaces/network.info.interface';
+import { SettingsService } from './settings.service';
 
 @Controller('command')
+@UseGuards(AuthGuard)
 export class CommandController {
-  constructor(private readonly service: CommandService) {}
+  constructor(
+    private readonly service: CommandService,
+    private readonly settingsService: SettingsService,
+  ) {}
 
   @Get()
   getCommands() {
@@ -69,6 +83,18 @@ export class CommandController {
   @Get('health')
   health() {
     return 'ok';
+  }
+
+  // ─── Settings (REST fallback) ───
+  @Get('settings')
+  getSettings() {
+    return this.settingsService.getAll();
+  }
+
+  @Post('settings/grid-size')
+  setGridSize(@Body() body: { gridSize: number }) {
+    this.settingsService.setGridSize(body.gridSize);
+    return { success: true, gridSize: body.gridSize };
   }
 
   // TODO: Implementar control de volumen en el futuro

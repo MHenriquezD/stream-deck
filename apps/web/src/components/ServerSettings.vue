@@ -2,9 +2,20 @@
 import { BarcodeScanner } from '@capacitor-community/barcode-scanner'
 import QRCode from 'qrcode'
 import { onMounted, onUnmounted, ref } from 'vue'
+import { useAuth } from '../composables/useAuth'
+import { useSocket } from '../composables/useSocket'
 import { useServerUrlStore } from '../store/serverUrl.store'
 
 const show = defineModel<boolean>('show', { required: true })
+const {
+  getAuthHeaders,
+  changePin,
+  setupPin,
+  login,
+  checkPinStatus,
+  pinConfigured,
+  isAuthenticated,
+} = useAuth()
 const serverUrlStore = useServerUrlStore()
 const serverUrl = ref(serverUrlStore.serverUrl)
 const isConnecting = ref(false)
@@ -12,9 +23,67 @@ const connectionStatus = ref<'success' | 'error' | null>(null)
 const gridSize = ref(12)
 const qrCodeUrl = ref<string | null>(null)
 
+const { setGridSize: socketSetGridSize, isConnected } = useSocket()
+
 const isMobile = ref(window.innerWidth <= 768)
 const isScanning = ref(false)
 const scanError = ref<string | null>(null)
+
+// PIN change state
+const showPinChange = ref(false)
+const newPin = ref('')
+const confirmNewPin = ref('')
+const pinError = ref('')
+const pinSuccess = ref(false)
+
+// Mobile PIN login state
+const showMobilePinLogin = ref(false)
+const mobilePinInput = ref('')
+const mobilePinError = ref('')
+const mobilePinLoading = ref(false)
+
+const cancelPinChange = () => {
+  showPinChange.value = false
+  pinError.value = ''
+  pinSuccess.value = false
+}
+
+const cancelMobilePinLogin = () => {
+  showMobilePinLogin.value = false
+  mobilePinError.value = ''
+}
+
+const handleChangePin = async () => {
+  pinError.value = ''
+  pinSuccess.value = false
+
+  if (!/^\d{4}$/.test(newPin.value)) {
+    pinError.value = 'El PIN debe ser de 4 dígitos'
+    return
+  }
+  if (newPin.value !== confirmNewPin.value) {
+    pinError.value = 'Los PINs no coinciden'
+    return
+  }
+
+  // Use setupPin for first time, changePin for updates
+  const result = pinConfigured.value
+    ? await changePin(newPin.value)
+    : await setupPin(newPin.value)
+
+  if (result.success) {
+    pinSuccess.value = true
+    pinConfigured.value = true
+    newPin.value = ''
+    confirmNewPin.value = ''
+    setTimeout(() => {
+      // Reload to reconnect socket with new token
+      window.location.reload()
+    }, 1500)
+  } else {
+    pinError.value = result.message || 'Error al cambiar el PIN'
+  }
+}
 
 // ⭐ Detección de IPs locales (solo desktop)
 const localIPs = ref<string[]>([])
@@ -30,7 +99,10 @@ const gridSizeOptions = [
   { value: 32, label: '32 botones (4x8)' },
 ]
 
-onMounted(() => {
+onMounted(async () => {
+  // Check PIN status
+  await checkPinStatus()
+
   const urlParams = new URLSearchParams(window.location.search)
   const serverUrlFromQR = urlParams.get('serverUrl')
 
@@ -52,6 +124,9 @@ onMounted(() => {
 
   const savedGridSize = localStorage.getItem('gridSize')
   if (savedGridSize) gridSize.value = parseInt(savedGridSize)
+
+  // También cargar desde el servidor
+  loadGridSizeFromServer()
 
   const cachedQR = localStorage.getItem('qrCodeUrl')
   if (cachedQR) qrCodeUrl.value = cachedQR
@@ -126,7 +201,10 @@ const handleIPSelection = async () => {
   connectionStatus.value = null
 
   try {
-    const response = await fetch(`${testUrl}/command`, { method: 'GET' })
+    const response = await fetch(`${testUrl}/command`, {
+      method: 'GET',
+      headers: { ...getAuthHeaders() },
+    })
 
     if (response.ok) {
       serverUrl.value = testUrl
@@ -242,13 +320,55 @@ const handleScanResult = (content: string) => {
     setTimeout(() => {
       connectionStatus.value = null
     }, 3000)
+
+    // After QR scan, check if server requires PIN
+    checkAndPromptPin()
   } catch {
     if (content.startsWith('http')) {
       serverUrl.value = content
       connectionStatus.value = 'success'
+      checkAndPromptPin()
     } else {
       scanError.value = 'El QR no contiene una URL válida'
     }
+  }
+}
+
+/** Check if server has PIN and user is not authenticated — show PIN prompt on mobile */
+const checkAndPromptPin = async () => {
+  if (!isMobile.value) return
+  if (isAuthenticated.value) return
+
+  const hasPIN = await checkPinStatus()
+  if (hasPIN) {
+    showMobilePinLogin.value = true
+    mobilePinInput.value = ''
+    mobilePinError.value = ''
+  }
+}
+
+const handleMobilePinLogin = async () => {
+  mobilePinError.value = ''
+
+  if (!/^\d{4}$/.test(mobilePinInput.value)) {
+    mobilePinError.value = 'El PIN debe ser de 4 dígitos'
+    return
+  }
+
+  mobilePinLoading.value = true
+  const result = await login(mobilePinInput.value)
+  mobilePinLoading.value = false
+
+  if (result.success) {
+    showMobilePinLogin.value = false
+    mobilePinInput.value = ''
+    connectionStatus.value = 'success'
+    setTimeout(() => {
+      connectionStatus.value = null
+    }, 3000)
+  } else {
+    mobilePinError.value = result.message || 'PIN incorrecto'
+    mobilePinInput.value = ''
   }
 }
 
@@ -258,7 +378,14 @@ const testConnection = async () => {
   try {
     const response = await fetch(`${serverUrl.value}/command`, {
       method: 'GET',
+      headers: { ...getAuthHeaders() },
     })
+    if (response.status === 401) {
+      // Needs PIN — prompt on mobile
+      serverUrlStore.setServerUrl(serverUrl.value)
+      await checkAndPromptPin()
+      return
+    }
     connectionStatus.value = response.ok ? 'success' : 'error'
   } catch {
     connectionStatus.value = 'error'
@@ -269,8 +396,29 @@ const testConnection = async () => {
 
 const save = () => {
   serverUrlStore.setServerUrl(serverUrl.value)
+  // Guardar gridSize en el servidor via WebSocket
+  socketSetGridSize(gridSize.value)
+  // Mantener localStorage como cache local
   localStorage.setItem('gridSize', gridSize.value.toString())
   window.location.reload()
+}
+
+const loadGridSizeFromServer = async () => {
+  try {
+    const url = serverUrlStore.serverUrl
+    const response = await fetch(`${url}/command/settings`, {
+      headers: { ...getAuthHeaders() },
+    })
+    if (response.ok) {
+      const settings = await response.json()
+      if (settings.gridSize) {
+        gridSize.value = settings.gridSize
+        localStorage.setItem('gridSize', settings.gridSize.toString())
+      }
+    }
+  } catch {
+    // Usar valor de localStorage como fallback
+  }
 }
 
 const close = () => {
@@ -378,6 +526,39 @@ const close = () => {
           <div v-if="scanError" class="scan-error">⚠️ {{ scanError }}</div>
         </div>
 
+        <!-- 🔐 Mobile PIN login (shown after QR scan when server has PIN) -->
+        <div
+          v-if="isMobile && showMobilePinLogin"
+          class="form-group pin-login-section"
+        >
+          <label>🔐 El servidor requiere PIN</label>
+          <p class="pin-login-hint">
+            Ingresa el PIN de 4 dígitos configurado en el escritorio
+          </p>
+          <input
+            v-model="mobilePinInput"
+            type="tel"
+            inputmode="numeric"
+            maxlength="4"
+            placeholder="PIN (4 dígitos)"
+            class="server-input pin-input-small"
+            @keyup.enter="handleMobilePinLogin"
+          />
+          <div class="pin-change-actions">
+            <button
+              @click="handleMobilePinLogin"
+              :disabled="mobilePinLoading"
+              class="btn-pin-save"
+            >
+              {{ mobilePinLoading ? '🔄 Verificando...' : '🔓 Conectar' }}
+            </button>
+            <button @click="cancelMobilePinLogin" class="btn-pin-cancel">
+              Cancelar
+            </button>
+          </div>
+          <p v-if="mobilePinError" class="pin-error">{{ mobilePinError }}</p>
+        </div>
+
         <div class="form-group">
           <label for="serverUrl">URL del Servidor</label>
           <input
@@ -404,6 +585,51 @@ const close = () => {
           <small>Cantidad de botones en la cuadrícula</small>
         </div>
 
+        <!-- Configurar PIN (primera vez) / Cambiar PIN (solo desktop autenticado) -->
+        <div
+          v-if="!pinConfigured || (isAuthenticated && !isMobile)"
+          class="form-group"
+        >
+          <label>🔑 Seguridad</label>
+          <button
+            v-if="!showPinChange"
+            @click="showPinChange = true"
+            class="btn-change-pin"
+          >
+            {{ pinConfigured ? '🔐 Cambiar PIN' : '🔐 Configurar PIN' }}
+          </button>
+          <div v-else class="pin-change-form">
+            <input
+              v-model="newPin"
+              type="tel"
+              inputmode="numeric"
+              maxlength="4"
+              placeholder="Nuevo PIN (4 dígitos)"
+              class="server-input pin-input-small"
+            />
+            <input
+              v-model="confirmNewPin"
+              type="tel"
+              inputmode="numeric"
+              maxlength="4"
+              placeholder="Confirmar PIN"
+              class="server-input pin-input-small"
+            />
+            <div class="pin-change-actions">
+              <button @click="handleChangePin" class="btn-pin-save">
+                ✅ Guardar PIN
+              </button>
+              <button @click="cancelPinChange" class="btn-pin-cancel">
+                Cancelar
+              </button>
+            </div>
+            <p v-if="pinError" class="pin-error">{{ pinError }}</p>
+            <p v-if="pinSuccess" class="pin-success">
+              ✅ PIN cambiado correctamente
+            </p>
+          </div>
+        </div>
+
         <button
           @click="testConnection"
           :disabled="isConnecting"
@@ -414,7 +640,7 @@ const close = () => {
 
         <div v-if="connectionStatus" class="connection-result">
           <div v-if="connectionStatus === 'success'" class="success">
-            ✅ {{ isMobile ? 'URL configurada desde QR' : 'Conexión exitosa' }}
+            ✅ Conexión exitosa
           </div>
           <div v-else class="error">
             ❌ No se pudo conectar. Verifica la IP y que el servidor esté
@@ -567,13 +793,14 @@ const close = () => {
    DIALOG
    =========================== */
 .settings-dialog {
-  background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
+  background: var(--edit-bg-color);
   border-radius: 20px;
   max-width: 500px;
   width: 90%;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.1);
   animation: slideUp 0.3s;
+  color: var(--confirm-text-light);
 }
 
 /* ===========================
@@ -590,7 +817,7 @@ const close = () => {
 .settings-header h2 {
   margin: 0;
   font-size: 1.4rem;
-  color: #f5f5f5;
+  color: var(--confirm-text-light);
 }
 
 .close-btn {
@@ -599,7 +826,7 @@ const close = () => {
   border-radius: 8px;
   border: none;
   background: rgba(255, 255, 255, 0.1);
-  color: #f5f5f5;
+  color: var(--confirm-text-light);
   cursor: pointer;
   font-size: 1.2rem;
   transition: all 0.2s;
@@ -616,6 +843,7 @@ const close = () => {
 .settings-content {
   padding: 24px;
   max-height: 70vh;
+  max-height: 70dvh;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -637,7 +865,7 @@ const close = () => {
 
 /* IP display (conexión exitosa) */
 .ip-display {
-  background: rgba(34, 197, 94, 0.1);
+  background: var(--ip-bg-color);
   border: 2px solid rgba(34, 197, 94, 0.3);
   border-radius: 12px;
   padding: 16px;
@@ -655,7 +883,7 @@ const close = () => {
 .ip-box {
   display: flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--ip-box-bg-color);
   padding: 12px 16px;
   border-radius: 8px;
   margin-bottom: 8px;
@@ -671,7 +899,7 @@ const close = () => {
 
 .ip-display small {
   display: block;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--edit-text-color);
   font-size: 0.85rem;
   margin-top: 4px;
 }
@@ -700,7 +928,7 @@ const close = () => {
 
 /* IP selector */
 .ip-selector-section {
-  background: rgba(59, 130, 246, 0.1);
+  background: var(--ip-box-bg-color);
   border: 2px solid rgba(59, 130, 246, 0.3);
   border-radius: 12px;
   padding: 16px;
@@ -766,9 +994,10 @@ const close = () => {
 }
 
 .ip-select option {
-  background: #1a1a1a;
-  color: #f5f5f5;
+  background: var(--ip-box-bg-color);
+  color: var(--ip-text-color);
   padding: 10px;
+  border-radius: 5px;
 }
 
 .testing-indicator {
@@ -801,7 +1030,7 @@ const close = () => {
 }
 
 .no-ips-detected small {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--edit-color);
   font-size: 0.85rem;
 }
 
@@ -840,7 +1069,7 @@ const close = () => {
 }
 
 .scan-hint {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--edit-color);
   font-size: 0.85rem;
   line-height: 1.4;
   text-align: center;
@@ -866,16 +1095,16 @@ const close = () => {
   display: block;
   margin-bottom: 8px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--form-bg-text-color);
 }
 
 .server-input {
   width: 100%;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--form-bg-color);
   border: 2px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
-  color: #f5f5f5;
+  color: var(--form-bg-text-color);
   font-size: 1rem;
   font-family: 'Courier New', monospace;
   transition: all 0.3s;
@@ -887,8 +1116,8 @@ select.server-input {
 }
 
 select.server-input option {
-  background: #1e1e1e;
-  color: #f5f5f5;
+  background: var(--form-bg-color);
+  color: var(--form-bg-text-color);
 }
 
 .server-input:focus {
@@ -900,7 +1129,7 @@ select.server-input option {
 .form-group small {
   display: block;
   margin-top: 6px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--form-bg-text-color);
   font-size: 0.85rem;
 }
 
@@ -973,12 +1202,13 @@ select.server-input option {
 }
 
 .btn-cancel {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(250, 59, 59, 0.781);
   color: #f5f5f5;
 }
 
 .btn-cancel:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 27, 27, 0.836);
+  transform: translateY(-2px);
 }
 
 .btn-save {
@@ -989,5 +1219,94 @@ select.server-input option {
 .btn-save:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+}
+
+.btn-change-pin {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #f5f5f5;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.3s;
+  width: 100%;
+}
+
+.btn-change-pin:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+}
+
+.pin-change-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pin-input-small {
+  text-align: center;
+  letter-spacing: 8px;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.pin-change-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-pin-save {
+  flex: 1;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #f5f5f5;
+  border: none;
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-pin-save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.btn-pin-cancel {
+  flex: 1;
+  background: rgba(250, 59, 59, 0.781);
+  color: #f5f5f5;
+  border: none;
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-pin-cancel:hover {
+  background: rgba(255, 27, 27, 0.836);
+  transform: translateY(-2px);
+}
+
+.pin-error {
+  color: #ef4444;
+  font-size: 0.85rem;
+  margin: 4px 0 0;
+  text-align: center;
+}
+
+.pin-success {
+  color: #10b981;
+  font-size: 0.85rem;
+  margin: 4px 0 0;
+  text-align: center;
+  font-weight: 600;
+}
+
+::-webkit-scrollbar {
+  width: 0px;
 }
 </style>

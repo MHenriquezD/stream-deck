@@ -37,8 +37,7 @@ app.use(PrimeVue, {
       darkModeSelector: '.dark',
       cssLayer: {
         name: 'primevue',
-        order:
-          'tailwind-base, primevue, tailwind-components, tailwind-utilities',
+        order: 'tailwind-base, primevue, tailwind-utilities',
       },
     },
   },
