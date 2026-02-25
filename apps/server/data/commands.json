@@ -29,8 +29,8 @@
     "id": "preset-volume-down-1768252089774",
     "label": "Bajar Volumen",
     "icon": "fas fa-volume-low",
-    "color": "#36357e",
-    "backgroundColor": "#ffffff",
+    "color": "#ffffff",
+    "backgroundColor": "#28cc2b",
     "type": "command",
     "payload": "powershell -Command \"(New-Object -ComObject WScript.Shell).SendKeys([char]174)\"",
     "position": {
