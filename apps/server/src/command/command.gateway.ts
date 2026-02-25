@@ -57,17 +57,11 @@ export class CommandGateway
   async handleExecute(@MessageBody() data: { id: string }) {
     try {
       const result = await this.commandService.execute(data.id);
-      return {
-        event: 'execute:result',
-        data: { success: true, output: result?.output },
-      };
+      return { success: true, output: result?.output };
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : 'Error desconocido';
-      return {
-        event: 'execute:result',
-        data: { success: false, message },
-      };
+      return { success: false, message };
     }
   }
 
@@ -75,7 +69,7 @@ export class CommandGateway
   @SubscribeMessage('commands:get')
   async handleGetCommands() {
     const commands = await this.commandService.getAll();
-    return { event: 'commands:list', data: commands };
+    return commands;
   }
 
   // ─── Guardar comandos (y notificar a todos los clientes) ───
@@ -84,14 +78,14 @@ export class CommandGateway
     await this.commandService.saveAll(commands);
     // Notificar a TODOS los clientes conectados
     this.server.emit('commands:updated', commands);
-    return { event: 'commands:saved', data: { success: true } };
+    return { success: true };
   }
 
   // ─── Obtener settings ───
   @SubscribeMessage('settings:get')
   handleGetSettings() {
     const settings = this.settingsService.getAll();
-    return { event: 'settings:data', data: settings };
+    return settings;
   }
 
   // ─── Actualizar gridSize (y notificar a todos) ───
@@ -100,6 +94,15 @@ export class CommandGateway
     this.settingsService.setGridSize(data.gridSize);
     // Notificar a TODOS los clientes conectados
     this.server.emit('settings:gridSizeChanged', { gridSize: data.gridSize });
-    return { event: 'settings:gridSizeUpdated', data: { success: true } };
+    return { success: true };
+  }
+
+  // ─── Activar/Desactivar servidor (desktop toggle, notifica a todos) ───
+  @SubscribeMessage('server:setEnabled')
+  handleSetServerEnabled(@MessageBody() data: { enabled: boolean }) {
+    this.settingsService.setServerEnabled(data.enabled);
+    // Notificar a TODOS los clientes conectados
+    this.server.emit('server:enabledChanged', { enabled: data.enabled });
+    return { success: true };
   }
 }

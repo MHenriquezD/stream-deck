@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { BarcodeScanner } from '@capacitor-community/barcode-scanner'
+import { Capacitor } from '@capacitor/core'
 import QRCode from 'qrcode'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useAuth } from '../composables/useAuth'
@@ -23,9 +24,15 @@ const connectionStatus = ref<'success' | 'error' | null>(null)
 const gridSize = ref(12)
 const qrCodeUrl = ref<string | null>(null)
 
-const { setGridSize: socketSetGridSize, isConnected } = useSocket()
+const {
+  setGridSize: socketSetGridSize,
+  isConnected,
+  disconnect: socketDisconnect,
+  connect: socketConnect,
+} = useSocket()
 
-const isMobile = ref(window.innerWidth <= 768)
+const _platform = Capacitor.getPlatform()
+const isMobile = _platform === 'android' || _platform === 'ios'
 const isScanning = ref(false)
 const scanError = ref<string | null>(null)
 
@@ -77,8 +84,8 @@ const handleChangePin = async () => {
     newPin.value = ''
     confirmNewPin.value = ''
     setTimeout(() => {
-      // Reload to reconnect socket with new token
-      window.location.reload()
+      showPinChange.value = false
+      pinSuccess.value = false
     }, 1500)
   } else {
     pinError.value = result.message || 'Error al cambiar el PIN'
@@ -131,13 +138,8 @@ onMounted(async () => {
   const cachedQR = localStorage.getItem('qrCodeUrl')
   if (cachedQR) qrCodeUrl.value = cachedQR
 
-  const handleResize = () => {
-    isMobile.value = window.innerWidth <= 768
-  }
-  window.addEventListener('resize', handleResize)
-
   // ⭐ Detectar IPs locales en desktop
-  if (!isMobile.value) {
+  if (!isMobile) {
     detectLocalIPs()
   }
 })
@@ -247,10 +249,27 @@ const startScanner = async () => {
   scanError.value = null
 
   try {
-    const status = await BarcodeScanner.checkPermission({ force: true })
+    // First check without forcing — see current permission state
+    let status = await BarcodeScanner.checkPermission({ force: false })
+
     if (!status.granted) {
-      scanError.value = 'Se necesita permiso de cámara'
-      return
+      if (status.denied) {
+        // User permanently denied — need to open app settings
+        const confirm = window.confirm(
+          'El permiso de cámara fue denegado. ¿Abrir configuración de la app para habilitarlo?',
+        )
+        if (confirm) {
+          await BarcodeScanner.openAppSettings()
+        }
+        return
+      }
+
+      // Not yet granted and not permanently denied — request permission
+      status = await BarcodeScanner.checkPermission({ force: true })
+      if (!status.granted) {
+        scanError.value = 'Se necesita permiso de cámara'
+        return
+      }
     }
 
     isScanning.value = true
@@ -336,7 +355,7 @@ const handleScanResult = (content: string) => {
 
 /** Check if server has PIN and user is not authenticated — show PIN prompt on mobile */
 const checkAndPromptPin = async () => {
-  if (!isMobile.value) return
+  if (!isMobile) return
   if (isAuthenticated.value) return
 
   const hasPIN = await checkPinStatus()
@@ -395,12 +414,20 @@ const testConnection = async () => {
 }
 
 const save = () => {
+  const urlChanged = serverUrlStore.serverUrl !== serverUrl.value
   serverUrlStore.setServerUrl(serverUrl.value)
   // Guardar gridSize en el servidor via WebSocket
-  socketSetGridSize(gridSize.value)
+  if (isConnected.value && !urlChanged) {
+    socketSetGridSize(gridSize.value)
+  }
   // Mantener localStorage como cache local
   localStorage.setItem('gridSize', gridSize.value.toString())
-  window.location.reload()
+  show.value = false
+  // Si la URL cambió, reconectar socket a la nueva dirección
+  if (urlChanged) {
+    socketDisconnect()
+    socketConnect()
+  }
 }
 
 const loadGridSizeFromServer = async () => {
@@ -587,7 +614,7 @@ const close = () => {
 
         <!-- Configurar PIN (primera vez) / Cambiar PIN (solo desktop autenticado) -->
         <div
-          v-if="!pinConfigured || (isAuthenticated && !isMobile)"
+          v-if="(!pinConfigured && !isMobile) || (isAuthenticated && !isMobile)"
           class="form-group"
         >
           <label>🔑 Seguridad</label>
@@ -651,7 +678,7 @@ const close = () => {
 
       <div class="settings-footer">
         <button @click="close" class="btn-cancel">Cancelar</button>
-        <button @click="save" class="btn-save">💾 Guardar y Recargar</button>
+        <button @click="save" class="btn-save">💾 Guardar configuración</button>
       </div>
     </div>
   </div>
@@ -832,9 +859,11 @@ const close = () => {
   transition: all 0.2s;
 }
 
-.close-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: rotate(90deg);
+@media (hover: hover) {
+  .close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+  }
 }
 
 /* ===========================
@@ -977,9 +1006,11 @@ const close = () => {
   transition: all 0.3s;
 }
 
-.ip-select:hover:not(:disabled) {
-  border-color: rgba(59, 130, 246, 0.6);
-  background: rgba(0, 0, 0, 0.4);
+@media (hover: hover) {
+  .ip-select:hover:not(:disabled) {
+    border-color: rgba(59, 130, 246, 0.6);
+    background: rgba(0, 0, 0, 0.4);
+  }
 }
 
 .ip-select:focus {
@@ -1063,9 +1094,11 @@ const close = () => {
   box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
 }
 
-.btn-scan:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+@media (hover: hover) {
+  .btn-scan:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  }
 }
 
 .scan-hint {
@@ -1120,6 +1153,11 @@ select.server-input option {
   color: var(--form-bg-text-color);
 }
 
+select#gridSize option {
+  background-color: var(--edit-bg-color) !important;
+  color: var(--edit-color) !important;
+}
+
 .server-input:focus {
   outline: none;
   border-color: #8b5cf6;
@@ -1148,9 +1186,11 @@ select.server-input option {
   margin-bottom: 16px;
 }
 
-.btn-test:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+@media (hover: hover) {
+  .btn-test:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+  }
 }
 
 .btn-test:disabled {
@@ -1206,9 +1246,11 @@ select.server-input option {
   color: #f5f5f5;
 }
 
-.btn-cancel:hover {
-  background: rgba(255, 27, 27, 0.836);
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .btn-cancel:hover {
+    background: rgba(255, 27, 27, 0.836);
+    transform: translateY(-2px);
+  }
 }
 
 .btn-save {
@@ -1216,9 +1258,11 @@ select.server-input option {
   color: #f5f5f5;
 }
 
-.btn-save:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+@media (hover: hover) {
+  .btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+  }
 }
 
 .btn-change-pin {
@@ -1234,9 +1278,11 @@ select.server-input option {
   width: 100%;
 }
 
-.btn-change-pin:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+@media (hover: hover) {
+  .btn-change-pin:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+  }
 }
 
 .pin-change-form {
@@ -1269,9 +1315,11 @@ select.server-input option {
   transition: all 0.3s;
 }
 
-.btn-pin-save:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+@media (hover: hover) {
+  .btn-pin-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+  }
 }
 
 .btn-pin-cancel {
@@ -1286,9 +1334,11 @@ select.server-input option {
   transition: all 0.3s;
 }
 
-.btn-pin-cancel:hover {
-  background: rgba(255, 27, 27, 0.836);
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .btn-pin-cancel:hover {
+    background: rgba(255, 27, 27, 0.836);
+    transform: translateY(-2px);
+  }
 }
 
 .pin-error {

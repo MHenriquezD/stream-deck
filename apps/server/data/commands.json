@@ -4,7 +4,7 @@
     "label": "Escritorio",
     "icon": "📁",
     "color": "#ffffff",
-    "backgroundColor": "#1dbf9e",
+    "backgroundColor": "#f476c0",
     "type": "command",
     "payload": "explorer \"%USERPROFILE%\\Desktop\"",
     "position": {
@@ -29,7 +29,7 @@
     "id": "preset-volume-down-1768252089774",
     "label": "Bajar Volumen",
     "icon": "fas fa-volume-low",
-    "color": "#000000",
+    "color": "#36357e",
     "backgroundColor": "#ffffff",
     "type": "command",
     "payload": "powershell -Command \"(New-Object -ComObject WScript.Shell).SendKeys([char]174)\"",
@@ -69,7 +69,7 @@
     "label": "⏮️ Anterior",
     "icon": "⏮️",
     "color": "#ffffff",
-    "backgroundColor": "#2c3e50",
+    "backgroundColor": "#32dcc0",
     "type": "command",
     "payload": "powershell -Command \"(New-Object -ComObject WScript.Shell).SendKeys([char]177)\"",
     "position": {
@@ -88,6 +88,19 @@
     "position": {
       "row": 1,
       "col": 1
+    }
+  },
+  {
+    "id": "79391651-d5dd-42bb-8825-688fd9901de5",
+    "label": "Vs Code",
+    "icon": "💻",
+    "color": "#ffffff",
+    "backgroundColor": "#2c3e50",
+    "type": "command",
+    "payload": "code",
+    "position": {
+      "row": 1,
+      "col": 3
     }
   }
 ]

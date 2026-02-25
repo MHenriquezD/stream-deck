@@ -409,9 +409,11 @@ const selectIcon = (icon: string) => {
   transition: all 0.2s;
 }
 
-.close-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: rotate(90deg);
+@media (hover: hover) {
+  .close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+  }
 }
 
 .picker-search {
@@ -488,10 +490,12 @@ const selectIcon = (icon: string) => {
   padding: 8px;
 }
 
-.icon-item:hover {
-  background: rgba(139, 92, 246, 0.2);
-  border-color: rgba(139, 92, 246, 0.5);
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .icon-item:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: rgba(139, 92, 246, 0.5);
+    transform: translateY(-2px);
+  }
 }
 
 .icon-item.active {

@@ -4,10 +4,12 @@ import * as path from 'path';
 
 export interface AppSettings {
   gridSize: number;
+  serverEnabled: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   gridSize: 12,
+  serverEnabled: true,
 };
 
 @Injectable()
@@ -44,6 +46,16 @@ export class SettingsService {
   setGridSize(gridSize: number) {
     const settings = this.getAll();
     settings.gridSize = gridSize;
+    this.save(settings);
+  }
+
+  isServerEnabled(): boolean {
+    return this.getAll().serverEnabled;
+  }
+
+  setServerEnabled(enabled: boolean) {
+    const settings = this.getAll();
+    settings.serverEnabled = enabled;
     this.save(settings);
   }
 

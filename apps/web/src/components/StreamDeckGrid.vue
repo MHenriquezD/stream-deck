@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { Capacitor } from '@capacitor/core'
 import { ActionType, type StreamButton as ButtonType } from '@shared/core'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAuth } from '../composables/useAuth'
-import { useServerUrl } from '../composables/useServerUrl'
+import { useBiometric } from '../composables/useBiometric'
 import { useSocket } from '../composables/useSocket'
+import { useServerUrlStore } from '../store/serverUrl.store'
 import ButtonEditor from './ButtonEditor.vue'
 import ServerSettings from './ServerSettings.vue'
 import StreamButton from './StreamButton.vue'
@@ -15,10 +17,38 @@ const {
   getAuthHeaders,
   checkPinStatus,
   login,
+  logout,
   isAuthenticated,
   pinConfigured,
+  authToken,
 } = useAuth()
-const { getServerUrl } = useServerUrl()
+const {
+  biometryAvailable,
+  hasSavedPin,
+  checkBiometry,
+  savePin,
+  clearSavedPin,
+  authenticateAndGetPin,
+} = useBiometric()
+
+// Theme toggle
+const isDark = ref(true)
+const applyTheme = () => {
+  const app = document.querySelector('.app')
+  if (isDark.value) {
+    app?.classList.add('dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
+  } else {
+    app?.classList.remove('dark')
+    document.documentElement.setAttribute('data-theme', 'light')
+  }
+}
+const toggleTheme = () => {
+  isDark.value = !isDark.value
+  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+  applyTheme()
+}
+const serverUrlStore = useServerUrlStore()
 const {
   isConnected,
   connect: socketConnect,
@@ -29,6 +59,7 @@ const {
   off: socketOff,
   getSettings: socketGetSettings,
   setGridSize: socketSetGridSize,
+  setServerEnabled: socketSetServerEnabled,
 } = useSocket()
 
 const props = defineProps<{
@@ -69,11 +100,29 @@ const showPinGate = ref(false)
 const pinGateInput = ref('')
 const pinGateError = ref('')
 const pinGateLoading = ref(false)
+
+// Mobile mandatory PIN lock
+const showMobilePinLock = ref(false)
+const mobileLockPin = ref('')
+const mobileLockError = ref('')
+const mobileLockLoading = ref(false)
 const connectionStatus = ref<'connected' | 'disconnected' | 'connecting'>(
   'disconnected',
 )
+const serverEnabled = ref(true)
 
-// Detectar mobile
+// Server unreachable dialog (mobile)
+const showServerUnreachableDialog = ref(false)
+
+// Biometric opt-in dialog
+const showBiometricOptIn = ref(false)
+const pendingPinForBiometric = ref('')
+
+// Detectar plataforma nativa (Android/iOS) vs desktop
+const platform = Capacitor.getPlatform()
+const isMobile = platform === 'android' || platform === 'ios'
+
+// Detectar mobile por tamaño de pantalla (responsive layout)
 const isMobileView = ref(false)
 
 // Desktop Drag and drop state
@@ -86,7 +135,7 @@ const touchOverPosition = ref<{ row: number; col: number } | null>(null)
 const touchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const isPressing = ref<string | null>(null) // Para la animación visual
 
-const API_URL = getServerUrl()
+const API_URL = computed(() => serverUrlStore.serverUrl)
 
 const gridItems = computed(() => {
   const items: Array<{ row: number; col: number; button: ButtonType | null }> =
@@ -103,6 +152,13 @@ const gridItems = computed(() => {
 })
 
 onMounted(async () => {
+  // Inicializar tema
+  const savedTheme = localStorage.getItem('theme')
+  if (savedTheme) {
+    isDark.value = savedTheme === 'dark'
+  }
+  applyTheme()
+
   isMobileView.value = window.innerWidth <= 850
 
   const handleResize = () => {
@@ -110,7 +166,50 @@ onMounted(async () => {
   }
   window.addEventListener('resize', handleResize)
 
-  // Conectar WebSocket
+  // Mobile: check if server has PIN configured → show lock screen before anything else
+  if (isMobile && API_URL.value) {
+    const serverReachable = await checkServerReachable()
+    if (serverReachable) {
+      // Ask server if PIN is configured
+      const hasPinConfigured = await checkPinStatus()
+      if (hasPinConfigured) {
+        // Show lock screen immediately
+        showMobilePinLock.value = true
+
+        // Check biometry availability (needed to show the biometric button)
+        await checkBiometry()
+
+        // If returning user with token, try biometric unlock automatically
+        if (authToken.value) {
+          try {
+            if (biometryAvailable.value && hasSavedPin.value) {
+              const pin = await authenticateAndGetPin()
+              if (pin) {
+                const result = await login(pin)
+                if (result.success) {
+                  showMobilePinLock.value = false
+                } else {
+                  // Saved PIN no longer valid (changed on desktop)
+                  clearSavedPin()
+                }
+              }
+              // If biometric cancelled, lock screen is already visible
+            }
+          } catch (e) {
+            console.error('Biometric check failed:', e)
+            // Lock screen is already visible — user can enter PIN manually
+          }
+        }
+      }
+    } else if (authToken.value) {
+      // Server unreachable — let user choose: retry or clean up
+      showServerUnreachableDialog.value = true
+      return
+    }
+  }
+
+  // Conectar WebSocket (el watch(isConnected) se encarga de cargar datos al conectar)
+  connectionStatus.value = 'connecting'
   socketConnect()
 
   // Escuchar cambios de gridSize desde otros clientes
@@ -124,18 +223,54 @@ onMounted(async () => {
     parseAndSetButtons(commands)
   })
 
-  // Cargar settings y botones (con fallback HTTP si el socket no conecta rápido)
-  await loadSettings()
-  await loadButtons()
-  checkConnection()
+  // Escuchar cambio de estado del servidor (desktop toggle)
+  socketOn('server:enabledChanged', (data: { enabled: boolean }) => {
+    serverEnabled.value = data.enabled
+    if (!data.enabled) {
+      connectionStatus.value = 'disconnected'
+      buttons.value.clear()
+    } else {
+      connectionStatus.value = 'connected'
+      loadSettings()
+      loadButtons()
+    }
+  })
 
-  // Check PIN status for settings gate
-  checkPinStatus()
+  // Detectar error de conexión para actualizar el estado
+  socketOn('connect_error', () => {
+    connectionStatus.value = 'disconnected'
+    buttons.value.clear()
+  })
+
+  // Carga inicial via HTTP (fallback si el socket tarda en conectar)
+  await loadSettings()
+  // Comprobar serverEnabled antes de cargar botones
+  try {
+    const initRes = await fetch(`${API_URL.value}/command/settings`, {
+      headers: { ...getAuthHeaders() },
+    })
+    if (initRes.ok) {
+      const initSettings = await initRes.json()
+      serverEnabled.value = initSettings.serverEnabled !== false
+    }
+  } catch {
+    /* ignore */
+  }
+  if (serverEnabled.value) {
+    await loadButtons()
+  } else {
+    connectionStatus.value = 'disconnected'
+  }
+
+  // Check PIN status for settings gate (desktop uses this)
+  await checkPinStatus()
 })
 
 onUnmounted(() => {
   socketOff('settings:gridSizeChanged')
   socketOff('commands:updated')
+  socketOff('server:enabledChanged')
+  socketOff('connect_error')
 })
 
 const checkConnection = async () => {
@@ -147,7 +282,7 @@ const checkConnection = async () => {
   // Fallback HTTP
   try {
     connectionStatus.value = 'connecting'
-    const response = await fetch(`${API_URL}/command`, {
+    const response = await fetch(`${API_URL.value}/command`, {
       headers: { ...getAuthHeaders() },
     })
     if (response.ok) {
@@ -160,19 +295,59 @@ const checkConnection = async () => {
   }
 }
 
-// Observar el estado del socket para actualizar connectionStatus
-const stopWatchConnection = setInterval(() => {
-  if (isConnected.value) {
-    connectionStatus.value = 'connected'
+/** Botón Reconectar: Desktop = toggle server on/off, Mobile = solo reconectar */
+const handleReconnectButton = () => {
+  if (isMobile) {
+    // Móvil nativo: solo reconectar socket
+    socketDisconnect()
+    connectionStatus.value = 'connecting'
+    socketConnect()
+  } else {
+    // Desktop: toggle estado del servidor
+    if (serverEnabled.value) {
+      // Apagar: enviar al server que está disabled
+      socketSetServerEnabled(false)
+    } else {
+      // Encender: enviar al server que está enabled
+      socketSetServerEnabled(true)
+    }
   }
-}, 1000)
+}
 
-onUnmounted(() => clearInterval(stopWatchConnection))
+// Reaccionar a cambios de conexión del socket
+watch(isConnected, async (connected) => {
+  if (connected) {
+    // Recargar settings y botones al reconectarse
+    await loadSettings()
+    // Comprobar si el servidor está habilitado
+    try {
+      const response = await fetch(`${API_URL.value}/command/settings`, {
+        headers: { ...getAuthHeaders() },
+      })
+      if (response.ok) {
+        const settings = await response.json()
+        serverEnabled.value = settings.serverEnabled !== false
+      }
+    } catch {
+      /* ignore */
+    }
+    buttons.value.clear()
+    if (serverEnabled.value) {
+      connectionStatus.value = 'connected'
+      await loadButtons()
+    } else {
+      connectionStatus.value = 'disconnected'
+    }
+  } else {
+    connectionStatus.value = 'disconnected'
+    buttons.value.clear()
+  }
+})
 
 const loadSettings = async () => {
   try {
     // Intentar via HTTP (más confiable en carga inicial)
-    const response = await fetch(`${API_URL}/command/settings`, {
+    const response = await fetch(`${API_URL.value}/command/settings`, {
       headers: { ...getAuthHeaders() },
     })
     if (response.ok) {
@@ -220,7 +395,7 @@ const parseAndSetButtons = (data: any[]) => {
 
 const loadButtons = async () => {
   try {
-    const response = await fetch(`${API_URL}/command`, {
+    const response = await fetch(`${API_URL.value}/command`, {
       headers: { ...getAuthHeaders() },
     })
     if (response.ok) {
@@ -236,15 +411,19 @@ const loadButtons = async () => {
 
 const reloadButtonsWithAnimation = async () => {
   isReloadingGrid.value = true
-  await loadButtons()
+  buttons.value.clear()
+  if (isConnected.value && serverEnabled.value) {
+    await loadButtons()
+  }
   setTimeout(() => {
     isReloadingGrid.value = false
   }, 600)
 }
 
-/** Open settings — if PIN is configured and user not authenticated, ask PIN first */
+/** Open settings — if PIN is configured and user not authenticated, ask PIN first (desktop only) */
 const openSettings = async () => {
-  if (pinConfigured.value && !isAuthenticated.value) {
+  // Mobile: PIN is handled at app startup via lock screen, no need for gate here
+  if (!isMobile && pinConfigured.value && !isAuthenticated.value) {
     showPinGate.value = true
     pinGateInput.value = ''
     pinGateError.value = ''
@@ -265,6 +444,9 @@ const handlePinGateSubmit = async () => {
   if (result.success) {
     showPinGate.value = false
     pinGateInput.value = ''
+    // Reconectar socket con el nuevo token
+    socketDisconnect()
+    socketConnect()
     showSettings.value = true
   } else {
     pinGateError.value = result.message || 'PIN incorrecto'
@@ -276,6 +458,87 @@ const cancelPinGate = () => {
   showPinGate.value = false
   pinGateInput.value = ''
   pinGateError.value = ''
+}
+
+/** Mobile mandatory PIN submit */
+const handleMobilePinLockSubmit = async () => {
+  mobileLockError.value = ''
+  if (!/^\d{4}$/.test(mobileLockPin.value)) {
+    mobileLockError.value = 'El PIN debe ser de 4 dígitos'
+    return
+  }
+  mobileLockLoading.value = true
+  const result = await login(mobileLockPin.value)
+  mobileLockLoading.value = false
+  if (result.success) {
+    showMobilePinLock.value = false
+    // Ask to save PIN for biometric (only first time, if device supports it)
+    if (biometryAvailable.value && !hasSavedPin.value) {
+      pendingPinForBiometric.value = mobileLockPin.value
+      showBiometricOptIn.value = true
+    }
+    mobileLockPin.value = ''
+    // Reconectar socket con el nuevo token y recargar datos
+    socketDisconnect()
+    socketConnect()
+  } else {
+    mobileLockError.value = result.message || 'PIN incorrecto'
+    mobileLockPin.value = ''
+  }
+}
+
+/** Retry biometric authentication from lock screen */
+const handleBiometricRetry = async () => {
+  const pin = await authenticateAndGetPin()
+  if (pin) {
+    mobileLockLoading.value = true
+    const result = await login(pin)
+    mobileLockLoading.value = false
+    if (result.success) {
+      showMobilePinLock.value = false
+      socketDisconnect()
+      socketConnect()
+    } else {
+      // PIN changed on desktop — clear saved PIN
+      clearSavedPin()
+      mobileLockError.value =
+        'PIN guardado ya no es válido. Ingresa el nuevo PIN.'
+    }
+  }
+}
+
+/** Check if the saved server URL is reachable (5s timeout) */
+const checkServerReachable = async (): Promise<boolean> => {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 5000)
+    const response = await fetch(`${API_URL.value}/auth/status`, {
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
+/** Clean up all stored state so user can reconfigure from scratch */
+const cleanupAndReset = async () => {
+  await logout()
+  clearSavedPin()
+  serverUrlStore.setServerUrl('')
+  localStorage.removeItem('serverUrl')
+  localStorage.removeItem('qrCodeUrl')
+  localStorage.removeItem('gridSize')
+  socketDisconnect()
+  connectionStatus.value = 'disconnected'
+  buttons.value.clear()
+  toast.add({
+    severity: 'warn',
+    summary: 'Servidor no encontrado',
+    detail: 'No se pudo conectar. Escanea el QR de nuevo.',
+    life: 5000,
+  })
 }
 
 const saveButtons = async () => {
@@ -296,7 +559,7 @@ const saveButtons = async () => {
       socketSaveCommands(commandsToSave)
     } else {
       // Fallback HTTP
-      await fetch(`${API_URL}/command`, {
+      await fetch(`${API_URL.value}/command`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(commandsToSave),
@@ -323,10 +586,13 @@ const handleButtonClick = async (button: ButtonType | null) => {
       result = await socketExecute(button.id)
     } else {
       // Fallback HTTP
-      const response = await fetch(`${API_URL}/command/execute/${button.id}`, {
-        method: 'POST',
-        headers: { ...getAuthHeaders() },
-      })
+      const response = await fetch(
+        `${API_URL.value}/command/execute/${button.id}`,
+        {
+          method: 'POST',
+          headers: { ...getAuthHeaders() },
+        },
+      )
       result = await response.json()
       if (!response.ok) result.success = false
     }
@@ -478,6 +744,17 @@ const handleTouchEnd = () => {
   touchOverPosition.value = null
 }
 
+/** Force-clear ALL touch/drag state (safety net for touchcancel, edge cases) */
+const handleTouchCancel = () => {
+  if (touchTimer.value) {
+    clearTimeout(touchTimer.value)
+    touchTimer.value = null
+  }
+  isPressing.value = null
+  touchDragButton.value = null
+  touchOverPosition.value = null
+}
+
 const isTouchDragging = (button: ButtonType | null): boolean => {
   if (!button || !touchDragButton.value) return false
   return touchDragButton.value.id === button.id
@@ -507,9 +784,12 @@ const clearAll = () => {
 
 const loadMultimediaPresets = async () => {
   try {
-    const response = await fetch(`${API_URL}/command/presets/multimedia`, {
-      headers: { ...getAuthHeaders() },
-    })
+    const response = await fetch(
+      `${API_URL.value}/command/presets/multimedia`,
+      {
+        headers: { ...getAuthHeaders() },
+      },
+    )
     if (response.ok) {
       const presets = await response.json()
       showPresetsDialog.value = true
@@ -704,6 +984,83 @@ function handleClearAllConfirm() {
 function handleClearAllCancel() {
   showClearAllDialog.value = false
 }
+
+// Server unreachable dialog handlers
+async function handleServerUnreachableRetry() {
+  showServerUnreachableDialog.value = false
+  // Re-run the full startup flow
+  const serverReachable = await checkServerReachable()
+  if (serverReachable) {
+    const hasPinConfigured = await checkPinStatus()
+    if (hasPinConfigured) {
+      showMobilePinLock.value = true
+      await checkBiometry()
+      if (authToken.value) {
+        try {
+          if (biometryAvailable.value && hasSavedPin.value) {
+            const pin = await authenticateAndGetPin()
+            if (pin) {
+              const result = await login(pin)
+              if (result.success) {
+                showMobilePinLock.value = false
+              } else {
+                clearSavedPin()
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Biometric check failed:', e)
+        }
+      }
+    }
+    // Connect socket and load data
+    connectionStatus.value = 'connecting'
+    socketConnect()
+    await loadSettings()
+    try {
+      const initRes = await fetch(`${API_URL.value}/command/settings`, {
+        headers: { ...getAuthHeaders() },
+      })
+      if (initRes.ok) {
+        const initSettings = await initRes.json()
+        serverEnabled.value = initSettings.serverEnabled !== false
+      }
+    } catch {
+      /* ignore */
+    }
+    if (serverEnabled.value) {
+      await loadButtons()
+    } else {
+      connectionStatus.value = 'disconnected'
+    }
+    await checkPinStatus()
+  } else {
+    // Still unreachable — show dialog again
+    showServerUnreachableDialog.value = true
+  }
+}
+
+async function handleServerUnreachableClean() {
+  showServerUnreachableDialog.value = false
+  await cleanupAndReset()
+}
+
+// Biometric opt-in dialog handlers
+function handleBiometricOptInAccept() {
+  savePin(pendingPinForBiometric.value)
+  pendingPinForBiometric.value = ''
+  showBiometricOptIn.value = false
+  toast.add({
+    severity: 'success',
+    summary: 'Biometría activada',
+    detail: 'La próxima vez podrás desbloquear con tu huella',
+    life: 4000,
+  })
+}
+function handleBiometricOptInDecline() {
+  pendingPinForBiometric.value = ''
+  showBiometricOptIn.value = false
+}
 </script>
 
 <template>
@@ -738,7 +1095,8 @@ function handleClearAllCancel() {
           <img src="/icons/config.svg" alt="Configuración" class="btn-svg" />
           <span class="btn-text">Configuración</span>
         </button>
-        <template v-if="pinConfigured">
+
+        <template v-if="pinConfigured || isMobile">
           <button
             @click="loadMultimediaPresets"
             title="Comandos multimedia"
@@ -748,12 +1106,31 @@ function handleClearAllCancel() {
             <span class="btn-text">Multimedia</span>
           </button>
           <button
-            @click="checkConnection"
-            title="Reconectar"
-            class="btn-icon btn-reconnect flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200 text-neutral-800 hover:bg-gray-900 dark:bg-gray-700 dark:text-neutral-100 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600"
+            @click="handleReconnectButton"
+            :title="
+              isMobile
+                ? 'Reconectar'
+                : serverEnabled
+                  ? 'Desactivar servidor'
+                  : 'Activar servidor'
+            "
+            class="btn-icon btn-reconnect flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2"
+            :class="
+              serverEnabled
+                ? 'bg-gray-200 text-neutral-800 hover:bg-gray-900 dark:bg-gray-700 dark:text-neutral-100 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600'
+                : 'bg-red-200 text-red-800 hover:bg-red-300 dark:bg-red-900/50 dark:text-red-200 dark:hover:bg-red-800/50 border border-red-300 dark:border-red-700'
+            "
           >
             <img src="/icons/reconect.svg" alt="Reconectar" class="btn-svg" />
-            <span class="btn-text">Reconectar</span>
+            <span class="btn-text">
+              {{
+                isMobile
+                  ? 'Reconectar'
+                  : serverEnabled
+                    ? 'Desactivar'
+                    : 'Activar'
+              }}
+            </span>
           </button>
           <button
             @click="reloadButtonsWithAnimation"
@@ -771,12 +1148,26 @@ function handleClearAllCancel() {
             <img src="/icons/delete-grid.svg" alt="Eliminar" class="btn-svg" />
             <span class="btn-text">Limpiar Botones</span>
           </button>
+          <button
+            @click="toggleTheme"
+            :title="isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
+            class="btn-icon btn-theme flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200/100 text-neutral-800 hover:bg-gray-300/100 hover:text-gray-600/100 dark:bg-gray-700/100 dark:text-neutral-100 dark:hover:bg-gray-600/100 dark:hover:text-neutral-400 border border-gray-300 dark:border-gray-600"
+          >
+            <img
+              v-if="isDark"
+              src="/icons/sun.svg"
+              alt="Claro"
+              class="btn-svg"
+            />
+            <img v-else src="/icons/moon.svg" alt="Oscuro" class="btn-svg" />
+            <span class="btn-text">{{ isDark ? 'Claro' : 'Oscuro' }}</span>
+          </button>
         </template>
       </div>
     </div>
 
-    <!-- Mensaje cuando no hay PIN configurado -->
-    <div v-if="!pinConfigured" class="no-pin-message">
+    <!-- Mensaje cuando no hay PIN configurado (solo desktop) -->
+    <div v-if="!pinConfigured && !isMobile" class="no-pin-message">
       <div class="no-pin-icon">🔐</div>
       <h2 class="no-pin-title">Configura un PIN para comenzar</h2>
       <p class="no-pin-desc">
@@ -788,7 +1179,7 @@ function handleClearAllCancel() {
       </button>
     </div>
 
-    <template v-if="pinConfigured">
+    <template v-if="pinConfigured || isMobile">
       <p class="hint" v-if="!isMobileView">
         Click para ejecutar • Click derecho para editar • Arrastra para
         reorganizar
@@ -806,6 +1197,7 @@ function handleClearAllCancel() {
         }"
         @touchmove="handleTouchMove"
         @touchend="handleTouchEnd"
+        @touchcancel="handleTouchCancel"
       >
         <div
           v-for="item in gridItems"
@@ -885,6 +1277,49 @@ function handleClearAllCancel() {
       </div>
     </div>
 
+    <!-- Mobile mandatory PIN lock screen -->
+    <div v-if="showMobilePinLock" class="mobile-pin-lock">
+      <div class="mobile-pin-lock-content">
+        <img
+          src="/logo/SpartanHub-logo.png"
+          alt="SpartanHub"
+          width="120"
+          class="mobile-pin-lock-logo"
+        />
+        <h2 class="mobile-pin-lock-title">Desbloquear</h2>
+        <p class="mobile-pin-lock-hint">Ingresa tu PIN de 4 dígitos</p>
+        <input
+          v-model="mobileLockPin"
+          type="tel"
+          inputmode="numeric"
+          maxlength="4"
+          placeholder="● ● ● ●"
+          class="mobile-pin-lock-input"
+          @keyup.enter="handleMobilePinLockSubmit"
+          autofocus
+        />
+        <p v-if="mobileLockError" class="pin-gate-error">
+          {{ mobileLockError }}
+        </p>
+        <button
+          @click="handleMobilePinLockSubmit"
+          :disabled="mobileLockLoading"
+          class="mobile-pin-lock-btn"
+        >
+          {{ mobileLockLoading ? '🔄...' : '🔓 Desbloquear' }}
+        </button>
+        <!-- Biometric retry button -->
+        <button
+          v-if="biometryAvailable && hasSavedPin"
+          @click="handleBiometricRetry"
+          :disabled="mobileLockLoading"
+          class="mobile-pin-lock-btn biometric-btn"
+        >
+          🔐 Usar huella / biometría
+        </button>
+      </div>
+    </div>
+
     <!-- Editor solo en desktop -->
     <ButtonEditor
       v-if="!isMobileView"
@@ -953,6 +1388,30 @@ function handleClearAllCancel() {
       @confirm="handleClearAllConfirm"
       @cancel="handleClearAllCancel"
       @close="handleClearAllCancel"
+    />
+
+    <TailwindConfirmDialog
+      :show="showServerUnreachableDialog"
+      title="Servidor no encontrado"
+      message="No se pudo conectar con el servidor. ¿Deseas reintentar o limpiar la configuración para empezar de nuevo?"
+      confirmLabel="Limpiar"
+      cancelLabel="Reintentar"
+      confirmClass="bg-red-500 hover:bg-red-600"
+      @confirm="handleServerUnreachableClean"
+      @cancel="handleServerUnreachableRetry"
+      @close="handleServerUnreachableRetry"
+    />
+
+    <TailwindConfirmDialog
+      :show="showBiometricOptIn"
+      title="Desbloqueo biométrico"
+      message="¿Deseas usar tu huella para desbloquear la app la próxima vez?"
+      confirmLabel="Activar"
+      cancelLabel="No, gracias"
+      confirmClass="bg-blue-500 hover:bg-blue-600"
+      @confirm="handleBiometricOptInAccept"
+      @cancel="handleBiometricOptInDecline"
+      @close="handleBiometricOptInDecline"
     />
   </div>
 </template>
@@ -1123,29 +1582,35 @@ function handleClearAllCancel() {
   white-space: nowrap;
 }
 
-.btn-icon:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
-}
+@media (hover: hover) {
+  .btn-icon:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+  }
 
-.btn-icon.btn-danger:hover {
-  background: rgba(239, 68, 68, 0.3);
+  .btn-icon.btn-danger:hover {
+    background: rgba(239, 68, 68, 0.3);
+  }
 }
 
 .btn-icon.btn-settings {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }
 
-.btn-icon.btn-settings:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+@media (hover: hover) {
+  .btn-icon.btn-settings:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  }
 }
 
 .btn-icon.btn-multimedia {
   background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
 }
 
-.btn-icon.btn-multimedia:hover {
-  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+@media (hover: hover) {
+  .btn-icon.btn-multimedia:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+  }
 }
 
 .hint {
@@ -1219,8 +1684,11 @@ function handleClearAllCancel() {
 }
 
 .grid-item {
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  touch-action: inheritance;
+  transition:
+    transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.15s ease,
+    filter 0.15s ease;
+  touch-action: manipulation;
   will-change: transform, opacity;
   pointer-events: auto;
 }
@@ -1246,8 +1714,13 @@ function handleClearAllCancel() {
 
 /* Touch drag & drop */
 .grid-item.touch-dragging {
-  opacity: 0.4;
-  transform: scale(0.92);
+  z-index: 100;
+  opacity: 0.9;
+  transform: scale(1.15) translateY(-5px);
+  filter: brightness(1.1);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  pointer-events: none;
 }
 
 .grid-item.touch-drag-over {
@@ -1259,6 +1732,7 @@ function handleClearAllCancel() {
 
 .grid-item.is-pressing {
   animation: pulse-wait 1s ease-in-out infinite;
+  animation-fill-mode: backwards;
   filter: contrast(1.2) brightness(1.2);
 }
 
@@ -1267,21 +1741,11 @@ function handleClearAllCancel() {
     transform: scale(1);
   }
   50% {
-    transform: scale(0.92);
+    transform: scale(0.95);
   }
   100% {
-    transform: scale(1.05);
+    transform: scale(1);
   }
-}
-
-.grid-item.touch-dragging {
-  z-index: 100;
-  opacity: 0.9;
-  transform: scale(1.15) translateY(-5px);
-  filter: brightness(1.1);
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  pointer-events: none;
 }
 
 .footer {
@@ -1306,9 +1770,11 @@ function handleClearAllCancel() {
   border-bottom: 1px solid transparent;
 }
 
-.credits a:hover {
-  color: rgb(139, 92, 246);
-  border-bottom-color: rgba(139, 92, 246, 0.5);
+@media (hover: hover) {
+  .credits a:hover {
+    color: rgb(139, 92, 246);
+    border-bottom-color: rgba(139, 92, 246, 0.5);
+  }
 }
 
 .copyright {
@@ -1420,9 +1886,11 @@ function handleClearAllCancel() {
   transition: all 0.2s;
 }
 
-.close-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: rotate(90deg);
+@media (hover: hover) {
+  .close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+  }
 }
 
 .presets-content {
@@ -1455,10 +1923,12 @@ function handleClearAllCancel() {
   transition: all 0.2s;
 }
 
-.preset-card:hover {
-  background: rgba(139, 92, 246, 0.2);
-  border-color: rgba(139, 92, 246, 0.5);
-  transform: translateX(4px);
+@media (hover: hover) {
+  .preset-card:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: rgba(139, 92, 246, 0.5);
+    transform: translateX(4px);
+  }
 }
 
 .preset-icon {
@@ -1512,11 +1982,13 @@ function handleClearAllCancel() {
   color: var(--confirm-text-light);
 }
 
-.btn-reconnect:hover,
-.btn-reload:hover,
-.btn-clear:hover {
-  background-color: var(--confirm-bg-light-hover);
-  color: var(--confirm-text-light-hover);
+@media (hover: hover) {
+  .btn-reconnect:hover,
+  .btn-reload:hover,
+  .btn-clear:hover {
+    background-color: var(--confirm-bg-light-hover);
+    color: var(--confirm-text-light-hover);
+  }
 }
 
 .grid-reloading {
@@ -1640,8 +2112,10 @@ function handleClearAllCancel() {
   transition: opacity 0.2s;
 }
 
-.pin-gate-btn-ok:hover {
-  opacity: 0.85;
+@media (hover: hover) {
+  .pin-gate-btn-ok:hover {
+    opacity: 0.85;
+  }
 }
 
 .pin-gate-btn-ok:disabled {
@@ -1660,8 +2134,10 @@ function handleClearAllCancel() {
   transition: background 0.2s;
 }
 
-.pin-gate-btn-cancel:hover {
-  background: rgba(255, 255, 255, 0.05);
+@media (hover: hover) {
+  .pin-gate-btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
 }
 
 /* No PIN configured message */
@@ -1711,8 +2187,105 @@ function handleClearAllCancel() {
     transform 0.15s;
 }
 
-.no-pin-btn:hover {
-  opacity: 0.85;
-  transform: scale(1.03);
+@media (hover: hover) {
+  .no-pin-btn:hover {
+    opacity: 0.85;
+    transform: scale(1.03);
+  }
+}
+
+/* Mobile mandatory PIN lock screen */
+.mobile-pin-lock {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  background: var(--bg-primary, #11111b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+}
+
+.mobile-pin-lock-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+  width: 100%;
+  max-width: 320px;
+}
+
+.mobile-pin-lock-logo {
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+}
+
+.mobile-pin-lock-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary, #fff);
+  margin: 0;
+}
+
+.mobile-pin-lock-hint {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #aaa);
+  margin: 0;
+}
+
+.mobile-pin-lock-input {
+  width: 180px;
+  padding: 0.9rem 1rem;
+  font-size: 2rem;
+  text-align: center;
+  letter-spacing: 0.6em;
+  border: 2px solid var(--border-color, #555);
+  border-radius: 14px;
+  background: var(--bg-secondary, #1e1e2e);
+  color: var(--text-primary, #fff);
+  outline: none;
+  transition: border-color 0.2s;
+  margin-top: 0.5rem;
+}
+
+.mobile-pin-lock-input:focus {
+  border-color: var(--accent-color, #89b4fa);
+}
+
+.mobile-pin-lock-btn {
+  width: 180px;
+  padding: 0.8rem 1.5rem;
+  border: none;
+  border-radius: 14px;
+  background: var(--accent-color, #89b4fa);
+  color: var(--bg-primary, #11111b);
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  margin-top: 0.5rem;
+}
+
+@media (hover: hover) {
+  .mobile-pin-lock-btn:hover {
+    opacity: 0.85;
+  }
+}
+
+.mobile-pin-lock-btn:disabled {
+  opacity: 0.5;
+}
+
+.mobile-pin-lock-btn.biometric-btn {
+  background: transparent;
+  border: 2px solid var(--accent-color, #89b4fa);
+  color: var(--accent-color, #89b4fa);
+  font-size: 0.95rem;
+  margin-top: 0.3rem;
 }
 </style>

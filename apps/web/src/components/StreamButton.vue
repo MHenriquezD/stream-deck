@@ -313,6 +313,15 @@ const handleDrop = (e: DragEvent) => {
     inset -1px 0 3px rgba(0, 0, 0, 0.3);
 }
 
+/* Desactivar :active pegado en dispositivos táctiles */
+@media (hover: none) and (pointer: coarse) {
+  .stream-button:active {
+    transform: none !important;
+    box-shadow: inherit !important;
+    transition: none !important;
+  }
+}
+
 .stream-button.dragging {
   opacity: 0.5;
   cursor: grabbing;

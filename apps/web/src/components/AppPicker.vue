@@ -162,7 +162,7 @@ const selectApp = (app: InstalledApp) => {
 .app-picker-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--confirm-bg-light);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -232,9 +232,11 @@ const selectApp = (app: InstalledApp) => {
   transition: all 0.2s;
 }
 
-.close-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: rotate(90deg);
+@media (hover: hover) {
+  .close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+  }
 }
 
 .picker-search {
@@ -308,10 +310,12 @@ const selectApp = (app: InstalledApp) => {
   text-align: left;
 }
 
-.app-item:hover {
-  background: var(--app-item-hover-bg);
-  border-color: rgba(139, 92, 246, 0.5);
-  transform: translateX(4px);
+@media (hover: hover) {
+  .app-item:hover {
+    background: var(--app-item-hover-bg);
+    border-color: rgba(139, 92, 246, 0.5);
+    transform: translateX(4px);
+  }
 }
 
 .app-item.active {

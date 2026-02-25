@@ -85,7 +85,7 @@ body {
   --connect-bg-color: rgba(255, 255, 255, 0.1);
   --edit-bg-color: rgba(41, 41, 41, 0.9);
   --edit-color: rgba(255, 255, 255, 0.9);
-  --form-bg-color: rgba(255, 255, 255, 0.1);
+  --form-bg-color: rgba(255, 255, 255, 0.15);
   --form-bg-text-color: rgba(255, 255, 255, 0.9);
   --ip-bg-color: rgba(34, 197, 94, 0.1);
   --ip-text-color: rgba(255, 255, 255, 0.9);

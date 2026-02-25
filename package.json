@@ -21,7 +21,10 @@
     "test:server:watch": "pnpm --filter server test:watch",
     "test:server:e2e": "pnpm --filter server test:e2e",
     "lint:server": "pnpm --filter server lint",
-    "format:server": "pnpm --filter server format"
+    "format:server": "pnpm --filter server format",
+    "cap:sync:android": "pnpm --filter web cap sync android",
+    "cap:open:android": "pnpm --filter web cap open android",
+    "cap:android": "pnpm run cap:sync:android && pnpm run cap:open:android"
   },
   "keywords": [],
   "author": "",
@@ -29,8 +32,7 @@
   "packageManager": "pnpm@10.28.0",
   "dependencies": {
     "@capacitor/cli": "^8.0.1",
-    "@capacitor/core": "^8.0.1",
-    "localtunnel": "^2.0.2"
+    "@capacitor/core": "^8.0.1"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

@@ -447,9 +447,11 @@ const selectCommand = (command: string) => {
   transition: all 0.2s;
 }
 
-.close-btn:hover {
-  background: var(--confirm-bg-light-hover);
-  transform: rotate(90deg);
+@media (hover: hover) {
+  .close-btn:hover {
+    background: var(--confirm-bg-light-hover);
+    transform: rotate(90deg);
+  }
 }
 
 .picker-search {
@@ -523,10 +525,12 @@ const selectCommand = (command: string) => {
   text-align: left;
 }
 
-.command-item:hover {
-  background: var(--edit-bg-hover-color);
-  border-color: rgba(139, 92, 246, 0.5);
-  transform: translateX(4px);
+@media (hover: hover) {
+  .command-item:hover {
+    background: var(--edit-bg-hover-color);
+    border-color: rgba(139, 92, 246, 0.5);
+    transform: translateX(4px);
+  }
 }
 
 .command-item.active {

@@ -333,8 +333,10 @@ onMounted(() => {
   transition: background 0.3s;
 }
 
-.scan-button:hover {
-  background: #35a372;
+@media (hover: hover) {
+  .scan-button:hover {
+    background: #35a372;
+  }
 }
 
 .scan-button:active {

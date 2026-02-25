@@ -39,13 +39,14 @@
               @click="$emit('cancel')"
               class="px-6 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
             >
-              Cancelar
+              {{ cancelLabel }}
             </button>
             <button
               @click="$emit('confirm')"
-              class="px-6 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600 transition"
+              :class="confirmClass || 'bg-red-500 hover:bg-red-600'"
+              class="px-6 py-2 rounded-lg text-white font-semibold transition"
             >
-              Eliminar
+              {{ confirmLabel }}
             </button>
           </div>
         </div>
@@ -55,11 +56,21 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  show: boolean
-  title: string
-  message: string
-}>()
+withDefaults(
+  defineProps<{
+    show: boolean
+    title: string
+    message: string
+    confirmLabel?: string
+    cancelLabel?: string
+    confirmClass?: string
+  }>(),
+  {
+    confirmLabel: 'Eliminar',
+    cancelLabel: 'Cancelar',
+    confirmClass: '',
+  },
+)
 
 defineEmits(['confirm', 'cancel', 'close'])
 </script>

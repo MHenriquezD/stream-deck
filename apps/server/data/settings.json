@@ -1,4 +1,5 @@
 {
   "gridSize": 12,
+  "serverEnabled": true,
   "pin": "3312"
 }

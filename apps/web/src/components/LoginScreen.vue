@@ -403,9 +403,11 @@ const setConfirmRef = (el: any, index: number) => {
   transition: all 0.2s;
 }
 
-.back-btn:hover {
-  color: var(--confirm-text-light, #fff);
-  background: rgba(255, 255, 255, 0.1);
+@media (hover: hover) {
+  .back-btn:hover {
+    color: var(--confirm-text-light, #fff);
+    background: rgba(255, 255, 255, 0.1);
+  }
 }
 
 .login-btn {

@@ -12,9 +12,13 @@
     "dev:electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron electron-main.mjs\"",
     "build": "vite build",
     "build:electron": "vite build && electron-builder",
+    "sync:android": "pnpm cap sync android",
+    "open:android": "pnpm cap open android",
+    "cap:android": "pnpm run sync:android && pnpm run open:android",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@aparajita/capacitor-biometric-auth": "^10.0.0",
     "@capacitor-community/barcode-scanner": "^4.0.1",
     "@capacitor/android": "^8.0.1",
     "@capacitor/cli": "^8.0.1",

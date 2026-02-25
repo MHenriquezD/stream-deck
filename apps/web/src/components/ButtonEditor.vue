@@ -650,9 +650,11 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
   transition: background 0.2s;
 }
 
-.close-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: rotate(90deg);
+@media (hover: hover) {
+  .close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+  }
 }
 
 /* ===========================
@@ -704,6 +706,12 @@ label {
 .form-textarea {
   resize: vertical;
   min-height: 80px;
+}
+
+select,
+select option {
+  background-color: var(--edit-bg-color);
+  color: var(--edit-color);
 }
 
 .color-input {
@@ -763,8 +771,10 @@ label {
   text-align: left;
 }
 
-.suggestion-item:hover {
-  background: rgba(139, 92, 246, 0.2);
+@media (hover: hover) {
+  .suggestion-item:hover {
+    background: rgba(139, 92, 246, 0.2);
+  }
 }
 
 .suggestion-item:not(:last-child) {
@@ -850,9 +860,11 @@ label {
   transition: all 0.2s;
 }
 
-.emoji-btn:hover {
-  background: var(--edit-bg-color);
-  transform: scale(1.1);
+@media (hover: hover) {
+  .emoji-btn:hover {
+    background: var(--edit-bg-color);
+    transform: scale(1.1);
+  }
 }
 
 /* ===========================
@@ -977,8 +989,10 @@ label {
   color: white;
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: #3a8eef;
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    background: #3a8eef;
+  }
 }
 
 .btn-secondary {
@@ -986,8 +1000,10 @@ label {
   color: white;
 }
 
-.btn-secondary:hover {
-  background: #4a4a4a;
+@media (hover: hover) {
+  .btn-secondary:hover {
+    background: #4a4a4a;
+  }
 }
 
 .btn-danger {
@@ -995,8 +1011,10 @@ label {
   color: white;
 }
 
-.btn-danger:hover {
-  background: #ef3a3a;
+@media (hover: hover) {
+  .btn-danger:hover {
+    background: #ef3a3a;
+  }
 }
 
 /* ===========================
@@ -1018,9 +1036,11 @@ label {
   transition: all 0.2s;
 }
 
-.icon-picker-btn:hover {
-  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .icon-picker-btn:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+    transform: translateY(-1px);
+  }
 }
 
 .icon-picker-btn i {
@@ -1049,9 +1069,11 @@ label {
   transition: all 0.2s;
 }
 
-.command-picker-btn:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .command-picker-btn:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    transform: translateY(-1px);
+  }
 }
 
 .command-picker-btn i {
@@ -1094,9 +1116,11 @@ label {
   justify-content: center;
 }
 
-.btn-position:hover {
-  background: rgba(139, 92, 246, 0.3);
-  transform: scale(1.1);
+@media (hover: hover) {
+  .btn-position:hover {
+    background: rgba(139, 92, 246, 0.3);
+    transform: scale(1.1);
+  }
 }
 
 .btn-position:active {
