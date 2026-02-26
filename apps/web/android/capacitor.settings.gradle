@@ -7,3 +7,6 @@ project(':aparajita-capacitor-biometric-auth').projectDir = new File('../../../n
 
 include ':capacitor-community-barcode-scanner'
 project(':capacitor-community-barcode-scanner').projectDir = new File('../../../node_modules/.pnpm/@capacitor-community+barcod_03a59aee7e2d6df2b620321551479213/node_modules/@capacitor-community/barcode-scanner/android')
+
+include ':capacitor-browser'
+project(':capacitor-browser').projectDir = new File('../../../node_modules/.pnpm/@capacitor+browser@8.0.1_@capacitor+core@8.0.1/node_modules/@capacitor/browser/android')

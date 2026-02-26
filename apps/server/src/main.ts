@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { AppModule } from './app.module';
@@ -49,6 +50,24 @@ async function bootstrap() {
   );
   app.useStaticAssets(downloadsPath, {
     prefix: '/downloads/',
+  });
+
+  // Servir iconos de apps extraídos
+  const appIconsPath = path.join(process.cwd(), 'data', 'app-icons');
+  if (!fs.existsSync(appIconsPath)) {
+    fs.mkdirSync(appIconsPath, { recursive: true });
+  }
+  app.useStaticAssets(appIconsPath, {
+    prefix: '/app-icons/',
+  });
+
+  // Servir iconos personalizados
+  const customIconsPath = path.join(process.cwd(), 'data', 'custom-icons');
+  if (!fs.existsSync(customIconsPath)) {
+    fs.mkdirSync(customIconsPath, { recursive: true });
+  }
+  app.useStaticAssets(customIconsPath, {
+    prefix: '/custom-icons/',
   });
 
   // Habilitar CORS para permitir conexiones desde cualquier origen en la red local

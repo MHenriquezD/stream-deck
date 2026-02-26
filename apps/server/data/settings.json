@@ -1,5 +1,7 @@
 {
   "gridSize": 12,
   "serverEnabled": true,
+  "buttonSound": true,
+  "buttonSoundFile": "mech-keyboard-2.mp3",
   "pin": "3312"
 }

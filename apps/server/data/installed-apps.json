@@ -1,0 +1,545 @@
+{
+  "scannedAt": "2026-02-26T22:08:28.230Z",
+  "apps": [
+    {
+      "Name": "7-Zip 25.01 (x64)",
+      "Icon": "/app-icons/7-Zip_25_01__x64_.png",
+      "Path": "C:\\Program Files\\7-Zip\\7zFM.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Adobe Acrobat (64-bit)",
+      "Icon": "/app-icons/Adobe_Acrobat__64-bit_.png",
+      "Path": "C:\\Program Files\\Adobe\\Acrobat DC\\Acrobat\\Acrobat.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Adobe Refresh Manager",
+      "Icon": "/app-icons/Adobe_Refresh_Manager.png",
+      "Path": "C:\\Program Files (x86)\\Common Files\\Adobe\\ARM\\1.0\\AdobeARM.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "AnyDesk",
+      "Icon": "/app-icons/AnyDesk.png",
+      "Path": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\Common7\\IDE\\DDConfigCA.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Aplicaciones de Microsoft 365 para negocios - es-es",
+      "Icon": "/app-icons/Aplicaciones_de_Microsoft_365_para_negocios_-_es-es.png",
+      "Path": "C:\\Program Files\\Common Files\\Microsoft Shared\\ClickToRun\\OfficeClickToRun.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Brave",
+      "Icon": "/app-icons/Brave.png",
+      "Path": "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe,0",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Composer - PHP Dependency Manager",
+      "Icon": "/app-icons/Composer_-_PHP_Dependency_Manager.png",
+      "Path": "C:\\Program Files (x86)\\ComposerSetup\\unins000.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Copilot",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.Copilot_1.25121.84.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "CPUID CPU-Z 2.09",
+      "Icon": "/app-icons/CPUID_CPU-Z_2_09.png",
+      "Path": "C:\\Program Files\\CPUID\\CPU-Z\\cpuz.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Crunchyroll - Watch Popular Anime (Brave)",
+      "Icon": "/app-icons/Crunchyroll_-_Watch_Popular_Anime__Brave_.png",
+      "Path": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=hjlhbeffadgkonmpnblkfmhckmocohah",
+      "Source": "PWA"
+    },
+    {
+      "Name": "DirectX",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.DirectXRuntime_9.29.1974.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Discord",
+      "Icon": "/app-icons/Discord.png",
+      "Path": "\"C:\\Users\\manuel.henriquez\\AppData\\Local\\Discord\\Update.exe\" --processStart Discord.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Disney+ (Brave)",
+      "Icon": "/app-icons/Disney___Brave_.png",
+      "Path": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=mbjafbmjpcimpkkihihoideiofnoalmh",
+      "Source": "PWA"
+    },
+    {
+      "Name": "Docker Desktop",
+      "Icon": "/app-icons/Docker_Desktop.png",
+      "Path": "C:\\Program Files\\Docker\\Docker\\Docker Desktop Installer.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Dolby Access",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\DolbyLaboratories.DolbyAccess_3.27.6410.0_x64__rz1tebttyb220",
+      "Source": "Store"
+    },
+    {
+      "Name": "FileZilla 3.69.5",
+      "Icon": "/app-icons/FileZilla_3_69_5.png",
+      "Path": "C:\\Program Files\\FileZilla FTP Client\\FileZilla.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Game Bar",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.XboxGamingOverlay_7.326.2102.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Git",
+      "Icon": "/app-icons/Git.png",
+      "Path": "C:\\Program Files\\Git\\git-bash.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Google Chrome",
+      "Icon": "/app-icons/Google_Chrome.png",
+      "Path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe,0",
+      "Source": "Registry"
+    },
+    {
+      "Name": "GTK3-Runtime Win64",
+      "Icon": "/app-icons/GTK3-Runtime_Win64.png",
+      "Path": "C:\\Program Files\\GTK3-Runtime Win64\\bin\\fc-cache.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "HBO Max (Brave)",
+      "Icon": "/app-icons/HBO_Max__Brave_.png",
+      "Path": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=bjejpbepolkplfohnddceimlpnboflam",
+      "Source": "PWA"
+    },
+    {
+      "Name": "HP Smart",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\AD2F1837.HPPrinterControl_163.1.1121.0_x64__v10z8vjag6ke6",
+      "Source": "Store"
+    },
+    {
+      "Name": "Ink.Handwriting.es-ES.1.0",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.Ink.Handwriting.es-ES.1.0_0.1082.2350.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Ink.Handwriting.Main.es-ES.1.0",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.Ink.Handwriting.Main.es-ES.1.0_0.1082.2350.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Intel(R) Network Connections 25.2.0.0",
+      "Icon": "/app-icons/Intel_R__Network_Connections_25_2_0_0.png",
+      "Path": "C:\\WINDOWS\\Installer\\{FBDEEBC8-592A-415F-AD68-086A8EEFA433}\\ARPPRODUCTICON.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Intel� OptaneT Memory and Storage Management",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\AppUp.IntelOptaneMemoryandStorageManagement_18.1.1042.0_x64__8j3eq9eme6ctt",
+      "Source": "Store"
+    },
+    {
+      "Name": "Java(TM) SE Development Kit 21.0.9 (64-bit)",
+      "Icon": "/app-icons/Java_TM__SE_Development_Kit_21_0_9__64-bit_.png",
+      "Path": "C:\\Program Files\\Java\\jdk-21\\bin\\jabswitch.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Kaspersky Password Manager",
+      "Icon": "/app-icons/Kaspersky_Password_Manager.png",
+      "Path": "C:\\Program Files (x86)\\Kaspersky Lab\\Kaspersky Password Manager 25.1\\kaspersky_plugins.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "KeePass Password Safe 2.60",
+      "Icon": "/app-icons/KeePass_Password_Safe_2_60.png",
+      "Path": "C:\\Program Files\\KeePass Password Safe 2\\KeePass.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Lenovo Calliope USB Keyboard",
+      "Icon": "/app-icons/Lenovo_Calliope_USB_Keyboard.png",
+      "Path": "C:\\Program Files (x86)\\Lenovo\\Lenovo Calliope USB Keyboard\\SklFundKb.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Lenovo Vantage",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\E046963F.LenovoCompanion_10.2511.10.0_x64__k1h2ywk1493x8",
+      "Source": "Store"
+    },
+    {
+      "Name": "Lenovo Vantage Service",
+      "Icon": "/app-icons/Lenovo_Vantage_Service.png",
+      "Path": "C:\\Program Files (x86)\\Lenovo\\VantageService\\\\4.2601.20.0\\Uninstall.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Microsoft 365 Copilot",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.MicrosoftOfficeHub_19.2602.54021.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Microsoft Edge",
+      "Icon": "/app-icons/Microsoft_Edge.png",
+      "Path": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\145.0.3800.70\\msedge.exe,0",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Microsoft Teams Meeting Add-in for Microsoft Office",
+      "Icon": "/app-icons/Microsoft_Teams_Meeting_Add-in_for_Microsoft_Office.png",
+      "Path": "C:\\Program Files (x86)\\Lenovo\\Lenovo Calliope USB Keyboard\\SklFundKb.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Microsoft Visual Studio Code (User)",
+      "Icon": "/app-icons/Microsoft_Visual_Studio_Code__User_.png",
+      "Path": "C:\\Users\\manuel.henriquez\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Microsoft Visual Studio Installer",
+      "Icon": "/app-icons/Microsoft_Visual_Studio_Installer.png",
+      "Path": "C:\\Program Files (x86)\\Lenovo\\Lenovo Calliope USB Keyboard\\SklFundKb.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Microsoft.UI.Xaml.2.0",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\microsoft.ui.xaml.2.0_2.1810.18004.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Microsoft.UI.Xaml.2.7",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.UI.Xaml.2.7_7.2409.9001.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Microsoft.UI.Xaml.2.8",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.UI.Xaml.2.8_8.2501.31001.0_x86__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Minesweeper Online Classic Challenge for Windows10",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\5331LeThanhDat.MinesweeperOnlineClassicChallengefo_1.0.5.0_x64__4sg46mhseqky0",
+      "Source": "Store"
+    },
+    {
+      "Name": "Mozilla Thunderbird (x64 es-ES)",
+      "Icon": "/app-icons/Mozilla_Thunderbird__x64_es-ES_.png",
+      "Path": "C:\\Program Files\\Mozilla Thunderbird\\thunderbird.exe,0",
+      "Source": "Registry"
+    },
+    {
+      "Name": "ngrok",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\ngrok.ngrok_3.36.0.0_x64__1g87z0zv29zzc",
+      "Source": "Store"
+    },
+    {
+      "Name": "Npgsql 3.2.6",
+      "Icon": "",
+      "Path": "C:\\Program Files (x86)\\PostgreSQL\\Npgsql",
+      "Source": "Registry"
+    },
+    {
+      "Name": "NVIDIA Control Panel",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\NVIDIACorp.NVIDIAControlPanel_8.1.969.0_x64__56jybvy8sckqj",
+      "Source": "Store"
+    },
+    {
+      "Name": "OBS Studio",
+      "Icon": "/app-icons/OBS_Studio.png",
+      "Path": "C:\\Program Files\\obs-studio\\bin\\64bit\\obs64.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "OneNote for Windows 10",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.Office.OneNote_16001.14326.22594.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Paquete de experiencia local en espa�ol (M�xico)",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.LanguageExperiencePackes-MX_26100.125.234.0_neutral__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "PEM-HTTPD 2.4.57",
+      "Icon": "/app-icons/PEM-HTTPD_2_4_57.png",
+      "Path": "C:\\Program Files\\edb\\pem\\httpd\\apache\\bin\\ab.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "PostgreSQL 16 ",
+      "Icon": "/app-icons/PostgreSQL_16_.png",
+      "Path": "C:\\Program Files\\PostgreSQL\\16\\bin\\clusterdb.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Power BI Desktop",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.MicrosoftPowerBIDesktop_2.151.1182.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "PowerShell",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.5.4.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "PremiumSoft Navicat Premium 16.0",
+      "Icon": "/app-icons/PremiumSoft_Navicat_Premium_16_0.png",
+      "Path": "C:\\Program Files\\PremiumSoft\\Navicat Premium 16\\navicat.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Realtek Audio Control",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\RealtekSemiconductorCorp.RealtekAudioControl_1.38.277.0_x64__dt26b99r8h8gj",
+      "Source": "Store"
+    },
+    {
+      "Name": "Realtek Audio Driver",
+      "Icon": "/app-icons/Realtek_Audio_Driver.png",
+      "Path": "C:\\Program Files (x86)\\Realtek\\Audio\\Drivers\\RtlUpd64.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "RustDesk",
+      "Icon": "C:\\Program Files\\RustDesk\\RustDesk.exe",
+      "Path": "C:\\Program Files\\RustDesk\\RustDesk.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Skype",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.SkypeApp_15.150.3125.0_x64__kzf8qxf38zg5c",
+      "Source": "Store"
+    },
+    {
+      "Name": "Slack",
+      "Icon": "/app-icons/Slack.png",
+      "Path": "\"C:\\Users\\manuel.henriquez\\AppData\\Local\\slack\\Update.exe\" --processStart slack.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Solitaire & Casual Games",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.MicrosoftSolitaireCollection_4.25.1130.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Spotify",
+      "Icon": "C:\\Users\\manuel.henriquez\\AppData\\Local\\BraveSoftware\\Brave-Browser\\User Data\\Default\\Web Applications\\_crx_pjibgclleladliembfgfagdaldikeohf\\Spotify.ico",
+      "Path": "",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Spotify (Brave)",
+      "Icon": "/app-icons/Spotify__Brave_.png",
+      "Path": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=pjibgclleladliembfgfagdaldikeohf",
+      "Source": "PWA"
+    },
+    {
+      "Name": "SQL/Protect 16.0",
+      "Icon": "/app-icons/SQL_Protect_16_0.png",
+      "Path": "C:\\Program Files\\PostgreSQL\\16\\bin\\clusterdb.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Star+ (Brave)",
+      "Icon": "/app-icons/Star___Brave_.png",
+      "Path": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=giddghecpncoaiginbogfdiakkjjjjfa",
+      "Source": "PWA"
+    },
+    {
+      "Name": "StreamDeck (Brave)",
+      "Icon": "/app-icons/StreamDeck__Brave_.png",
+      "Path": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=idemibpphagihbobmgmaojhjfidlfpdl",
+      "Source": "PWA"
+    },
+    {
+      "Name": "Sublime Text",
+      "Icon": "/app-icons/Sublime_Text.png",
+      "Path": "C:\\Program Files\\Sublime Text\\sublime_text.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Synaptics WBF FP Reader",
+      "Icon": "",
+      "Path": "C:\\Program Files\\Synaptics",
+      "Source": "Registry"
+    },
+    {
+      "Name": "TablePlus 5.7.0",
+      "Icon": "/app-icons/TablePlus_5_7_0.png",
+      "Path": "C:\\Program Files\\TablePlus\\CefSharp.BrowserSubprocess.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Ubuntu 18.04.6 LTS",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\CanonicalGroupLimited.Ubuntu18.04LTS_1804.6.4.0_x64__79rhkp1fndgsc",
+      "Source": "Store"
+    },
+    {
+      "Name": "Visual Studio Build Tools 2019",
+      "Icon": "/app-icons/Visual_Studio_Build_Tools_2019.png",
+      "Path": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\Common7\\IDE\\DDConfigCA.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Visual Studio Build Tools 2022 (2)",
+      "Icon": "/app-icons/Visual_Studio_Build_Tools_2022__2_.png",
+      "Path": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\Common7\\IDE\\DDConfigCA.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Visual Studio Community 2022",
+      "Icon": "/app-icons/Visual_Studio_Community_2022.png",
+      "Path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\devenv.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "VLC media player",
+      "Icon": "/app-icons/VLC_media_player.png",
+      "Path": "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Wallpaper Engine",
+      "Icon": "/app-icons/Wallpaper_Engine.png",
+      "Path": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\wallpaper32.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "WebView2 Runtime de Microsoft Edge",
+      "Icon": "/app-icons/WebView2_Runtime_de_Microsoft_Edge.png",
+      "Path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\145.0.3800.70\\msedgewebview2.exe,0",
+      "Source": "Registry"
+    },
+    {
+      "Name": "WhatsApp",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\5319275A.WhatsAppDesktop_2.2605.103.0_x64__cv1g1gvanyjgm",
+      "Source": "Store"
+    },
+    {
+      "Name": "WhatsApp Web (Brave)",
+      "Icon": "/app-icons/WhatsApp_Web__Brave_.png",
+      "Path": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=hnpfjngllnobngcgfapefoaidbinmjnm",
+      "Source": "PWA"
+    },
+    {
+      "Name": "Widgets Platform Runtime",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.WidgetsPlatformRuntime_1.6.14.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "WinAppRuntime.Main.1.8",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\MicrosoftCorporationII.WinAppRuntime.Main.1.8_8000.770.947.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "WinAppRuntime.Singleton",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\MicrosoftCorporationII.WinAppRuntime.Singleton_8000.770.947.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Windows Package Manager Source (winget) V2",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.Winget.Source_2025.1210.2128.29_neutral__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Windows Web Experience Pack",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\MicrosoftWindows.Client.WebExperience_526.1202.40.0_x64__cw5n1h2txyewy",
+      "Source": "Store"
+    },
+    {
+      "Name": "WinRAR 6.22 (64-bit)",
+      "Icon": "/app-icons/WinRAR_6_22__64-bit_.png",
+      "Path": "C:\\Program Files\\WinRAR\\WinRAR.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Xbox",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.GamingApp_2602.1001.5.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Xbox Game Bar Plugin",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.XboxGameOverlay_1.54.4001.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Xbox TCUI",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\Microsoft.Xbox.TCUI_1.24.10001.0_x64__8wekyb3d8bbwe",
+      "Source": "Store"
+    },
+    {
+      "Name": "Xerox Print and Scan Experience",
+      "Icon": "",
+      "Path": "C:\\Program Files\\WindowsApps\\XeroxCorp.PrintExperience_9.99.18.0_x64__f7egpvdyrs2a8",
+      "Source": "Store"
+    },
+    {
+      "Name": "YouTube (Brave)",
+      "Icon": "/app-icons/YouTube__Brave_.png",
+      "Path": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=agimnkijcaahngcdmfeangaknmldooml",
+      "Source": "PWA"
+    },
+    {
+      "Name": "ZeroTier One",
+      "Icon": "/app-icons/ZeroTier_One.png",
+      "Path": "C:\\Program Files (x86)\\ZeroTier\\One\\zerotier_desktop_ui.exe",
+      "Source": "Registry"
+    },
+    {
+      "Name": "Zimbra  Inbox (112) (Brave)",
+      "Icon": "/app-icons/Zimbra__Inbox__112___Brave_.png",
+      "Path": "\"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe\"  --profile-directory=Default --app-id=nacjoglolfomhgofffloepkckjmhhmno",
+      "Source": "PWA"
+    },
+    {
+      "Name": "Zoom Workplace",
+      "Icon": "/app-icons/Zoom_Workplace.png",
+      "Path": "C:\\Users\\manuel.henriquez\\AppData\\Roaming\\Zoom\\bin\\Zoom.exe",
+      "Source": "Registry"
+    }
+  ]
+}

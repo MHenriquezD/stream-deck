@@ -5,11 +5,15 @@ import * as path from 'path';
 export interface AppSettings {
   gridSize: number;
   serverEnabled: boolean;
+  buttonSound: boolean;
+  buttonSoundFile: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   gridSize: 12,
   serverEnabled: true,
+  buttonSound: true,
+  buttonSoundFile: 'key-click.wav',
 };
 
 @Injectable()
@@ -56,6 +60,26 @@ export class SettingsService {
   setServerEnabled(enabled: boolean) {
     const settings = this.getAll();
     settings.serverEnabled = enabled;
+    this.save(settings);
+  }
+
+  getButtonSound(): boolean {
+    return this.getAll().buttonSound;
+  }
+
+  setButtonSound(enabled: boolean) {
+    const settings = this.getAll();
+    settings.buttonSound = enabled;
+    this.save(settings);
+  }
+
+  getButtonSoundFile(): string {
+    return this.getAll().buttonSoundFile;
+  }
+
+  setButtonSoundFile(file: string) {
+    const settings = this.getAll();
+    settings.buttonSoundFile = file;
     this.save(settings);
   }
 

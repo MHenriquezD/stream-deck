@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useAuth } from '../composables/useAuth'
+import { useServerUrlStore } from '../store/serverUrl.store'
 
 interface IconItem {
   icon: string
   label: string
+  keywords?: string[]
   isPrime?: boolean
   isFontAwesome?: boolean
   isCustom?: boolean
+  isStreamDeck?: boolean
+  isUserCustom?: boolean
 }
 
 const props = defineProps<{
@@ -20,6 +25,83 @@ const emit = defineEmits<{
 }>()
 
 const searchQuery = ref('')
+const serverUrlStore = useServerUrlStore()
+const { getAuthHeaders } = useAuth()
+const customUserIcons = ref<IconItem[]>([])
+const isUploading = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
+
+const fetchCustomIcons = async () => {
+  try {
+    const res = await fetch(
+      `${serverUrlStore.serverUrl}/command/custom-icons`,
+      {
+        headers: { ...getAuthHeaders() },
+      },
+    )
+    if (res.ok) {
+      const files: string[] = await res.json()
+      customUserIcons.value = files.map((f) => ({
+        icon: `custom:${f}`,
+        label: f.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' '),
+        isUserCustom: true,
+      }))
+    }
+  } catch (e) {
+    console.warn('Error loading custom icons:', e)
+  }
+}
+
+const handleUpload = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (!input.files?.length) return
+
+  isUploading.value = true
+  for (const file of Array.from(input.files)) {
+    const formData = new FormData()
+    formData.append('icon', file)
+    try {
+      await fetch(`${serverUrlStore.serverUrl}/command/custom-icons/upload`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders() },
+        body: formData,
+      })
+    } catch (e) {
+      console.warn('Error uploading icon:', e)
+    }
+  }
+  input.value = ''
+  isUploading.value = false
+  await fetchCustomIcons()
+}
+
+const deleteCustomIcon = async (icon: IconItem) => {
+  const filename = icon.icon.replace('custom:', '')
+  try {
+    await fetch(
+      `${serverUrlStore.serverUrl}/command/custom-icons/${filename}`,
+      {
+        method: 'DELETE',
+        headers: { ...getAuthHeaders() },
+      },
+    )
+    await fetchCustomIcons()
+  } catch (e) {
+    console.warn('Error deleting icon:', e)
+  }
+}
+
+// Fetch custom icons when picker opens
+watch(
+  () => props.show,
+  (val) => {
+    if (val) fetchCustomIcons()
+  },
+)
+
+onMounted(() => {
+  if (props.show) fetchCustomIcons()
+})
 
 // Lista de SVGs personalizados - agregar nuevos archivos aquí
 const customSvgFiles = [
@@ -47,6 +129,12 @@ const customSvgFiles = [
   'youtube.svg',
   'youtube-large.svg',
   'hbo-max.svg',
+  'discord.svg',
+  'discord-circle.svg',
+  'edge.svg',
+  'firefox.svg',
+  'vscode.svg',
+  'crunchyroll.svg',
   // Agregar más archivos SVG aquí según los agregues a public/icons/
 ]
 
@@ -63,6 +151,534 @@ const customSvgIcons: IconItem[] = customSvgFiles.map((filename) => {
     isCustom: true,
   }
 })
+
+// Stream Deck icons from public/streamdeck-icons/
+const sd = (file: string, label: string, keywords: string[]): IconItem => ({
+  icon: `sd:${file}`,
+  label,
+  keywords,
+  isStreamDeck: true,
+})
+
+const streamDeckCategories: Record<string, IconItem[]> = {
+  'SD Música': [
+    sd('music-music.png', 'Música', ['musica', 'music', 'nota']),
+    sd('music-music[on].png', 'Música On', ['musica', 'music', 'on']),
+    sd('music-music-play.png', 'Play', ['play', 'reproducir', 'musica']),
+    sd('music-music-pause.png', 'Pausa', ['pausa', 'pause', 'musica']),
+    sd('music-music-next.png', 'Siguiente', ['siguiente', 'next', 'cancion']),
+    sd('music-music-prev.png', 'Anterior', ['anterior', 'previous', 'prev']),
+    sd('music-music-volume-up.png', 'Volumen +', [
+      'volumen',
+      'subir',
+      'volume',
+      'up',
+    ]),
+    sd('music-music-volume-down.png', 'Volumen -', [
+      'volumen',
+      'bajar',
+      'volume',
+      'down',
+    ]),
+    sd('music-music-mute.png', 'Silenciar', ['silencio', 'mute', 'volumen']),
+    sd('music-music-repeat.png', 'Repetir', ['repetir', 'repeat', 'loop']),
+    sd('music-music-repeat-all.png', 'Repetir Todo', [
+      'repetir',
+      'repeat',
+      'all',
+      'todo',
+    ]),
+    sd('music-music-repeat-off.png', 'No Repetir', [
+      'repetir',
+      'repeat',
+      'off',
+    ]),
+    sd('music-music-shuffle.png', 'Aleatorio', [
+      'aleatorio',
+      'shuffle',
+      'random',
+      'mezclar',
+    ]),
+    sd('music-blank.png', 'Blanco', ['blanco', 'blank', 'vacio']),
+  ],
+  'SD Streaming': [
+    sd('streaming-streaming[on].png', 'Streaming On', [
+      'streaming',
+      'directo',
+      'live',
+      'on',
+    ]),
+    sd('streaming-streaming[off].png', 'Streaming Off', [
+      'streaming',
+      'directo',
+      'off',
+    ]),
+    sd('streaming-twitch[on].png', 'Twitch On', ['twitch', 'on', 'live']),
+    sd('streaming-twitch[off].png', 'Twitch Off', ['twitch', 'off']),
+    sd('streaming-youtube[on].png', 'YouTube On', ['youtube', 'on', 'live']),
+    sd('streaming-youtube[off].png', 'YouTube Off', ['youtube', 'off']),
+    sd('streaming-kick[on].png', 'Kick On', ['kick', 'on', 'live']),
+    sd('streaming-kick[off].png', 'Kick Off', ['kick', 'off']),
+    sd('streaming-record[on].png', 'Grabar On', [
+      'grabar',
+      'record',
+      'on',
+      'grabando',
+    ]),
+    sd('streaming-record[off].png', 'Grabar Off', ['grabar', 'record', 'off']),
+    sd('streaming-generic[on].png', 'Genérico On', [
+      'streaming',
+      'generico',
+      'on',
+    ]),
+    sd('streaming-generic[off].png', 'Genérico Off', [
+      'streaming',
+      'generico',
+      'off',
+    ]),
+  ],
+  'SD Escenas': [
+    sd('scenes-scenes[on].png', 'Escenas On', ['escenas', 'scenes', 'on']),
+    sd('scenes-scenes[off].png', 'Escenas Off', ['escenas', 'scenes', 'off']),
+    sd('scenes-gameplay[on].png', 'Gameplay On', [
+      'gameplay',
+      'juego',
+      'game',
+      'on',
+    ]),
+    sd('scenes-gameplay[off].png', 'Gameplay Off', [
+      'gameplay',
+      'juego',
+      'game',
+      'off',
+    ]),
+    sd('scenes-brb[on].png', 'BRB On', ['brb', 'vuelvo', 'break', 'on']),
+    sd('scenes-brb[off].png', 'BRB Off', ['brb', 'vuelvo', 'break', 'off']),
+    sd('scenes-starting[on].png', 'Inicio On', [
+      'inicio',
+      'starting',
+      'comenzar',
+      'on',
+    ]),
+    sd('scenes-starting[off].png', 'Inicio Off', ['inicio', 'starting', 'off']),
+    sd('scenes-ended[on].png', 'Fin On', ['fin', 'ended', 'final', 'on']),
+    sd('scenes-ended[off].png', 'Fin Off', ['fin', 'ended', 'final', 'off']),
+    sd('scenes-coding[on].png', 'Coding On', [
+      'coding',
+      'codigo',
+      'programar',
+      'on',
+    ]),
+    sd('scenes-coding[off].png', 'Coding Off', [
+      'coding',
+      'codigo',
+      'programar',
+      'off',
+    ]),
+    sd('scenes-generic[on].png', 'Genérico On', ['escena', 'generico', 'on']),
+    sd('scenes-generic[off].png', 'Genérico Off', [
+      'escena',
+      'generico',
+      'off',
+    ]),
+    sd('scenes-overhead[on].png', 'Cenital On', [
+      'cenital',
+      'overhead',
+      'camara',
+      'on',
+    ]),
+    sd('scenes-overhead[off].png', 'Cenital Off', [
+      'cenital',
+      'overhead',
+      'camara',
+      'off',
+    ]),
+    sd('scenes-pov[on].png', 'POV On', ['pov', 'primera persona', 'on']),
+    sd('scenes-pov[off].png', 'POV Off', ['pov', 'primera persona', 'off']),
+    sd('scenes-supporters[on].png', 'Supporters On', [
+      'supporters',
+      'donaciones',
+      'on',
+    ]),
+    sd('scenes-supporters[off].png', 'Supporters Off', [
+      'supporters',
+      'donaciones',
+      'off',
+    ]),
+    sd('scenes-blank[on].png', 'Blanco On', ['blanco', 'blank', 'on']),
+    sd('scenes-blank[off].png', 'Blanco Off', ['blanco', 'blank', 'off']),
+  ],
+  'SD Fuentes OBS': [
+    sd('sources-facecam[on].png', 'Webcam On', [
+      'webcam',
+      'facecam',
+      'camara',
+      'on',
+    ]),
+    sd('sources-facecam[off].png', 'Webcam Off', [
+      'webcam',
+      'facecam',
+      'camara',
+      'off',
+    ]),
+    sd('sources-chat[on].png', 'Chat On', ['chat', 'mensajes', 'on']),
+    sd('sources-chat[off].png', 'Chat Off', ['chat', 'mensajes', 'off']),
+    sd('sources-overlay[on].png', 'Overlay On', [
+      'overlay',
+      'superposicion',
+      'on',
+    ]),
+    sd('sources-overlay[off].png', 'Overlay Off', [
+      'overlay',
+      'superposicion',
+      'off',
+    ]),
+    sd('sources-logo[on].png', 'Logo On', ['logo', 'marca', 'on']),
+    sd('sources-logo[off].png', 'Logo Off', ['logo', 'marca', 'off']),
+    sd('sources-pip[on].png', 'PIP On', ['pip', 'picture', 'imagen', 'on']),
+    sd('sources-pip[off].png', 'PIP Off', ['pip', 'picture', 'imagen', 'off']),
+    sd('sources-subscribe[on].png', 'Suscribir On', [
+      'subscribe',
+      'suscribir',
+      'on',
+    ]),
+    sd('sources-subscribe[off].png', 'Suscribir Off', [
+      'subscribe',
+      'suscribir',
+      'off',
+    ]),
+    sd('sources-generic[on].png', 'Genérico On', [
+      'fuente',
+      'source',
+      'generico',
+      'on',
+    ]),
+    sd('sources-generic[off].png', 'Genérico Off', [
+      'fuente',
+      'source',
+      'generico',
+      'off',
+    ]),
+    sd('sources-blank[on].png', 'Blanco On', ['blanco', 'blank', 'on']),
+    sd('sources-blank[off].png', 'Blanco Off', ['blanco', 'blank', 'off']),
+  ],
+  'SD Controles': [
+    sd('settings-arrow-up.png', 'Flecha Arriba', [
+      'flecha',
+      'arrow',
+      'arriba',
+      'up',
+    ]),
+    sd('settings-arrow-down.png', 'Flecha Abajo', [
+      'flecha',
+      'arrow',
+      'abajo',
+      'down',
+    ]),
+    sd('settings-arrow-left.png', 'Flecha Izquierda', [
+      'flecha',
+      'arrow',
+      'izquierda',
+      'left',
+    ]),
+    sd('settings-arrow-right.png', 'Flecha Derecha', [
+      'flecha',
+      'arrow',
+      'derecha',
+      'right',
+    ]),
+    sd('settings-audio.png', 'Audio', ['audio', 'sonido', 'sound']),
+    sd('settings-back.png', 'Atrás', ['atras', 'back', 'volver']),
+    sd('settings-brightness-high.png', 'Brillo Alto', [
+      'brillo',
+      'brightness',
+      'alto',
+      'high',
+    ]),
+    sd('settings-brightness-low.png', 'Brillo Bajo', [
+      'brillo',
+      'brightness',
+      'bajo',
+      'low',
+    ]),
+    sd('settings-camera.png', 'Cámara', ['camara', 'camera', 'foto']),
+    sd('settings-camera-generic[on].png', 'Cámara On', [
+      'camara',
+      'camera',
+      'on',
+    ]),
+    sd('settings-camera-generic[off].png', 'Cámara Off', [
+      'camara',
+      'camera',
+      'off',
+    ]),
+    sd('settings-cancel.png', 'Cancelar', ['cancelar', 'cancel', 'no']),
+    sd('settings-ok.png', 'OK', ['ok', 'aceptar', 'confirmar', 'si']),
+    sd('settings-enter.png', 'Enter', ['enter', 'entrar', 'aceptar']),
+    sd('settings-escape.png', 'Escape', ['escape', 'esc', 'salir']),
+    sd('settings-exit.png', 'Salir', ['salir', 'exit', 'cerrar']),
+    sd('settings-mic[on].png', 'Micrófono On', ['microfono', 'mic', 'on']),
+    sd('settings-mic[off].png', 'Micrófono Off', [
+      'microfono',
+      'mic',
+      'off',
+      'mudo',
+    ]),
+    sd('settings-mic-monitor[on].png', 'Monitor Mic On', [
+      'monitor',
+      'microfono',
+      'mic',
+      'on',
+    ]),
+    sd('settings-mic-monitor[off].png', 'Monitor Mic Off', [
+      'monitor',
+      'microfono',
+      'mic',
+      'off',
+    ]),
+    sd('settings-discord-mic[on].png', 'Discord Mic On', [
+      'discord',
+      'microfono',
+      'mic',
+      'on',
+    ]),
+    sd('settings-discord-mic[off].png', 'Discord Mic Off', [
+      'discord',
+      'microfono',
+      'mic',
+      'off',
+    ]),
+    sd('settings-deafen[on].png', 'Ensordecer On', [
+      'ensordecer',
+      'deafen',
+      'discord',
+      'on',
+    ]),
+    sd('settings-deafen[off].png', 'Ensordecer Off', [
+      'ensordecer',
+      'deafen',
+      'discord',
+      'off',
+    ]),
+    sd('settings-power.png', 'Apagar', ['apagar', 'power', 'encender']),
+    sd('settings-restart.png', 'Reiniciar', ['reiniciar', 'restart', 'reboot']),
+    sd('settings-save-replay.png', 'Guardar Replay', [
+      'guardar',
+      'replay',
+      'save',
+      'repeticion',
+    ]),
+    sd('settings-screenshot.png', 'Captura', [
+      'captura',
+      'screenshot',
+      'pantalla',
+      'foto',
+    ]),
+    sd('settings-settings.png', 'Configuración', [
+      'configuracion',
+      'settings',
+      'ajustes',
+    ]),
+    sd('settings-settings[on].png', 'Configuración On', [
+      'configuracion',
+      'settings',
+      'on',
+    ]),
+    sd('settings-system-volume-up.png', 'Vol. Sistema +', [
+      'volumen',
+      'sistema',
+      'system',
+      'subir',
+    ]),
+    sd('settings-system-volume-down.png', 'Vol. Sistema -', [
+      'volumen',
+      'sistema',
+      'system',
+      'bajar',
+    ]),
+    sd('settings-system-volume-mute.png', 'Silenciar Sistema', [
+      'silencio',
+      'sistema',
+      'system',
+      'mute',
+    ]),
+    sd('settings-generic-volume-up.png', 'Volumen +', [
+      'volumen',
+      'subir',
+      'volume',
+      'up',
+    ]),
+    sd('settings-generic-volume-down.png', 'Volumen -', [
+      'volumen',
+      'bajar',
+      'volume',
+      'down',
+    ]),
+    sd('settings-volume[on].png', 'Volumen On', ['volumen', 'volume', 'on']),
+    sd('settings-volume[off].png', 'Volumen Off', [
+      'volumen',
+      'volume',
+      'off',
+      'silencio',
+    ]),
+    sd('settings-obs-preview[on].png', 'OBS Preview On', [
+      'obs',
+      'preview',
+      'vista previa',
+      'on',
+    ]),
+    sd('settings-obs-preview[off].png', 'OBS Preview Off', [
+      'obs',
+      'preview',
+      'vista previa',
+      'off',
+    ]),
+    sd('settings-push-to-talk[on].png', 'Push to Talk On', [
+      'push',
+      'talk',
+      'hablar',
+      'ptt',
+      'on',
+    ]),
+    sd('settings-push-to-talk[off].png', 'Push to Talk Off', [
+      'push',
+      'talk',
+      'hablar',
+      'ptt',
+      'off',
+    ]),
+    sd('settings-win.png', 'Windows', ['windows', 'win', 'inicio', 'start']),
+    sd('settings-blank[on].png', 'Blanco On', ['blanco', 'blank', 'on']),
+    sd('settings-blank[off].png', 'Blanco Off', ['blanco', 'blank', 'off']),
+    sd('generic-back.png', 'Atrás', ['atras', 'back', 'volver', 'regresar']),
+    sd('generic-folder.png', 'Carpeta', ['carpeta', 'folder', 'directorio']),
+    sd('generic-blank[on].png', 'Blanco On', ['blanco', 'blank', 'on']),
+    sd('generic-blank[off].png', 'Blanco Off', ['blanco', 'blank', 'off']),
+  ],
+  'SD Luces': [
+    sd('lights-light-bulb[on].png', 'Bombilla On', [
+      'bombilla',
+      'luz',
+      'light',
+      'bulb',
+      'on',
+    ]),
+    sd('lights-light-bulb[off].png', 'Bombilla Off', [
+      'bombilla',
+      'luz',
+      'light',
+      'bulb',
+      'off',
+    ]),
+    sd('lights-lights[on].png', 'Luces On', ['luces', 'lights', 'on']),
+    sd('lights-lights[off].png', 'Luces Off', ['luces', 'lights', 'off']),
+    sd('lights-general-brightness-up.png', 'Brillo +', [
+      'brillo',
+      'brightness',
+      'subir',
+      'up',
+    ]),
+    sd('lights-general-brightness-down.png', 'Brillo -', [
+      'brillo',
+      'brightness',
+      'bajar',
+      'down',
+    ]),
+    sd('lights-day-night.png', 'Día/Noche', ['dia', 'noche', 'day', 'night']),
+    sd('lights-bedroom.png', 'Dormitorio', [
+      'dormitorio',
+      'bedroom',
+      'cuarto',
+      'habitacion',
+    ]),
+    sd('lights-bathroom.png', 'Baño', ['bano', 'bathroom']),
+    sd('lights-kitchen.png', 'Cocina', ['cocina', 'kitchen']),
+    sd('lights-living-room.png', 'Sala', ['sala', 'living', 'room', 'salon']),
+    sd('lights-dining.png', 'Comedor', ['comedor', 'dining']),
+    sd('lights-office.png', 'Oficina', ['oficina', 'office', 'estudio']),
+    sd('lights-gaming.png', 'Gaming', ['gaming', 'juegos', 'gamer']),
+    sd('lights-garden.png', 'Jardín', ['jardin', 'garden', 'exterior']),
+    sd('lights-hallway.png', 'Pasillo', ['pasillo', 'hallway']),
+    sd('lights-staircase.png', 'Escalera', ['escalera', 'staircase']),
+    sd('lights-room.png', 'Habitación', ['habitacion', 'room', 'cuarto']),
+    sd('lights-rgb[on].png', 'RGB On', ['rgb', 'led', 'color', 'on']),
+    sd('lights-rgb[off].png', 'RGB Off', ['rgb', 'led', 'color', 'off']),
+    sd('lights-scene-bright.png', 'Escena Brillante', [
+      'escena',
+      'brillante',
+      'bright',
+      'claro',
+    ]),
+    sd('lights-scene-dark.png', 'Escena Oscura', [
+      'escena',
+      'oscura',
+      'dark',
+      'oscuro',
+    ]),
+    sd('lights-scene-streaming.png', 'Escena Streaming', [
+      'escena',
+      'streaming',
+      'directo',
+    ]),
+    sd('lights-hue-sync.png', 'Hue Sync', [
+      'hue',
+      'sync',
+      'philips',
+      'sincronizar',
+    ]),
+    sd('lights-hue-sync[on].png', 'Hue Sync On', [
+      'hue',
+      'sync',
+      'philips',
+      'on',
+    ]),
+    sd('lights-hue-sync[off].png', 'Hue Sync Off', [
+      'hue',
+      'sync',
+      'philips',
+      'off',
+    ]),
+    sd('lights-blank[on].png', 'Blanco On', ['blanco', 'blank', 'luz', 'on']),
+    sd('lights-blank[off].png', 'Blanco Off', [
+      'blanco',
+      'blank',
+      'luz',
+      'off',
+    ]),
+  ],
+  'SD Apps': [
+    sd('apps-chrome.png', 'Chrome', [
+      'chrome',
+      'navegador',
+      'browser',
+      'google',
+    ]),
+    sd('apps-discord.png', 'Discord', ['discord', 'chat', 'voip']),
+    sd('apps-edge.png', 'Edge', ['edge', 'navegador', 'browser', 'microsoft']),
+    sd('apps-obs.png', 'OBS', ['obs', 'streaming', 'grabacion', 'studio']),
+    sd('apps-steam.png', 'Steam', ['steam', 'juegos', 'games', 'valve']),
+    sd('apps-music-player.png', 'Reproductor', [
+      'reproductor',
+      'music',
+      'player',
+      'musica',
+    ]),
+    sd('apps-philips-hue.png', 'Philips Hue', [
+      'philips',
+      'hue',
+      'luces',
+      'smart home',
+    ]),
+    sd('apps-streamerbot.png', 'Streamer.bot', [
+      'streamerbot',
+      'bot',
+      'automatizar',
+    ]),
+    sd('apps-apps[on].png', 'Apps On', ['apps', 'aplicaciones', 'on']),
+    sd('apps-apps[off].png', 'Apps Off', ['apps', 'aplicaciones', 'off']),
+    sd('apps-blank.png', 'Blanco', ['blanco', 'blank', 'app', 'vacio']),
+  ],
+}
 
 const iconCategories = computed<Record<string, IconItem[]>>(() => ({
   Multimedia: [
@@ -230,6 +846,10 @@ const iconCategories = computed<Record<string, IconItem[]>>(() => ({
   ...(customSvgIcons.length > 0 && {
     'Custom SVG': customSvgIcons,
   }),
+  ...(customUserIcons.value.length > 0 && {
+    'Mis Iconos': customUserIcons.value,
+  }),
+  ...streamDeckCategories,
   Símbolos: [
     { icon: '⭐', label: 'Estrella' },
     { icon: '❤️', label: 'Corazón' },
@@ -260,7 +880,8 @@ const filteredIcons = computed(() => {
     const matchingIcons = icons.filter(
       (item) =>
         item.label.toLowerCase().includes(query) ||
-        item.icon.toLowerCase().includes(query),
+        item.icon.toLowerCase().includes(query) ||
+        item.keywords?.some((kw) => kw.includes(query)),
     )
     if (matchingIcons.length > 0) {
       filtered[category] = matchingIcons
@@ -294,6 +915,29 @@ const selectIcon = (icon: string) => {
         />
       </div>
 
+      <!-- Upload custom icons -->
+      <div class="upload-section">
+        <input
+          ref="fileInput"
+          type="file"
+          accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp"
+          multiple
+          style="display: none"
+          @change="handleUpload"
+        />
+        <button
+          class="upload-btn"
+          @click="fileInput?.click()"
+          :disabled="isUploading"
+        >
+          <i
+            class="pi"
+            :class="isUploading ? 'pi-spin pi-spinner' : 'pi-upload'"
+          ></i>
+          {{ isUploading ? 'Subiendo...' : 'Subir Icono Personalizado' }}
+        </button>
+      </div>
+
       <div class="picker-content">
         <div v-if="Object.keys(filteredIcons).length === 0" class="no-results">
           <i class="pi pi-search" style="font-size: 2rem; opacity: 0.3"></i>
@@ -321,12 +965,35 @@ const selectIcon = (icon: string) => {
                 class="custom-icon-preview"
                 :alt="item.label"
               />
+              <img
+                v-else-if="item.isUserCustom"
+                :src="
+                  serverUrlStore.serverUrl +
+                  '/custom-icons/' +
+                  item.icon.replace('custom:', '')
+                "
+                class="custom-icon-preview"
+                :alt="item.label"
+              />
+              <img
+                v-else-if="item.isStreamDeck"
+                :src="'./streamdeck-icons/' + item.icon.replace('sd:', '')"
+                class="custom-icon-preview"
+                :alt="item.label"
+              />
               <i
                 v-else-if="item.isPrime || item.isFontAwesome"
                 :class="item.icon"
               ></i>
               <span v-else class="emoji-icon">{{ item.icon }}</span>
               <span class="icon-label">{{ item.label }}</span>
+              <span
+                v-if="item.isUserCustom"
+                class="delete-icon-btn"
+                @click.stop="deleteCustomIcon(item)"
+                title="Eliminar icono"
+                >✕</span
+              >
             </button>
           </div>
         </div>
@@ -556,5 +1223,75 @@ const selectIcon = (icon: string) => {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* Upload section */
+.upload-section {
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.upload-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(102, 126, 234, 0.15);
+  border: 1px dashed rgba(102, 126, 234, 0.4);
+  border-radius: 10px;
+  color: #8ea4f0;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.upload-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) {
+  .upload-btn:hover:not(:disabled) {
+    background: rgba(102, 126, 234, 0.25);
+    border-color: rgba(102, 126, 234, 0.6);
+  }
+}
+
+/* Delete icon button */
+.icon-item {
+  position: relative;
+}
+
+.delete-icon-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(220, 50, 50, 0.85);
+  color: white;
+  border-radius: 50%;
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+@media (hover: hover) {
+  .icon-item:hover .delete-icon-btn {
+    opacity: 1;
+  }
+}
+
+/* Always show on touch devices */
+@media (hover: none) {
+  .delete-icon-btn {
+    opacity: 1;
+  }
 }
 </style>

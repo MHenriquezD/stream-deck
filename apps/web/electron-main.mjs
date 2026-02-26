@@ -1,5 +1,5 @@
 import { spawn } from 'child_process'
-import { app, BrowserWindow, ipcMain } from 'electron' // ⭐ Importa ipcMain
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { appendFileSync, existsSync, mkdirSync, readdirSync } from 'fs'
 import { networkInterfaces } from 'os' // ⭐ Importa networkInterfaces
 import path from 'path'
@@ -228,6 +228,21 @@ const startBackend = async () => {
   await waitForBackend()
 }
 
+// ⭐ Registrar handlers IPC una sola vez (fuera de createWindow)
+ipcMain.handle('get-network-interfaces', () => {
+  return getNetworkInterfaces()
+})
+
+ipcMain.handle('open-external', (_event, url) => {
+  log('open-external called with: ' + url)
+  if (
+    typeof url === 'string' &&
+    (url.startsWith('http://') || url.startsWith('https://'))
+  ) {
+    return shell.openExternal(url)
+  }
+})
+
 const createWindow = async () => {
   log('Creating window...')
 
@@ -241,9 +256,25 @@ const createWindow = async () => {
     },
   })
 
-  // ⭐ NUEVO: Registrar handler IPC para obtener interfaces de red
-  ipcMain.handle('get-network-interfaces', () => {
-    return getNetworkInterfaces()
+  // Interceptar navegación a URLs externas
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      shell.openExternal(url)
+    }
+    return { action: 'deny' }
+  })
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const currentUrl = mainWindow.webContents.getURL()
+    // Si navega a una URL externa, abrir en navegador del sistema
+    if (
+      url !== currentUrl &&
+      (url.startsWith('http://') || url.startsWith('https://')) &&
+      !url.startsWith('http://localhost')
+    ) {
+      event.preventDefault()
+      shell.openExternal(url)
+    }
   })
 
   const startUrl = isDev

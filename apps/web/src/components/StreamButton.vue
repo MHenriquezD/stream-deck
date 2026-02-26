@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { StreamButton } from '@shared/core'
 import { computed, ref } from 'vue'
+import { useServerUrlStore } from '../store/serverUrl.store'
 
 const props = defineProps<{
   button: StreamButton | null
@@ -22,6 +23,7 @@ const emit = defineEmits<{
 
 // Long press detection for mobile
 let longPressTimer: number | null = null
+const serverUrlStore = useServerUrlStore()
 const isLongPressing = ref(false)
 
 // Ref reactivo para el tema
@@ -158,6 +160,29 @@ const handleDrop = (e: DragEvent) => {
         <img
           v-if="button.icon.startsWith('svg:')"
           :src="'/icons/' + button.icon.replace('svg:', '')"
+          class="custom-icon"
+          alt="icon"
+        />
+        <img
+          v-else-if="button.icon.startsWith('appicon:')"
+          :src="serverUrlStore.serverUrl + button.icon.replace('appicon:', '')"
+          class="custom-icon app-icon"
+          alt="icon"
+          @error="($event.target as HTMLImageElement).style.display = 'none'"
+        />
+        <img
+          v-else-if="button.icon.startsWith('sd:')"
+          :src="'/streamdeck-icons/' + button.icon.replace('sd:', '')"
+          class="custom-icon"
+          alt="icon"
+        />
+        <img
+          v-else-if="button.icon.startsWith('custom:')"
+          :src="
+            serverUrlStore.serverUrl +
+            '/custom-icons/' +
+            button.icon.replace('custom:', '')
+          "
           class="custom-icon"
           alt="icon"
         />

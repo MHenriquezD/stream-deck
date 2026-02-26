@@ -106,9 +106,37 @@ export function useSocket() {
     socket.value?.emit('settings:gridSize', { gridSize })
   }
 
+  /** Cambiar sonido de botón y notificar a todos los clientes */
+  const setButtonSound = (enabled: boolean, file: string) => {
+    socket.value?.emit('settings:buttonSound', { enabled, file })
+  }
+
   /** Activar/desactivar servidor (desktop toggle) */
   const setServerEnabled = (enabled: boolean) => {
     socket.value?.emit('server:setEnabled', { enabled })
+  }
+
+  /** Obtener volumen actual */
+  const getVolume = (): Promise<{ volume: number; muted: boolean }> => {
+    return new Promise((resolve) => {
+      if (!socket.value?.connected) {
+        resolve({ volume: 0, muted: false })
+        return
+      }
+      socket.value.emit('volume:get', {}, (response: any) => {
+        resolve(response || { volume: 0, muted: false })
+      })
+    })
+  }
+
+  /** Establecer volumen (0-100) */
+  const setVolume = (volume: number) => {
+    socket.value?.emit('volume:set', { volume })
+  }
+
+  /** Toggle mute */
+  const toggleMute = () => {
+    socket.value?.emit('volume:mute', {})
   }
 
   /** Escuchar un evento del servidor (persiste entre reconexiones) */
@@ -140,7 +168,11 @@ export function useSocket() {
     getCommands,
     getSettings,
     setGridSize,
+    setButtonSound,
     setServerEnabled,
+    getVolume,
+    setVolume,
+    toggleMute,
     on,
     off,
   }

@@ -97,6 +97,60 @@ export class CommandGateway
     return { success: true };
   }
 
+  // ─── Actualizar sonido (y notificar a todos) ───
+  @SubscribeMessage('settings:buttonSound')
+  handleSetButtonSound(
+    @MessageBody() data: { enabled: boolean; file: string },
+  ) {
+    if (typeof data.enabled === 'boolean') {
+      this.settingsService.setButtonSound(data.enabled);
+    }
+    if (data.file) {
+      this.settingsService.setButtonSoundFile(data.file);
+    }
+    // Notificar a TODOS los clientes conectados
+    this.server.emit('settings:buttonSoundChanged', {
+      enabled: this.settingsService.getButtonSound(),
+      file: this.settingsService.getButtonSoundFile(),
+    });
+    return { success: true };
+  }
+
+  // ─── Volume Control (real-time) ───
+  @SubscribeMessage('volume:get')
+  async handleGetVolume() {
+    try {
+      return await this.commandService.getVolume();
+    } catch {
+      return { volume: 0, muted: false };
+    }
+  }
+
+  @SubscribeMessage('volume:set')
+  async handleSetVolume(@MessageBody() data: { volume: number }) {
+    try {
+      await this.commandService.setVolume(data.volume);
+      const state = await this.commandService.getVolume();
+      // Broadcast to all clients
+      this.server.emit('volume:changed', state);
+      return { success: true, ...state };
+    } catch {
+      return { success: false };
+    }
+  }
+
+  @SubscribeMessage('volume:mute')
+  async handleToggleMute() {
+    try {
+      const muted = await this.commandService.toggleMute();
+      const state = await this.commandService.getVolume();
+      this.server.emit('volume:changed', state);
+      return { success: true, ...state };
+    } catch {
+      return { success: false };
+    }
+  }
+
   // ─── Activar/Desactivar servidor (desktop toggle, notifica a todos) ───
   @SubscribeMessage('server:setEnabled')
   handleSetServerEnabled(@MessageBody() data: { enabled: boolean }) {

@@ -91,16 +91,55 @@
     }
   },
   {
-    "id": "79391651-d5dd-42bb-8825-688fd9901de5",
-    "label": "Vs Code",
-    "icon": "💻",
+    "id": "0a9ed1ba-8c0a-4ea5-a0fa-3bc185ef0059",
+    "label": "VLC media player",
+    "icon": "appicon:/app-icons/VLC_media_player.png",
     "color": "#ffffff",
-    "backgroundColor": "#2c3e50",
+    "backgroundColor": "#ff8800",
+    "type": "command",
+    "payload": "\"C:\\Program Files\\VideoLAN\\VLC\\vlc.exe\"",
+    "position": {
+      "row": 2,
+      "col": 0
+    }
+  },
+  {
+    "id": "99f8e2be-6f1b-4a73-950f-82f802b28a68",
+    "label": "VsCode",
+    "icon": "svg:vscode.svg",
+    "color": "#ffffff",
+    "backgroundColor": "#01dab6",
     "type": "command",
     "payload": "code",
     "position": {
       "row": 1,
       "col": 3
+    }
+  },
+  {
+    "id": "42d8cc66-421a-421f-8a8d-194f4454e38a",
+    "label": "Discord",
+    "icon": "svg:discord.svg",
+    "color": "#ffffff",
+    "backgroundColor": "#a9ead1",
+    "type": "command",
+    "payload": "\"C:\\Users\\manuel.henriquez\\AppData\\Local\\Discord\\Update.exe\" --processStart Discord.exe",
+    "position": {
+      "row": 2,
+      "col": 1
+    }
+  },
+  {
+    "id": "fbceb374-78b3-400e-9626-417bd7d72162",
+    "label": "Spotify",
+    "icon": "svg:spotify.svg",
+    "color": "#ffffff",
+    "backgroundColor": "#cff8ce",
+    "type": "command",
+    "payload": "start spotify",
+    "position": {
+      "row": 2,
+      "col": 2
     }
   }
 ]

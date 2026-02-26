@@ -2,10 +2,55 @@
 import { BarcodeScanner } from '@capacitor-community/barcode-scanner'
 import { Capacitor } from '@capacitor/core'
 import QRCode from 'qrcode'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAuth } from '../composables/useAuth'
+import { useButtonSound } from '../composables/useButtonSound'
 import { useSocket } from '../composables/useSocket'
 import { useServerUrlStore } from '../store/serverUrl.store'
+
+const {
+  isEnabled: isSoundEnabled,
+  setEnabled: setSoundEnabled,
+  play: playTestSound,
+  getSelectedSound,
+  setSelectedSound,
+  availableSounds,
+} = useButtonSound()
+const buttonSoundEnabled = ref(isSoundEnabled())
+const selectedSound = ref(getSelectedSound())
+
+const onSoundChange = async (file: string) => {
+  selectedSound.value = file
+  setSelectedSound(file)
+  playTestSound()
+  await saveSoundSettings(buttonSoundEnabled.value, file)
+}
+
+const toggleSound = async () => {
+  buttonSoundEnabled.value = !buttonSoundEnabled.value
+  setSoundEnabled(buttonSoundEnabled.value)
+  if (buttonSoundEnabled.value) playTestSound()
+  await saveSoundSettings(buttonSoundEnabled.value, selectedSound.value)
+}
+
+const saveSoundSettings = async (enabled: boolean, file: string) => {
+  // Prefer WebSocket (broadcasts to all clients instantly)
+  if (isConnected.value) {
+    socketSetButtonSound(enabled, file)
+    return
+  }
+  // HTTP fallback
+  try {
+    const url = serverUrlStore.serverUrl
+    await fetch(`${url}/command/settings/button-sound`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ enabled, file }),
+    })
+  } catch {
+    /* fallback: already saved in localStorage */
+  }
+}
 
 const show = defineModel<boolean>('show', { required: true })
 const {
@@ -26,10 +71,30 @@ const qrCodeUrl = ref<string | null>(null)
 
 const {
   setGridSize: socketSetGridSize,
+  setButtonSound: socketSetButtonSound,
   isConnected,
   disconnect: socketDisconnect,
   connect: socketConnect,
+  on: socketOn,
+  off: socketOff,
 } = useSocket()
+
+// Sync sound state when modal opens or WS broadcasts a change
+const onSoundBroadcast = (data: { enabled: boolean; file: string }) => {
+  buttonSoundEnabled.value = data.enabled
+  selectedSound.value = data.file
+}
+
+watch(show, (visible) => {
+  if (visible) {
+    // Refresh from composable module-level state
+    buttonSoundEnabled.value = isSoundEnabled()
+    selectedSound.value = getSelectedSound()
+    socketOn('settings:buttonSoundChanged', onSoundBroadcast)
+  } else {
+    socketOff('settings:buttonSoundChanged', onSoundBroadcast)
+  }
+})
 
 const _platform = Capacitor.getPlatform()
 const isMobile = _platform === 'android' || _platform === 'ios'
@@ -133,7 +198,7 @@ onMounted(async () => {
   if (savedGridSize) gridSize.value = parseInt(savedGridSize)
 
   // También cargar desde el servidor
-  loadGridSizeFromServer()
+  loadSettingsFromServer()
 
   const cachedQR = localStorage.getItem('qrCodeUrl')
   if (cachedQR) qrCodeUrl.value = cachedQR
@@ -430,7 +495,7 @@ const save = () => {
   }
 }
 
-const loadGridSizeFromServer = async () => {
+const loadSettingsFromServer = async () => {
   try {
     const url = serverUrlStore.serverUrl
     const response = await fetch(`${url}/command/settings`, {
@@ -441,6 +506,15 @@ const loadGridSizeFromServer = async () => {
       if (settings.gridSize) {
         gridSize.value = settings.gridSize
         localStorage.setItem('gridSize', settings.gridSize.toString())
+      }
+      // Sound settings
+      if (typeof settings.buttonSound === 'boolean') {
+        buttonSoundEnabled.value = settings.buttonSound
+        setSoundEnabled(settings.buttonSound)
+      }
+      if (settings.buttonSoundFile) {
+        selectedSound.value = settings.buttonSoundFile
+        setSelectedSound(settings.buttonSoundFile)
       }
     }
   } catch {
@@ -610,6 +684,48 @@ const close = () => {
             </option>
           </select>
           <small>Cantidad de botones en la cuadrícula</small>
+        </div>
+
+        <div class="form-group">
+          <label>🔊 Sonido al presionar</label>
+          <div class="sound-toggle-row">
+            <button
+              class="sound-toggle-btn"
+              :class="{ active: buttonSoundEnabled }"
+              @click="toggleSound()"
+            >
+              <span class="toggle-track">
+                <span class="toggle-thumb"></span>
+              </span>
+              <span>{{ buttonSoundEnabled ? 'Activado' : 'Desactivado' }}</span>
+            </button>
+          </div>
+          <div v-if="buttonSoundEnabled" class="sound-selector">
+            <select
+              :value="selectedSound"
+              @change="
+                onSoundChange(($event.target as HTMLSelectElement).value)
+              "
+              class="server-input"
+              id="soundSelector"
+            >
+              <option
+                v-for="s in availableSounds"
+                :key="s.file"
+                :value="s.file"
+              >
+                {{ s.label }}
+              </option>
+            </select>
+            <button
+              class="sound-test-btn"
+              @click="playTestSound()"
+              title="Probar sonido"
+            >
+              <i class="pi pi-play"></i>
+            </button>
+          </div>
+          <small>Reproduce un sonido al presionar un botón</small>
         </div>
 
         <!-- Configurar PIN (primera vez) / Cambiar PIN (solo desktop autenticado) -->
@@ -1153,7 +1269,8 @@ select.server-input option {
   color: var(--form-bg-text-color);
 }
 
-select#gridSize option {
+select#gridSize option,
+select#soundSelector option {
   background-color: var(--edit-bg-color) !important;
   color: var(--edit-color) !important;
 }
@@ -1169,6 +1286,87 @@ select#gridSize option {
   margin-top: 6px;
   color: var(--form-bg-text-color);
   font-size: 0.85rem;
+}
+
+/* Sound toggle */
+.sound-toggle-row {
+  display: flex;
+  align-items: center;
+}
+
+.sound-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 8px 14px;
+  color: var(--form-bg-text-color);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.toggle-track {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 11px;
+  transition: background 0.2s;
+  display: inline-block;
+}
+
+.sound-toggle-btn.active .toggle-track {
+  background: #667eea;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.sound-toggle-btn.active .toggle-thumb {
+  transform: translateX(18px);
+}
+
+.sound-selector {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.sound-selector select {
+  flex: 1;
+}
+
+.sound-test-btn {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(102, 126, 234, 0.2);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  border-radius: 8px;
+  color: #8ea4f0;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+@media (hover: hover) {
+  .sound-test-btn:hover {
+    background: rgba(102, 126, 234, 0.35);
+  }
 }
 
 /* Buttons */

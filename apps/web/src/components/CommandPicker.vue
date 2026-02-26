@@ -6,6 +6,7 @@ interface CommandItem {
   label: string
   description: string
   category: string
+  icon?: string
 }
 
 const props = defineProps<{
@@ -28,30 +29,35 @@ const commandCategories: Record<string, CommandItem[]> = {
       label: 'Google Chrome',
       description: 'Abrir Google Chrome',
       category: 'Navegadores',
+      icon: 'fab fa-chrome',
     },
     {
       command: 'start firefox',
       label: 'Firefox',
       description: 'Abrir Mozilla Firefox',
       category: 'Navegadores',
+      icon: 'fab fa-firefox-browser',
     },
     {
       command: 'start msedge',
       label: 'Edge',
       description: 'Abrir Microsoft Edge',
       category: 'Navegadores',
+      icon: 'fab fa-edge',
     },
     {
       command: 'start opera',
       label: 'Opera',
       description: 'Abrir Opera',
       category: 'Navegadores',
+      icon: 'fab fa-opera',
     },
     {
       command: 'start brave',
       label: 'Brave',
       description: 'Abrir Brave Browser',
       category: 'Navegadores',
+      icon: 'fab fa-brave',
     },
   ],
   'Microsoft Office': [
@@ -60,48 +66,56 @@ const commandCategories: Record<string, CommandItem[]> = {
       label: 'Microsoft Word',
       description: 'Abrir Word',
       category: 'Microsoft Office',
+      icon: 'fas fa-file-word',
     },
     {
       command: 'start excel',
       label: 'Microsoft Excel',
       description: 'Abrir Excel',
       category: 'Microsoft Office',
+      icon: 'fas fa-file-excel',
     },
     {
       command: 'start powerpnt',
       label: 'Microsoft PowerPoint',
       description: 'Abrir PowerPoint',
       category: 'Microsoft Office',
+      icon: 'fas fa-file-powerpoint',
     },
     {
       command: 'start outlook',
       label: 'Microsoft Outlook',
       description: 'Abrir Outlook',
       category: 'Microsoft Office',
+      icon: 'fas fa-envelope',
     },
     {
       command: 'start onenote',
       label: 'Microsoft OneNote',
       description: 'Abrir OneNote',
       category: 'Microsoft Office',
+      icon: 'fas fa-book',
     },
     {
       command: 'start msaccess',
       label: 'Microsoft Access',
       description: 'Abrir Access',
       category: 'Microsoft Office',
+      icon: 'fas fa-database',
     },
     {
       command: 'start mspub',
       label: 'Microsoft Publisher',
       description: 'Abrir Publisher',
       category: 'Microsoft Office',
+      icon: 'fas fa-newspaper',
     },
     {
       command: 'start msteams',
       label: 'Microsoft Teams',
       description: 'Abrir Teams',
       category: 'Microsoft Office',
+      icon: 'fab fa-microsoft',
     },
   ],
   Aplicaciones: [
@@ -110,48 +124,56 @@ const commandCategories: Record<string, CommandItem[]> = {
       label: 'Discord',
       description: 'Abrir Discord',
       category: 'Aplicaciones',
+      icon: 'fab fa-discord',
     },
     {
       command: 'start spotify',
       label: 'Spotify',
       description: 'Abrir Spotify',
       category: 'Aplicaciones',
+      icon: 'fab fa-spotify',
     },
     {
       command: 'start steam',
       label: 'Steam',
       description: 'Abrir Steam',
       category: 'Aplicaciones',
+      icon: 'fab fa-steam',
     },
     {
       command: 'notepad',
       label: 'Notepad',
       description: 'Abrir Bloc de Notas',
       category: 'Aplicaciones',
+      icon: 'fas fa-file-lines',
     },
     {
       command: 'calc',
       label: 'Calculadora',
       description: 'Abrir Calculadora',
       category: 'Aplicaciones',
+      icon: 'fas fa-calculator',
     },
     {
       command: 'mspaint',
       label: 'Paint',
       description: 'Abrir Paint',
       category: 'Aplicaciones',
+      icon: 'fas fa-paintbrush',
     },
     {
       command: 'explorer',
       label: 'Explorador',
       description: 'Abrir Explorador de Archivos',
       category: 'Aplicaciones',
+      icon: 'fas fa-folder-open',
     },
     {
       command: 'code',
       label: 'VS Code',
       description: 'Abrir Visual Studio Code',
       category: 'Aplicaciones',
+      icon: 'fas fa-code',
     },
   ],
   Sistema: [
@@ -160,48 +182,56 @@ const commandCategories: Record<string, CommandItem[]> = {
       label: 'Administrador de Tareas',
       description: 'Abrir Task Manager',
       category: 'Sistema',
+      icon: 'fas fa-chart-bar',
     },
     {
       command: 'control',
       label: 'Panel de Control',
       description: 'Abrir Panel de Control',
       category: 'Sistema',
+      icon: 'fas fa-sliders',
     },
     {
       command: 'ms-settings:',
       label: 'Configuración',
       description: 'Abrir Configuración de Windows',
       category: 'Sistema',
+      icon: 'fas fa-gear',
     },
     {
       command: 'powershell',
       label: 'PowerShell',
       description: 'Abrir PowerShell',
       category: 'Sistema',
+      icon: 'fas fa-terminal',
     },
     {
       command: 'cmd',
       label: 'CMD',
       description: 'Abrir Símbolo del Sistema',
       category: 'Sistema',
+      icon: 'fas fa-terminal',
     },
     {
       command: 'shutdown /s /t 0',
       label: 'Apagar PC',
       description: 'Apagar el ordenador inmediatamente',
       category: 'Sistema',
+      icon: 'fas fa-power-off',
     },
     {
       command: 'shutdown /r /t 0',
       label: 'Reiniciar PC',
       description: 'Reiniciar el ordenador',
       category: 'Sistema',
+      icon: 'fas fa-rotate-right',
     },
     {
       command: 'rundll32.exe user32.dll,LockWorkStation',
       label: 'Bloquear PC',
       description: 'Bloquear sesión de Windows',
       category: 'Sistema',
+      icon: 'fas fa-lock',
     },
   ],
   Multimedia: [
@@ -211,6 +241,7 @@ const commandCategories: Record<string, CommandItem[]> = {
       label: 'Silenciar',
       description: 'Silenciar/activar audio',
       category: 'Multimedia',
+      icon: 'fas fa-volume-xmark',
     },
     {
       command:
@@ -218,6 +249,7 @@ const commandCategories: Record<string, CommandItem[]> = {
       label: 'Subir Volumen',
       description: 'Aumentar volumen',
       category: 'Multimedia',
+      icon: 'fas fa-volume-high',
     },
     {
       command:
@@ -225,6 +257,7 @@ const commandCategories: Record<string, CommandItem[]> = {
       label: 'Bajar Volumen',
       description: 'Disminuir volumen',
       category: 'Multimedia',
+      icon: 'fas fa-volume-low',
     },
     {
       command:
@@ -232,6 +265,7 @@ const commandCategories: Record<string, CommandItem[]> = {
       label: 'Play/Pausa',
       description: 'Reproducir o pausar',
       category: 'Multimedia',
+      icon: 'fas fa-play-pause',
     },
     {
       command:
@@ -239,6 +273,7 @@ const commandCategories: Record<string, CommandItem[]> = {
       label: 'Siguiente',
       description: 'Siguiente canción',
       category: 'Multimedia',
+      icon: 'fas fa-forward-step',
     },
     {
       command:
@@ -246,6 +281,7 @@ const commandCategories: Record<string, CommandItem[]> = {
       label: 'Anterior',
       description: 'Canción anterior',
       category: 'Multimedia',
+      icon: 'fas fa-backward-step',
     },
   ],
   'Carpetas Comunes': [
@@ -254,36 +290,42 @@ const commandCategories: Record<string, CommandItem[]> = {
       label: 'Descargas',
       description: 'Abrir carpeta de Descargas',
       category: 'Carpetas Comunes',
+      icon: 'fas fa-download',
     },
     {
       command: 'start "" "%USERPROFILE%\\Documents"',
       label: 'Documentos',
       description: 'Abrir carpeta de Documentos',
       category: 'Carpetas Comunes',
+      icon: 'fas fa-file-lines',
     },
     {
       command: 'start "" "%USERPROFILE%\\Pictures"',
       label: 'Imágenes',
       description: 'Abrir carpeta de Imágenes',
       category: 'Carpetas Comunes',
+      icon: 'fas fa-images',
     },
     {
       command: 'start "" "%USERPROFILE%\\Videos"',
       label: 'Videos',
       description: 'Abrir carpeta de Videos',
       category: 'Carpetas Comunes',
+      icon: 'fas fa-film',
     },
     {
       command: 'start "" "%USERPROFILE%\\Music"',
       label: 'Música',
       description: 'Abrir carpeta de Música',
       category: 'Carpetas Comunes',
+      icon: 'fas fa-music',
     },
     {
       command: 'start "" "%USERPROFILE%\\Desktop"',
       label: 'Escritorio',
       description: 'Abrir carpeta del Escritorio',
       category: 'Carpetas Comunes',
+      icon: 'fas fa-desktop',
     },
   ],
 }
@@ -358,6 +400,9 @@ const selectCommand = (command: string) => {
               @click.stop="selectCommand(item.command)"
               type="button"
             >
+              <div v-if="item.icon" class="command-icon">
+                <i :class="item.icon"></i>
+              </div>
               <div class="command-info">
                 <div class="command-label">{{ item.label }}</div>
                 <div class="command-description">{{ item.description }}</div>
@@ -516,6 +561,7 @@ const selectCommand = (command: string) => {
 .command-item {
   display: flex;
   align-items: center;
+  gap: 14px;
   background: var(--form-bg-color);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
@@ -523,6 +569,19 @@ const selectCommand = (command: string) => {
   transition: all 0.2s;
   padding: 14px 16px;
   text-align: left;
+}
+
+.command-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(139, 92, 246, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  color: #a78bfa;
 }
 
 @media (hover: hover) {

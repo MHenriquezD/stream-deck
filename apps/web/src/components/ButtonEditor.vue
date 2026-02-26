@@ -2,10 +2,13 @@
 import { ActionType, type StreamButton } from '@shared/core'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, reactive, ref, watch } from 'vue'
+import { useServerUrlStore } from '../store/serverUrl.store'
 import AppPicker from './AppPicker.vue'
 import CommandPicker from './CommandPicker.vue'
 import IconPicker from './IconPicker.vue'
 import TailwindConfirmDialog from './TailwindConfirmDialog.vue'
+
+const serverUrlStore = useServerUrlStore()
 
 const props = defineProps<{
   button: StreamButton | null
@@ -275,8 +278,23 @@ const handleCommandSelect = (command: string) => {
   showCommandPicker.value = false
 }
 
-const handleAppSelect = (app: string) => {
-  formData.payload = app
+const handleAppSelect = (data: {
+  command: string
+  icon?: string
+  name?: string
+}) => {
+  formData.payload = data.command
+  // Auto-set icon if extracted icon is available
+  if (data.icon) {
+    formData.icon = `appicon:${data.icon}`
+  }
+  // Auto-set label if empty
+  if (!formData.label && data.name) {
+    formData.label = data.name
+      .replace(/\s*\(.*\)\s*$/, '')
+      .replace(/\s*\d+(\.\d+)*.*$/, '')
+      .trim()
+  }
   showAppPicker.value = false
 }
 
@@ -375,6 +393,31 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
               <img
                 v-if="formData.icon.startsWith('svg:')"
                 :src="'/icons/' + formData.icon.replace('svg:', '')"
+                class="icon-display custom-icon-display"
+                alt="icon"
+              />
+              <img
+                v-else-if="formData.icon.startsWith('appicon:')"
+                :src="
+                  serverUrlStore.serverUrl +
+                  formData.icon.replace('appicon:', '')
+                "
+                class="icon-display custom-icon-display"
+                alt="app icon"
+              />
+              <img
+                v-else-if="formData.icon.startsWith('sd:')"
+                :src="'/streamdeck-icons/' + formData.icon.replace('sd:', '')"
+                class="icon-display custom-icon-display"
+                alt="icon"
+              />
+              <img
+                v-else-if="formData.icon.startsWith('custom:')"
+                :src="
+                  serverUrlStore.serverUrl +
+                  '/custom-icons/' +
+                  formData.icon.replace('custom:', '')
+                "
                 class="icon-display custom-icon-display"
                 alt="icon"
               />
@@ -512,6 +555,31 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
                 <img
                   v-if="formData.icon.startsWith('svg:')"
                   :src="'/icons/' + formData.icon.replace('svg:', '')"
+                  class="preview-custom-icon"
+                  alt="icon"
+                />
+                <img
+                  v-else-if="formData.icon.startsWith('appicon:')"
+                  :src="
+                    serverUrlStore.serverUrl +
+                    formData.icon.replace('appicon:', '')
+                  "
+                  class="preview-custom-icon"
+                  alt="app icon"
+                />
+                <img
+                  v-else-if="formData.icon.startsWith('sd:')"
+                  :src="'/streamdeck-icons/' + formData.icon.replace('sd:', '')"
+                  class="preview-custom-icon"
+                  alt="icon"
+                />
+                <img
+                  v-else-if="formData.icon.startsWith('custom:')"
+                  :src="
+                    serverUrlStore.serverUrl +
+                    '/custom-icons/' +
+                    formData.icon.replace('custom:', '')
+                  "
                   class="preview-custom-icon"
                   alt="icon"
                 />

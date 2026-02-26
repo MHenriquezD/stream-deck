@@ -5,9 +5,11 @@ import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useBiometric } from '../composables/useBiometric'
+import { useButtonSound } from '../composables/useButtonSound'
 import { useSocket } from '../composables/useSocket'
 import { useServerUrlStore } from '../store/serverUrl.store'
 import ButtonEditor from './ButtonEditor.vue'
+import MouseController from './MouseController.vue'
 import ServerSettings from './ServerSettings.vue'
 import StreamButton from './StreamButton.vue'
 import TailwindConfirmDialog from './TailwindConfirmDialog.vue'
@@ -59,7 +61,11 @@ const {
   off: socketOff,
   getSettings: socketGetSettings,
   setGridSize: socketSetGridSize,
+  setButtonSound: socketSetButtonSound,
   setServerEnabled: socketSetServerEnabled,
+  getVolume: socketGetVolume,
+  setVolume: socketSetVolume,
+  toggleMute: socketToggleMute,
 } = useSocket()
 
 const props = defineProps<{
@@ -117,6 +123,135 @@ const showServerUnreachableDialog = ref(false)
 // Biometric opt-in dialog
 const showBiometricOptIn = ref(false)
 const pendingPinForBiometric = ref('')
+
+// Mouse controller
+const showMouseController = ref(false)
+
+// Volume control
+const showVolumeSlider = ref(false)
+const systemVolume = ref(50)
+const systemMuted = ref(false)
+let volumeDebounce: ReturnType<typeof setTimeout> | null = null
+
+const onVolumeInput = (e: Event) => {
+  const val = parseInt((e.target as HTMLInputElement).value)
+  systemVolume.value = val
+  if (volumeDebounce) clearTimeout(volumeDebounce)
+  volumeDebounce = setTimeout(() => {
+    socketSetVolume(val)
+  }, 80)
+}
+
+const onMuteToggle = () => {
+  socketToggleMute()
+}
+
+const fetchVolume = async () => {
+  try {
+    const state = await socketGetVolume()
+    systemVolume.value = state.volume
+    systemMuted.value = state.muted
+  } catch {
+    /* ignore */
+  }
+}
+
+const toggleVolumeSlider = () => {
+  showVolumeSlider.value = !showVolumeSlider.value
+  if (showVolumeSlider.value) fetchVolume()
+}
+
+// Theme FAB draggable
+const themeFabRef = ref<HTMLButtonElement | null>(null)
+const fabCorner = ref<'tl' | 'tr' | 'bl' | 'br'>(
+  (localStorage.getItem('theme-fab-corner') as any) || 'br',
+)
+let fabDragging = false
+let fabMoved = false
+let fabStartX = 0
+let fabStartY = 0
+let fabCurrentX = 0
+let fabCurrentY = 0
+
+const fabStyle = computed(() => {
+  const margin = 20
+  const pos: Record<string, string> = {}
+  switch (fabCorner.value) {
+    case 'tl':
+      pos.top = `calc(${margin}px + env(safe-area-inset-top, 0px))`
+      pos.left = `calc(${margin}px + env(safe-area-inset-left, 0px))`
+      break
+    case 'tr':
+      pos.top = `calc(${margin}px + env(safe-area-inset-top, 0px))`
+      pos.right = `calc(${margin}px + env(safe-area-inset-right, 0px))`
+      break
+    case 'bl':
+      pos.bottom = `calc(${margin}px + env(safe-area-inset-bottom, 0px))`
+      pos.left = `calc(${margin}px + env(safe-area-inset-left, 0px))`
+      break
+    case 'br':
+    default:
+      pos.bottom = `calc(${margin}px + env(safe-area-inset-bottom, 0px))`
+      pos.right = `calc(${margin}px + env(safe-area-inset-right, 0px))`
+      break
+  }
+  return pos
+})
+
+const snapToCorner = (x: number, y: number) => {
+  const midX = window.innerWidth / 2
+  const midY = window.innerHeight / 2
+  const corner = y < midY ? (x < midX ? 'tl' : 'tr') : x < midX ? 'bl' : 'br'
+  fabCorner.value = corner as 'tl' | 'tr' | 'bl' | 'br'
+  localStorage.setItem('theme-fab-corner', corner)
+}
+
+const handleFabTouchStart = (e: TouchEvent) => {
+  fabDragging = true
+  fabMoved = false
+  const t = e.touches[0]
+  fabStartX = t.clientX
+  fabStartY = t.clientY
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  fabCurrentX = rect.left + rect.width / 2
+  fabCurrentY = rect.top + rect.height / 2
+}
+
+const handleFabTouchMove = (e: TouchEvent) => {
+  if (!fabDragging) return
+  const t = e.touches[0]
+  const dx = Math.abs(t.clientX - fabStartX)
+  const dy = Math.abs(t.clientY - fabStartY)
+  if (dx > 8 || dy > 8) fabMoved = true
+  if (!fabMoved) return
+  e.preventDefault()
+  const el = themeFabRef.value
+  if (!el) return
+  el.style.transition = 'none'
+  el.style.position = 'fixed'
+  el.style.left = `${t.clientX - 24}px`
+  el.style.top = `${t.clientY - 24}px`
+  el.style.right = 'auto'
+  el.style.bottom = 'auto'
+}
+
+const handleFabTouchEnd = (e: TouchEvent) => {
+  if (!fabDragging) return
+  fabDragging = false
+  const el = themeFabRef.value
+  if (!el) return
+  if (fabMoved) {
+    e.preventDefault()
+    const ct = e.changedTouches[0]
+    snapToCorner(ct.clientX, ct.clientY)
+    // Reset inline styles so CSS class takes over
+    el.style.transition = ''
+    el.style.left = ''
+    el.style.top = ''
+    el.style.right = ''
+    el.style.bottom = ''
+  }
+}
 
 // Detectar plataforma nativa (Android/iOS) vs desktop
 const platform = Capacitor.getPlatform()
@@ -236,6 +371,21 @@ onMounted(async () => {
     }
   })
 
+  // Escuchar cambios de sonido desde otros clientes
+  socketOn(
+    'settings:buttonSoundChanged',
+    (data: { enabled: boolean; file: string }) => {
+      setSoundEnabled(data.enabled)
+      setSelectedSound(data.file)
+    },
+  )
+
+  // Escuchar cambios de volumen en tiempo real
+  socketOn('volume:changed', (data: { volume: number; muted: boolean }) => {
+    systemVolume.value = data.volume
+    systemMuted.value = data.muted
+  })
+
   // Detectar error de conexión para actualizar el estado
   socketOn('connect_error', () => {
     connectionStatus.value = 'disconnected'
@@ -252,6 +402,13 @@ onMounted(async () => {
     if (initRes.ok) {
       const initSettings = await initRes.json()
       serverEnabled.value = initSettings.serverEnabled !== false
+      // Sincronizar sonido desde el servidor
+      if (typeof initSettings.buttonSound === 'boolean') {
+        setSoundEnabled(initSettings.buttonSound)
+      }
+      if (initSettings.buttonSoundFile) {
+        setSelectedSound(initSettings.buttonSoundFile)
+      }
     }
   } catch {
     /* ignore */
@@ -264,12 +421,17 @@ onMounted(async () => {
 
   // Check PIN status for settings gate (desktop uses this)
   await checkPinStatus()
+
+  // Fetch initial volume
+  fetchVolume()
 })
 
 onUnmounted(() => {
   socketOff('settings:gridSizeChanged')
   socketOff('commands:updated')
   socketOff('server:enabledChanged')
+  socketOff('settings:buttonSoundChanged')
+  socketOff('volume:changed')
   socketOff('connect_error')
 })
 
@@ -570,11 +732,20 @@ const saveButtons = async () => {
   }
 }
 
+const {
+  play: playClickSound,
+  setEnabled: setSoundEnabled,
+  setSelectedSound,
+} = useButtonSound()
+
 const handleButtonClick = async (button: ButtonType | null) => {
   if (!button) return
 
   // No ejecutar si se está arrastrando en mobile
   if (touchDragButton.value) return
+
+  // Reproducir sonido de tecla
+  playClickSound()
 
   try {
     isExecuting.value = button.id
@@ -1106,6 +1277,23 @@ function handleBiometricOptInDecline() {
             <span class="btn-text">Multimedia</span>
           </button>
           <button
+            @click="toggleVolumeSlider"
+            title="Control de volumen"
+            class="btn-icon btn-volume flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-linear-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600 hover:to-orange-700 dark:bg-linear-to-r dark:from-amber-600 dark:to-orange-700 dark:text-amber-100"
+          >
+            <span class="text-xl">{{ systemMuted ? '🔇' : '🔊' }}</span>
+            <span class="btn-text">Volumen</span>
+          </button>
+          <button
+            v-if="isMobile"
+            @click="showMouseController = true"
+            title="Mouse & Teclado"
+            class="btn-icon btn-mouse flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-linear-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-600 hover:to-blue-700 dark:bg-linear-to-r dark:from-cyan-600 dark:to-blue-700 dark:text-cyan-100"
+          >
+            🖱️
+            <span class="btn-text">Mouse</span>
+          </button>
+          <button
             @click="handleReconnectButton"
             :title="
               isMobile
@@ -1135,36 +1323,76 @@ function handleBiometricOptInDecline() {
           <button
             @click="reloadButtonsWithAnimation"
             title="Recargar"
-            class="btn-icon btn-reload flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200/100 text-neutral-800 hover:bg-gray-300/100 dark:bg-gray-700/100 dark:text-neutral-100 dark:hover:bg-gray-600/100 border border-gray-300 dark:border-gray-600"
+            class="btn-icon btn-reload flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200 text-neutral-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-neutral-100 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600"
           >
             <img src="/icons/reload.svg" alt="Recargar" class="btn-svg" />
             <span class="btn-text">Recargar Botones</span>
           </button>
           <button
+            v-if="!isMobile"
             @click="openClearAllDialog"
             title="Limpiar todo"
-            class="btn-icon btn-clear flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200/100 text-red-700 hover:bg-gray-300/100 dark:bg-gray-700/100 dark:text-red-200 dark:hover:bg-gray-600/100 border border-gray-300 dark:border-gray-600"
+            class="btn-icon btn-clear flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200 text-red-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-red-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600"
           >
             <img src="/icons/delete-grid.svg" alt="Eliminar" class="btn-svg" />
             <span class="btn-text">Limpiar Botones</span>
           </button>
-          <button
-            @click="toggleTheme"
-            :title="isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
-            class="btn-icon btn-theme flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200/100 text-neutral-800 hover:bg-gray-300/100 hover:text-gray-600/100 dark:bg-gray-700/100 dark:text-neutral-100 dark:hover:bg-gray-600/100 dark:hover:text-neutral-400 border border-gray-300 dark:border-gray-600"
-          >
-            <img
-              v-if="isDark"
-              src="/icons/sun.svg"
-              alt="Claro"
-              class="btn-svg"
-            />
-            <img v-else src="/icons/moon.svg" alt="Oscuro" class="btn-svg" />
-            <span class="btn-text">{{ isDark ? 'Claro' : 'Oscuro' }}</span>
-          </button>
         </template>
       </div>
+
+      <!-- Volume slider panel -->
+      <div v-if="showVolumeSlider" class="volume-panel">
+        <div class="volume-panel-inner">
+          <button
+            class="volume-mute-btn"
+            @click="onMuteToggle"
+            :title="systemMuted ? 'Activar sonido' : 'Silenciar'"
+          >
+            {{
+              systemMuted
+                ? '🔇'
+                : systemVolume > 50
+                  ? '🔊'
+                  : systemVolume > 0
+                    ? '🔉'
+                    : '🔈'
+            }}
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            :value="systemVolume"
+            @input="onVolumeInput"
+            class="volume-slider"
+            :style="{ '--vol-pct': systemVolume + '%' }"
+          />
+          <span class="volume-label">{{ systemVolume }}%</span>
+        </div>
+      </div>
     </div>
+
+    <!-- Floating theme toggle (draggable, snaps to corners) -->
+    <button
+      ref="themeFabRef"
+      @click="!fabMoved && toggleTheme()"
+      :title="isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
+      class="theme-fab"
+      :class="`fab-${fabCorner}`"
+      :style="fabStyle"
+      @touchstart.passive="handleFabTouchStart"
+      @touchmove="handleFabTouchMove"
+      @touchend="handleFabTouchEnd"
+    >
+      <img
+        v-if="isDark"
+        src="/icons/sun.svg"
+        alt="Claro"
+        class="theme-fab-icon"
+      />
+      <img v-else src="/icons/moon.svg" alt="Oscuro" class="theme-fab-icon" />
+    </button>
 
     <!-- Mensaje cuando no hay PIN configurado (solo desktop) -->
     <div v-if="!pinConfigured && !isMobile" class="no-pin-message">
@@ -1315,7 +1543,7 @@ function handleBiometricOptInDecline() {
           :disabled="mobileLockLoading"
           class="mobile-pin-lock-btn biometric-btn"
         >
-          🔐 Usar huella / biometría
+          <i class="fas fa-fingerprint fa-3x"></i>
         </button>
       </div>
     </div>
@@ -1412,6 +1640,12 @@ function handleBiometricOptInDecline() {
       @confirm="handleBiometricOptInAccept"
       @cancel="handleBiometricOptInDecline"
       @close="handleBiometricOptInDecline"
+    />
+
+    <!-- Mouse Controller (full-screen overlay) -->
+    <MouseController
+      v-if="showMouseController"
+      @close="showMouseController = false"
     />
   </div>
 </template>
@@ -1610,6 +1844,201 @@ function handleBiometricOptInDecline() {
 @media (hover: hover) {
   .btn-icon.btn-multimedia:hover {
     background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+  }
+}
+
+.btn-icon.btn-volume {
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+}
+
+@media (hover: hover) {
+  .btn-icon.btn-volume:hover {
+    background: linear-gradient(135deg, #d97706 0%, #c2410c 100%);
+  }
+}
+
+/* ── Volume panel ── */
+.volume-panel {
+  width: 100%;
+  padding: 0 8px;
+  margin-bottom: 12px;
+  animation: volume-slide-in 0.25s ease-out;
+}
+
+@keyframes volume-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.volume-panel-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme='light'] .volume-panel-inner {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.volume-mute-btn {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 1.3rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.2s ease,
+    transform 0.15s ease;
+}
+
+[data-theme='light'] .volume-mute-btn {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+@media (hover: hover) {
+  .volume-mute-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.08);
+  }
+
+  [data-theme='light'] .volume-mute-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+  }
+}
+
+.volume-mute-btn:active {
+  transform: scale(0.92);
+}
+
+/* Range slider */
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  background: linear-gradient(
+    to right,
+    #f59e0b 0%,
+    #f59e0b var(--vol-pct, 50%),
+    rgba(255, 255, 255, 0.15) var(--vol-pct, 50%),
+    rgba(255, 255, 255, 0.15) 100%
+  );
+  transition: background 0.1s ease;
+}
+
+[data-theme='light'] .volume-slider {
+  background: linear-gradient(
+    to right,
+    #d97706 0%,
+    #d97706 var(--vol-pct, 50%),
+    rgba(0, 0, 0, 0.12) var(--vol-pct, 50%),
+    rgba(0, 0, 0, 0.12) 100%
+  );
+}
+
+/* Webkit thumb */
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+@media (hover: hover) {
+  .volume-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 3px 12px rgba(245, 158, 11, 0.4);
+  }
+}
+
+/* Firefox thumb */
+.volume-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
+/* Firefox track */
+.volume-slider::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.volume-label {
+  flex-shrink: 0;
+  min-width: 48px;
+  text-align: right;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+[data-theme='light'] .volume-label {
+  color: rgba(0, 0, 0, 0.7);
+}
+
+@media (max-width: 640px) {
+  .volume-panel-inner {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+
+  .volume-mute-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+  }
+
+  .volume-slider::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+  }
+
+  .volume-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+  }
+
+  .volume-label {
+    font-size: 0.85rem;
+    min-width: 40px;
   }
 }
 
@@ -2287,5 +2716,52 @@ function handleBiometricOptInDecline() {
   color: var(--accent-color, #89b4fa);
   font-size: 0.95rem;
   margin-top: 0.3rem;
+}
+
+/* Floating theme toggle button */
+.theme-fab {
+  position: fixed;
+  z-index: 900;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(30, 30, 50, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    top 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    bottom 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    right 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+[data-theme='light'] .theme-fab {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.theme-fab:active {
+  transform: scale(0.9);
+}
+
+@media (hover: hover) {
+  .theme-fab:hover {
+    transform: scale(1.1);
+  }
+}
+
+.theme-fab-icon {
+  width: 22px;
+  height: 22px;
 }
 </style>

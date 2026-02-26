@@ -15,13 +15,16 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  select: [app: string]
+  select: [data: { command: string; icon?: string; name?: string }]
   close: []
 }>()
 
 const searchQuery = ref('')
 const apps = ref<InstalledApp[]>([])
 const loading = ref(false)
+const showScanWarning = ref(false)
+const scannedAt = ref<string | null>(null)
+const isRescan = ref(false)
 
 const serverUrlStore = useServerUrlStore()
 const { getAuthHeaders } = useAuth()
@@ -29,23 +32,71 @@ const API_URL = serverUrlStore.serverUrl
 
 watch(
   () => props.show,
-  (newVal) => {
+  async (newVal) => {
     if (newVal && apps.value.length === 0) {
-      loadApps()
+      // Check if cache exists first
+      await checkCacheAndLoad()
     }
   },
 )
 
-const loadApps = async () => {
+/** Check if server has cached apps. If yes, load from cache. If no, show warning. */
+const checkCacheAndLoad = async () => {
+  try {
+    const response = await fetch(
+      `${API_URL}/command/installed-apps/cache-status`,
+      { headers: { ...getAuthHeaders() } },
+    )
+    if (response.ok) {
+      const data = await response.json()
+      if (data.hasCache) {
+        // Cache exists — load directly without warning
+        await loadApps(false)
+        return
+      }
+    }
+  } catch {
+    // ignore
+  }
+  // No cache — show scan warning
+  isRescan.value = false
+  showScanWarning.value = true
+}
+
+/** Confirm scan and load apps */
+const confirmScan = async () => {
+  showScanWarning.value = false
+  await loadApps(isRescan.value)
+}
+
+const cancelScan = () => {
+  showScanWarning.value = false
+  if (apps.value.length === 0) {
+    emit('close')
+  }
+}
+
+const requestRescan = () => {
+  isRescan.value = true
+  showScanWarning.value = true
+}
+
+const loadApps = async (forceRescan = false) => {
   loading.value = true
   try {
-    const response = await fetch(`${API_URL}/command/installed-apps`, {
+    const url = forceRescan
+      ? `${API_URL}/command/installed-apps/rescan`
+      : `${API_URL}/command/installed-apps`
+    const options: RequestInit = {
       headers: { ...getAuthHeaders() },
-    })
+      ...(forceRescan ? { method: 'POST' } : {}),
+    }
+    const response = await fetch(url, options)
     if (response.ok) {
       const data = await response.json()
       if (data.success && Array.isArray(data.apps)) {
         apps.value = data.apps
+        scannedAt.value = data.scannedAt || null
       }
     }
   } catch (error) {
@@ -54,6 +105,15 @@ const loadApps = async () => {
     loading.value = false
   }
 }
+
+const formattedScannedAt = computed(() => {
+  if (!scannedAt.value) return null
+  try {
+    return new Date(scannedAt.value).toLocaleString()
+  } catch {
+    return null
+  }
+})
 
 const filteredApps = computed(() => {
   if (!searchQuery.value.trim()) {
@@ -95,8 +155,12 @@ const selectApp = (app: InstalledApp) => {
     command = `start ${cleanName}`
   }
 
-  console.log('Emitting app command:', command)
-  emit('select', command)
+  // Determine icon URL (if extracted icon exists, use it)
+  const icon =
+    app.Icon && app.Icon.startsWith('/app-icons/') ? app.Icon : undefined
+
+  console.log('Emitting app command:', command, 'icon:', icon)
+  emit('select', { command, icon, name: app.Name })
 }
 </script>
 
@@ -108,52 +172,107 @@ const selectApp = (app: InstalledApp) => {
         <button @click="emit('close')" class="close-btn">✕</button>
       </div>
 
-      <div class="picker-search">
-        <i class="pi pi-search"></i>
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Buscar aplicación..."
-          class="search-input"
-        />
-      </div>
-
-      <div class="picker-content">
-        <div v-if="loading" class="loading-state">
-          <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
-          <p>Cargando aplicaciones instaladas...</p>
-        </div>
-
-        <div v-else-if="filteredApps.length === 0" class="no-results">
-          <i class="pi pi-search" style="font-size: 2rem; opacity: 0.3"></i>
-          <p v-if="searchQuery">No se encontraron aplicaciones</p>
-          <p v-else>No se detectaron aplicaciones instaladas</p>
-        </div>
-
-        <div v-else class="apps-list">
-          <button
-            v-for="app in filteredApps"
-            :key="app.Name"
-            class="app-item"
-            :class="{
-              active: currentApp === app.Path || currentApp === app.Name,
-            }"
-            @click.stop="selectApp(app)"
-            type="button"
-          >
-            <div class="app-info">
-              <div class="app-name">{{ app.Name }}</div>
-              <div v-if="app.Path" class="app-path">{{ app.Path }}</div>
-            </div>
+      <!-- Scan warning dialog -->
+      <div v-if="showScanWarning" class="scan-warning">
+        <div class="scan-warning-icon">🔍</div>
+        <h4 v-if="isRescan">Volver a analizar</h4>
+        <h4 v-else>Análisis de aplicaciones</h4>
+        <p v-if="isRescan">
+          Se volverá a analizar tu PC para detectar aplicaciones instaladas.
+          Esto puede tardar unos segundos.
+        </p>
+        <p v-else>
+          Se analizará tu PC para detectar las aplicaciones instaladas. Esto
+          incluye el registro de Windows, apps de Microsoft Store y PWAs.
+          <br /><br />
+          <strong>Este proceso puede tardar unos segundos</strong> y los
+          resultados se guardarán para no repetir el análisis cada vez.
+        </p>
+        <div class="scan-warning-actions">
+          <button @click="cancelScan" class="scan-btn scan-btn-cancel">
+            Cancelar
+          </button>
+          <button @click="confirmScan" class="scan-btn scan-btn-confirm">
+            {{ isRescan ? '🔄 Re-analizar' : '🔍 Analizar' }}
           </button>
         </div>
       </div>
 
-      <div class="picker-footer">
-        <p class="hint">
-          💡 Selecciona una aplicación para configurar su ruta automáticamente
-        </p>
-      </div>
+      <!-- Normal content -->
+      <template v-else>
+        <div class="picker-search">
+          <i class="pi pi-search"></i>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Buscar aplicación..."
+            class="search-input"
+          />
+        </div>
+
+        <div class="picker-content">
+          <div v-if="loading" class="loading-state">
+            <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+            <p>Analizando aplicaciones instaladas...</p>
+            <p class="loading-hint">Esto puede tardar unos segundos</p>
+          </div>
+
+          <div v-else-if="filteredApps.length === 0" class="no-results">
+            <i class="pi pi-search" style="font-size: 2rem; opacity: 0.3"></i>
+            <p v-if="searchQuery">No se encontraron aplicaciones</p>
+            <p v-else>No se detectaron aplicaciones instaladas</p>
+          </div>
+
+          <div v-else class="apps-list">
+            <button
+              v-for="app in filteredApps"
+              :key="app.Name"
+              class="app-item"
+              :class="{
+                active: currentApp === app.Path || currentApp === app.Name,
+              }"
+              @click.stop="selectApp(app)"
+              type="button"
+            >
+              <img
+                v-if="app.Icon && app.Icon.startsWith('/app-icons/')"
+                :src="API_URL + app.Icon"
+                class="app-icon-img"
+                alt=""
+                @error="
+                  ($event.target as HTMLImageElement).style.display = 'none'
+                "
+              />
+              <div v-else class="app-icon-placeholder">
+                <i class="pi pi-box"></i>
+              </div>
+              <div class="app-info">
+                <div class="app-name">{{ app.Name }}</div>
+                <div v-if="app.Path" class="app-path">{{ app.Path }}</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div class="picker-footer">
+          <div class="footer-row">
+            <p class="hint">
+              💡 Selecciona una aplicación para configurar su ruta
+            </p>
+            <button
+              @click="requestRescan"
+              :disabled="loading"
+              class="rescan-btn"
+              title="Volver a analizar aplicaciones"
+            >
+              🔄
+            </button>
+          </div>
+          <p v-if="formattedScannedAt" class="scanned-at">
+            Último análisis: {{ formattedScannedAt }}
+          </p>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -162,7 +281,7 @@ const selectApp = (app: InstalledApp) => {
 .app-picker-overlay {
   position: fixed;
   inset: 0;
-  background: var(--confirm-bg-light);
+  background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -172,7 +291,7 @@ const selectApp = (app: InstalledApp) => {
 }
 
 .app-picker {
-  background: var(--confirm-bg-light);
+  background: var(--edit-bg-color);
   border-radius: 16px;
   width: 90%;
   max-width: 800px;
@@ -301,6 +420,7 @@ const selectApp = (app: InstalledApp) => {
 .app-item {
   display: flex;
   align-items: center;
+  gap: 12px;
   background: var(--form-bg-color);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
@@ -308,6 +428,37 @@ const selectApp = (app: InstalledApp) => {
   transition: all 0.2s;
   padding: 14px 16px;
   text-align: left;
+}
+
+.app-icon-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: contain;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.app-icon-placeholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 1.1rem;
+}
+
+[data-theme='light'] .app-icon-img {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme='light'] .app-icon-placeholder {
+  background: rgba(0, 0, 0, 0.03);
+  color: rgba(0, 0, 0, 0.2);
 }
 
 @media (hover: hover) {
@@ -351,16 +502,122 @@ const selectApp = (app: InstalledApp) => {
 }
 
 .picker-footer {
-  padding: 16px 24px;
+  padding: 12px 24px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.2);
+}
+
+.footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .hint {
   margin: 0;
   font-size: 0.85rem;
   color: var(--edit-text-color);
+}
+
+.scanned-at {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  color: var(--credits-color);
   text-align: center;
+}
+
+.rescan-btn {
+  background: var(--form-bg-color);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+@media (hover: hover) {
+  .rescan-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: rotate(180deg);
+  }
+}
+
+.rescan-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Scan warning */
+.scan-warning {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 32px;
+  gap: 8px;
+}
+
+.scan-warning-icon {
+  font-size: 3rem;
+  margin-bottom: 8px;
+}
+
+.scan-warning h4 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: var(--confirm-text-light);
+}
+
+.scan-warning p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--edit-text-color);
+  line-height: 1.6;
+  max-width: 420px;
+}
+
+.scan-warning-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.scan-btn {
+  padding: 10px 24px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.scan-btn-cancel {
+  background: var(--form-bg-color);
+  color: var(--confirm-text-light);
+}
+
+.scan-btn-confirm {
+  background: #8b5cf6;
+  color: #fff;
+}
+
+@media (hover: hover) {
+  .scan-btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+  .scan-btn-confirm:hover {
+    background: #7c3aed;
+  }
+}
+
+.loading-hint {
+  font-size: 0.8rem;
+  color: var(--credits-color);
+  margin-top: 4px;
 }
 
 ::-webkit-scrollbar {

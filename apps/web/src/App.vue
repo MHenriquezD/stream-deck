@@ -3,9 +3,13 @@ import { Capacitor } from '@capacitor/core'
 import { onMounted, ref } from 'vue'
 import StreamDeckGrid from './components/StreamDeckGrid.vue'
 import { useAuth } from './composables/useAuth'
+import { useExternalLinks } from './composables/useExternalLinks'
 
 const { isAuthenticated, checkAuth, checkPinStatus, logout } = useAuth()
 const ready = ref(false)
+
+// Interceptar links externos para abrir en el navegador del sistema
+useExternalLinks()
 
 onMounted(async () => {
   const isMobile =

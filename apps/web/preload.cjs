@@ -13,6 +13,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('get-network-interfaces')
   },
 
+  // Abrir URL en el navegador del sistema
+  openExternal: (url) => {
+    return ipcRenderer.invoke('open-external', url)
+  },
+
   // Detectar si estamos en Electron
   isElectron: () => true,
 

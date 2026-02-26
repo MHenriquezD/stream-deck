@@ -12,7 +12,8 @@ export interface NetworkInfo {
 declare global {
   interface Window {
     electronAPI?: {
-      getNetworkInterfaces: () => Promise<NetworkInfo> // ⭐ Ahora es Promise
+      getNetworkInterfaces: () => Promise<NetworkInfo>
+      openExternal: (url: string) => Promise<void>
       isElectron: () => boolean
       platform: () => string
     }
