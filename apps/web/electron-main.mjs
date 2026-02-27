@@ -303,8 +303,8 @@ const createWindow = async () => {
   )
 
   if (isDev) {
+    mainWindow.webContents.openDevTools()
   }
-  mainWindow.webContents.openDevTools()
 
   mainWindow.on('closed', () => {
     mainWindow = null

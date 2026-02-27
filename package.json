@@ -13,7 +13,7 @@
     "build:server": "pnpm --filter server build",
     "build:web": "pnpm --filter web build",
     "build:electron": "pnpm run build:server && pnpm --filter web build",
-    "build:electron:win": "pnpm run build:electron && pnpm -C apps/web exec electron-builder --win --publish never",
+    "build:electron:win": "pnpm run build:electron && node scripts/prepare-native-deps.js && pnpm -C apps/web exec electron-builder --win --publish never",
     "build:web:android": "pnpm run build:web && cd apps/web && npx cap build android",
     "build:apk": "pnpm run build:web:android",
     "test": "jest -c jest.config.ts",

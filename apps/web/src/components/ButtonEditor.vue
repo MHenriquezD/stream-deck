@@ -392,7 +392,7 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
               <span class="preview-label">Vista previa:</span>
               <img
                 v-if="formData.icon.startsWith('svg:')"
-                :src="'/icons/' + formData.icon.replace('svg:', '')"
+                :src="'./icons/' + formData.icon.replace('svg:', '')"
                 class="icon-display custom-icon-display"
                 alt="icon"
               />
@@ -407,7 +407,7 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
               />
               <img
                 v-else-if="formData.icon.startsWith('sd:')"
-                :src="'/streamdeck-icons/' + formData.icon.replace('sd:', '')"
+                :src="'./streamdeck-icons/' + formData.icon.replace('sd:', '')"
                 class="icon-display custom-icon-display"
                 alt="icon"
               />
@@ -554,7 +554,7 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
               <div v-if="formData.icon" class="preview-icon">
                 <img
                   v-if="formData.icon.startsWith('svg:')"
-                  :src="'/icons/' + formData.icon.replace('svg:', '')"
+                  :src="'./icons/' + formData.icon.replace('svg:', '')"
                   class="preview-custom-icon"
                   alt="icon"
                 />
@@ -569,7 +569,9 @@ const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
                 />
                 <img
                   v-else-if="formData.icon.startsWith('sd:')"
-                  :src="'/streamdeck-icons/' + formData.icon.replace('sd:', '')"
+                  :src="
+                    './streamdeck-icons/' + formData.icon.replace('sd:', '')
+                  "
                   class="preview-custom-icon"
                   alt="icon"
                 />

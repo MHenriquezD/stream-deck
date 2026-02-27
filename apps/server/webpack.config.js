@@ -15,8 +15,14 @@ module.exports = (options, webpack) => {
           'reflect-metadata',
           'class-validator',
           'class-transformer',
+          /^socket\.io(\/.*)?$/, // socket.io y subpaths
+          /^engine\.io(\/.*)?$/, // dependencia de socket.io
+          'multer', // file upload middleware
+          'busboy', // dependencia de multer
+          /^@socket\.io\/.*/, // @socket.io/* packages
         ],
       }),
+      // @nut-tree-fork/nut-js siempre externo (tiene binarios nativos)
     ],
     output: {
       path: path.resolve(__dirname, 'dist'),

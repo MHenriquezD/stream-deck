@@ -35,10 +35,10 @@ try {
     '..',
     'apps',
     'server',
-    'package.json'
+    'package.json',
   )
   const packageJsonData = JSON.parse(
-    fs.readFileSync(packageJsonSource, 'utf-8')
+    fs.readFileSync(packageJsonSource, 'utf-8'),
   )
 
   // Eliminar dependencias de workspace (pueden estar como "@shared/core" o "core")
@@ -71,7 +71,7 @@ try {
 
   // 5. Instalar dependencias de producción
   console.log(
-    '📦 Installing production dependencies (this may take a while)...'
+    '📦 Installing production dependencies (this may take a while)...',
   )
   execSync('npm install --production --omit=dev', {
     cwd: path.join(distDir, 'server'),
@@ -92,7 +92,7 @@ try {
     execSync('mkcert -install', { stdio: 'inherit' })
     execSync(
       `mkcert -key-file key.pem -cert-file cert.pem localhost 127.0.0.1 ::1`,
-      { cwd: certsDir, stdio: 'inherit' }
+      { cwd: certsDir, stdio: 'inherit' },
     )
     console.log('✅ Certificados generados en server/certs')
     // Copiar rootCA.pem a la carpeta de descargas pública
@@ -102,7 +102,7 @@ try {
       'AppData',
       'Local',
       'mkcert',
-      'rootCA.pem'
+      'rootCA.pem',
     )
     const downloadsDir = path.join(distDir, 'public', 'downloads')
     fs.mkdirSync(downloadsDir, { recursive: true })
@@ -114,25 +114,44 @@ try {
     }
   } catch (e) {
     console.warn(
-      '⚠️  mkcert no está instalado o falló la generación de certificados. El servidor funcionará solo en HTTP.'
+      '⚠️  mkcert no está instalado o falló la generación de certificados. El servidor funcionará solo en HTTP.',
     )
   }
 
-  // 7. Copiar carpeta data si existe
+  // 7. Crear carpeta data con JSONs vacíos (sin datos del desarrollador)
   const dataTarget = path.join(distDir, 'data')
   fs.mkdirSync(dataTarget, { recursive: true })
-  // Crear commands.json vacío
+  fs.mkdirSync(path.join(dataTarget, 'app-icons'), { recursive: true })
+  fs.mkdirSync(path.join(dataTarget, 'custom-icons'), { recursive: true })
   fs.writeFileSync(path.join(dataTarget, 'commands.json'), '[]')
+  fs.writeFileSync(path.join(dataTarget, 'sessions.json'), '{}')
+  fs.writeFileSync(
+    path.join(dataTarget, 'settings.json'),
+    JSON.stringify({ gridSize: 8 }, null, 2),
+  )
+  console.log('✅ Carpeta data creada con JSONs vacíos')
 
   // Copiar check-cert.ps1 si existe
-  const checkCertSrc = path.join(__dirname, '..', 'apps', 'server', 'scripts', 'check-cert.ps1');
-  const checkCertDest = path.join(distDir, 'server', 'scripts', 'check-cert.ps1');
+  const checkCertSrc = path.join(
+    __dirname,
+    '..',
+    'apps',
+    'server',
+    'scripts',
+    'check-cert.ps1',
+  )
+  const checkCertDest = path.join(
+    distDir,
+    'server',
+    'scripts',
+    'check-cert.ps1',
+  )
   if (fs.existsSync(checkCertSrc)) {
-    fs.mkdirSync(path.dirname(checkCertDest), { recursive: true });
-    fs.copyFileSync(checkCertSrc, checkCertDest);
-    console.log('check-cert.ps1 copiado a la distribución.');
+    fs.mkdirSync(path.dirname(checkCertDest), { recursive: true })
+    fs.copyFileSync(checkCertSrc, checkCertDest)
+    console.log('check-cert.ps1 copiado a la distribución.')
   } else {
-    console.warn('⚠️  No se encontró check-cert.ps1 en scripts.');
+    console.warn('⚠️  No se encontró check-cert.ps1 en scripts.')
   }
 
   // 8. Crear script de inicio para Windows
@@ -221,7 +240,6 @@ try {
   fs.writeFileSync(path.join(distDir, 'start-server.bat'), serverBat)
   console.log('start-server.bat generated.')
 
-
   // Update README with new instructions
   const readmeContent = `
   # StreamDeck Server Portable
@@ -263,7 +281,7 @@ try {
 
   console.log('\n✅ Proceso completado.')
   console.log(
-    'Inicia el servidor ejecutando "start-server.bat" y el túnel con "start-tunnel.bat" en la carpeta dist/StreamDeck-Portable\n'
+    'Inicia el servidor ejecutando "start-server.bat" y el túnel con "start-tunnel.bat" en la carpeta dist/StreamDeck-Portable\n',
   )
 } catch (error) {
   console.error('❌ Error en el script:', error)

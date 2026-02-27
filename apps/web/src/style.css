@@ -32,6 +32,36 @@
   --ip-box-bg-color: rgba(69, 233, 129, 0.1);
   --app-item-hover-bg: rgba(0, 0, 0, 0.05);
   --app-path-color: rgba(100, 52, 211, 0.8);
+
+  /* Mouse Controller */
+  --mc-bg: #f0f0f5;
+  --mc-header-bg: rgba(255, 255, 255, 0.8);
+  --mc-header-border: rgba(0, 0, 0, 0.1);
+  --mc-text: #23233a;
+  --mc-text-muted: #555;
+  --mc-text-hint: rgba(0, 0, 0, 0.2);
+  --mc-text-hint-muted: rgba(0, 0, 0, 0.4);
+  --mc-surface: rgba(0, 0, 0, 0.08);
+  --mc-surface-subtle: rgba(0, 0, 0, 0.02);
+  --mc-surface-border: rgba(0, 0, 0, 0.08);
+  --mc-kbd-bg: #fff;
+  --mc-kbd-border: rgba(0, 0, 0, 0.15);
+  --mc-kbd-text: #23233a;
+  --mc-qk-bg: rgba(0, 0, 0, 0.06);
+  --mc-qk-text: #333;
+  --mc-combo-bg: rgba(139, 92, 246, 0.1);
+  --mc-combo-text: #7c3aed;
+  --mc-toggle-active-bg: rgba(139, 92, 246, 0.2);
+  --mc-toggle-active-text: #7c3aed;
+  --mc-drag-bg: rgba(0, 0, 0, 0.06);
+  --mc-drag-text: #333;
+  --mc-drag-active-bg: rgba(239, 68, 68, 0.15);
+  --mc-drag-active-text: #dc2626;
+  --mc-sens-bg: rgba(0, 0, 0, 0.08);
+  --mc-sens-btn-bg: rgba(0, 0, 0, 0.1);
+  --mc-sens-btn-text: #333;
+  --mc-kbd-panel-bg: rgba(0, 0, 0, 0.03);
+  --mc-kbd-panel-border: rgba(0, 0, 0, 0.08);
 }
 
 [data-theme='light'] a {
@@ -92,6 +122,36 @@ body {
   --ip-box-bg-color: rgba(69, 233, 129, 0.1);
   --app-item-hover-bg: rgba(255, 255, 255, 0.05);
   --app-path-color: rgba(139, 92, 246, 0.8);
+
+  /* Mouse Controller */
+  --mc-bg: #1a1a2e;
+  --mc-header-bg: rgba(0, 0, 0, 0.3);
+  --mc-header-border: rgba(255, 255, 255, 0.1);
+  --mc-text: rgba(255, 255, 255, 0.9);
+  --mc-text-muted: rgba(255, 255, 255, 0.7);
+  --mc-text-hint: rgba(255, 255, 255, 0.25);
+  --mc-text-hint-muted: rgba(255, 255, 255, 0.5);
+  --mc-surface: rgba(255, 255, 255, 0.1);
+  --mc-surface-subtle: rgba(255, 255, 255, 0.03);
+  --mc-surface-border: rgba(255, 255, 255, 0.1);
+  --mc-kbd-bg: rgba(255, 255, 255, 0.1);
+  --mc-kbd-border: rgba(255, 255, 255, 0.15);
+  --mc-kbd-text: #fff;
+  --mc-qk-bg: rgba(255, 255, 255, 0.1);
+  --mc-qk-text: rgba(255, 255, 255, 0.85);
+  --mc-combo-bg: rgba(139, 92, 246, 0.15);
+  --mc-combo-text: #c4b5fd;
+  --mc-toggle-active-bg: rgba(139, 92, 246, 0.4);
+  --mc-toggle-active-text: #c4b5fd;
+  --mc-drag-bg: rgba(255, 255, 255, 0.1);
+  --mc-drag-text: rgba(255, 255, 255, 0.8);
+  --mc-drag-active-bg: rgba(239, 68, 68, 0.3);
+  --mc-drag-active-text: #fca5a5;
+  --mc-sens-bg: rgba(0, 0, 0, 0.4);
+  --mc-sens-btn-bg: rgba(255, 255, 255, 0.15);
+  --mc-sens-btn-text: rgba(255, 255, 255, 0.8);
+  --mc-kbd-panel-bg: rgba(0, 0, 0, 0.2);
+  --mc-kbd-panel-border: rgba(255, 255, 255, 0.1);
 }
 
 /* ===========================

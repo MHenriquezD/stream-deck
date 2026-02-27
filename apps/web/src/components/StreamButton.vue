@@ -159,7 +159,7 @@ const handleDrop = (e: DragEvent) => {
       <div v-if="button.icon" class="button-icon">
         <img
           v-if="button.icon.startsWith('svg:')"
-          :src="'/icons/' + button.icon.replace('svg:', '')"
+          :src="'./icons/' + button.icon.replace('svg:', '')"
           class="custom-icon"
           alt="icon"
         />
@@ -172,7 +172,7 @@ const handleDrop = (e: DragEvent) => {
         />
         <img
           v-else-if="button.icon.startsWith('sd:')"
-          :src="'/streamdeck-icons/' + button.icon.replace('sd:', '')"
+          :src="'./streamdeck-icons/' + button.icon.replace('sd:', '')"
           class="custom-icon"
           alt="icon"
         />

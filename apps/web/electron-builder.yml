@@ -48,3 +48,17 @@ extraResources:
     to: backend
     filter:
       - "**/*"
+  # Native modules (flat node_modules prepared by scripts/prepare-native-deps.js)
+  - from: ../server/native_modules/node_modules
+    to: backend/node_modules
+    filter:
+      - "**/*"
+  # Data folder (solo estructura — JSONs y cache se crean en runtime)
+  - from: ../server/data
+    to: backend/data
+    filter:
+      - "**/*"
+      - "!*.json"
+      - "!audio-helper.ps1"
+      - "!app-icons/**"
+      - "!custom-icons/**"

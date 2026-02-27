@@ -389,13 +389,9 @@ const adjustSensitivity = (delta: number) => {
   z-index: 1100;
   display: flex;
   flex-direction: column;
-  background: #1a1a2e;
+  background: var(--mc-bg);
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-[data-theme='light'] .mouse-controller {
-  background: #f0f0f5;
 }
 
 /* Header */
@@ -404,24 +400,15 @@ const adjustSensitivity = (delta: number) => {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.3);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-[data-theme='light'] .mc-header {
-  background: rgba(255, 255, 255, 0.8);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: var(--mc-header-bg);
+  border-bottom: 1px solid var(--mc-header-border);
 }
 
 .mc-header h3 {
   flex: 1;
   margin: 0;
   font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-[data-theme='light'] .mc-header h3 {
-  color: #23233a;
+  color: var(--mc-text);
 }
 
 .mc-back-btn {
@@ -429,18 +416,13 @@ const adjustSensitivity = (delta: number) => {
   height: 36px;
   border-radius: 10px;
   border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.8);
+  background: var(--mc-surface);
+  color: var(--mc-text);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-}
-
-[data-theme='light'] .mc-back-btn {
-  background: rgba(0, 0, 0, 0.08);
-  color: #23233a;
 }
 
 .mc-header-actions {
@@ -453,8 +435,8 @@ const adjustSensitivity = (delta: number) => {
   height: 36px;
   border-radius: 10px;
   border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.7);
+  background: var(--mc-surface);
+  color: var(--mc-text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -463,18 +445,8 @@ const adjustSensitivity = (delta: number) => {
 }
 
 .mc-toggle-btn.active {
-  background: rgba(139, 92, 246, 0.4);
-  color: #c4b5fd;
-}
-
-[data-theme='light'] .mc-toggle-btn {
-  background: rgba(0, 0, 0, 0.08);
-  color: #555;
-}
-
-[data-theme='light'] .mc-toggle-btn.active {
-  background: rgba(139, 92, 246, 0.2);
-  color: #7c3aed;
+  background: var(--mc-toggle-active-bg);
+  color: var(--mc-toggle-active-text);
 }
 
 /* Unavailable state */
@@ -485,7 +457,7 @@ const adjustSensitivity = (delta: number) => {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--mc-text-hint-muted);
 }
 
 /* Trackpad */
@@ -494,17 +466,12 @@ const adjustSensitivity = (delta: number) => {
   position: relative;
   touch-action: none;
   user-select: none;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--mc-surface-subtle);
+  border-bottom: 1px solid var(--mc-surface-border);
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 200px;
-}
-
-[data-theme='light'] .mc-trackpad {
-  background: rgba(0, 0, 0, 0.02);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .trackpad-hint {
@@ -512,13 +479,9 @@ const adjustSensitivity = (delta: number) => {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--mc-text-hint);
   font-size: 0.85rem;
   pointer-events: none;
-}
-
-[data-theme='light'] .trackpad-hint {
-  color: rgba(0, 0, 0, 0.2);
 }
 
 .trackpad-sub-hint {
@@ -534,13 +497,9 @@ const adjustSensitivity = (delta: number) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--mc-sens-bg);
   border-radius: 20px;
   padding: 4px 12px;
-}
-
-[data-theme='light'] .sensitivity-control {
-  background: rgba(0, 0, 0, 0.08);
 }
 
 .sens-btn {
@@ -548,8 +507,8 @@ const adjustSensitivity = (delta: number) => {
   height: 24px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.8);
+  background: var(--mc-sens-btn-bg);
+  color: var(--mc-sens-btn-text);
   font-size: 1rem;
   cursor: pointer;
   display: flex;
@@ -557,20 +516,11 @@ const adjustSensitivity = (delta: number) => {
   justify-content: center;
 }
 
-[data-theme='light'] .sens-btn {
-  background: rgba(0, 0, 0, 0.1);
-  color: #333;
-}
-
 .sens-label {
   font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--mc-text-hint-muted);
   min-width: 30px;
   text-align: center;
-}
-
-[data-theme='light'] .sens-label {
-  color: rgba(0, 0, 0, 0.4);
 }
 
 .drag-indicator {
@@ -578,8 +528,8 @@ const adjustSensitivity = (delta: number) => {
   top: 12px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(239, 68, 68, 0.3);
-  color: #fca5a5;
+  background: var(--mc-drag-active-bg);
+  color: var(--mc-drag-active-text);
   padding: 4px 16px;
   border-radius: 20px;
   font-size: 0.8rem;
@@ -643,40 +593,25 @@ const adjustSensitivity = (delta: number) => {
 }
 
 .mc-btn-drag {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.8);
+  background: var(--mc-drag-bg);
+  color: var(--mc-drag-text);
   border-radius: 10px;
   font-size: 0.85rem;
 }
 
 .mc-btn-drag.active {
-  background: rgba(239, 68, 68, 0.3);
-  color: #fca5a5;
-}
-
-[data-theme='light'] .mc-btn-drag {
-  background: rgba(0, 0, 0, 0.06);
-  color: #333;
-}
-
-[data-theme='light'] .mc-btn-drag.active {
-  background: rgba(239, 68, 68, 0.15);
-  color: #dc2626;
+  background: var(--mc-drag-active-bg);
+  color: var(--mc-drag-active-text);
 }
 
 /* Keyboard panel */
 .mc-keyboard {
   padding: 8px 12px 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid var(--mc-kbd-panel-border);
+  background: var(--mc-kbd-panel-bg);
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-[data-theme='light'] .mc-keyboard {
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  background: rgba(0, 0, 0, 0.03);
 }
 
 .keyboard-input-row {
@@ -686,23 +621,17 @@ const adjustSensitivity = (delta: number) => {
 
 .keyboard-input {
   flex: 1;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--mc-kbd-bg);
+  border: 1px solid var(--mc-kbd-border);
   border-radius: 10px;
   padding: 10px 14px;
-  color: #fff;
+  color: var(--mc-kbd-text);
   font-size: 0.95rem;
   outline: none;
 }
 
 .keyboard-input:focus {
   border-color: rgba(139, 92, 246, 0.5);
-}
-
-[data-theme='light'] .keyboard-input {
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  color: #23233a;
 }
 
 .keyboard-send-btn {
@@ -734,8 +663,8 @@ const adjustSensitivity = (delta: number) => {
   padding: 8px 12px;
   border-radius: 8px;
   border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.85);
+  background: var(--mc-qk-bg);
+  color: var(--mc-qk-text);
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
@@ -744,22 +673,11 @@ const adjustSensitivity = (delta: number) => {
 
 .qk-btn:active {
   transform: scale(0.92);
-  background: rgba(255, 255, 255, 0.2);
-}
-
-[data-theme='light'] .qk-btn {
-  background: rgba(0, 0, 0, 0.06);
-  color: #333;
 }
 
 .combo-btn {
-  background: rgba(139, 92, 246, 0.15);
-  color: #c4b5fd;
-}
-
-[data-theme='light'] .combo-btn {
-  background: rgba(139, 92, 246, 0.1);
-  color: #7c3aed;
+  background: var(--mc-combo-bg);
+  color: var(--mc-combo-text);
 }
 
 /* Arrow keys */
