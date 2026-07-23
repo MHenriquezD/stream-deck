@@ -1,6 +1,7 @@
 <script setup>
 import { Capacitor } from '@capacitor/core'
 import { onMounted, ref } from 'vue'
+import ConnectionIndicator from './components/ConnectionIndicator.vue'
 import StreamDeckGrid from './components/StreamDeckGrid.vue'
 import { useAuth } from './composables/useAuth'
 import { useExternalLinks } from './composables/useExternalLinks'
@@ -38,6 +39,7 @@ onMounted(async () => {
     <div class="app">
       <template v-if="ready">
         <Toast position="top-right" />
+        <ConnectionIndicator v-if="isAuthenticated" />
         <StreamDeckGrid :rows="3" :cols="4" />
       </template>
     </div>
