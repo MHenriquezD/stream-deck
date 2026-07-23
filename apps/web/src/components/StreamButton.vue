@@ -9,6 +9,10 @@ const props = defineProps<{
   isDragging?: boolean
   isDragOver?: boolean
   isSelected?: boolean
+  /** Estado de ejecución del comando asociado. */
+  status?: 'running' | 'success' | 'error'
+  /** Muestra un placeholder mientras se cargan los botones por primera vez. */
+  isLoading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -140,7 +144,11 @@ const handleDrop = (e: DragEvent) => {
       dragging: isDragging,
       'drag-over': isDragOver,
       selected: isSelected,
+      'status-running': status === 'running',
+      'status-success': status === 'success',
+      'status-error': status === 'error',
     }"
+    :aria-busy="status === 'running'"
     :style="buttonStyle"
     :draggable="!!button"
     @click="handleClick"
@@ -197,9 +205,20 @@ const handleDrop = (e: DragEvent) => {
       <div class="button-label">{{ button.label }}</div>
       <div class="button-type">{{ button.action.type }}</div>
     </div>
+    <div v-else-if="isLoading" class="skeleton-content" aria-hidden="true">
+      <div class="skeleton-icon"></div>
+      <div class="skeleton-label"></div>
+    </div>
     <div v-else class="empty-content">
       <span class="plus-icon">+</span>
       <span class="empty-text">Agregar</span>
+    </div>
+
+    <!-- Feedback de ejecución -->
+    <div v-if="status" class="status-overlay" aria-hidden="true">
+      <span v-if="status === 'running'" class="status-spinner"></span>
+      <span v-else-if="status === 'success'" class="status-mark">✓</span>
+      <span v-else class="status-mark">✕</span>
     </div>
   </div>
 </template>
@@ -540,5 +559,151 @@ const handleDrop = (e: DragEvent) => {
 
 ::-webkit-scrollbar {
   width: 0px;
+}
+
+/* ─── Feedback de ejecución ─────────────────────────────── */
+.status-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 3;
+  animation: status-in 0.15s ease;
+}
+
+@keyframes status-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Velo tenue para que el icono de estado se lea sobre cualquier color */
+.status-running .status-overlay {
+  background: rgba(0, 0, 0, 0.28);
+}
+.status-success .status-overlay {
+  background: rgba(34, 197, 94, 0.35);
+}
+.status-error .status-overlay {
+  background: rgba(239, 68, 68, 0.35);
+}
+
+.status-spinner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: status-spin 0.7s linear infinite;
+}
+
+@keyframes status-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.status-mark {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  animation: status-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes status-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Sacudida corta al fallar, refuerza el mensaje de error */
+.status-error {
+  animation: status-shake 0.35s ease;
+}
+
+@keyframes status-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+/* ─── Skeleton de carga inicial ──────────────────────────── */
+.skeleton-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+}
+
+.skeleton-icon,
+.skeleton-label {
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.18) 25%,
+    rgba(148, 163, 184, 0.32) 50%,
+    rgba(148, 163, 184, 0.18) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.skeleton-icon {
+  width: 34%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+}
+
+.skeleton-label {
+  width: 60%;
+  height: 9px;
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Respeta a quien prefiere menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .status-spinner {
+    animation-duration: 1.6s;
+  }
+  .status-mark,
+  .status-overlay,
+  .status-error {
+    animation: none;
+  }
+  .skeleton-icon,
+  .skeleton-label {
+    animation: none;
+  }
 }
 </style>

@@ -6,6 +6,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useBiometric } from '../composables/useBiometric'
 import { useButtonSound } from '../composables/useButtonSound'
+import { useHaptics } from '../composables/useHaptics'
 import { useSocket } from '../composables/useSocket'
 import { useServerUrlStore } from '../store/serverUrl.store'
 import ButtonEditor from './ButtonEditor.vue'
@@ -15,6 +16,7 @@ import StreamButton from './StreamButton.vue'
 import TailwindConfirmDialog from './TailwindConfirmDialog.vue'
 
 const toast = useToast()
+const haptics = useHaptics()
 const {
   getAuthHeaders,
   checkPinStatus,
@@ -101,7 +103,11 @@ const showSettings = ref(false)
 const editingButton = ref<ButtonType | null>(null)
 const editingPosition = ref({ row: 0, col: 0 })
 const isExecuting = ref<string | null>(null)
+/** Estado visual por botón: 'running' | 'success' | 'error' (ausente = idle). */
+const buttonStatus = ref<Record<string, 'running' | 'success' | 'error'>>({})
 const isReloadingGrid = ref(false)
+/** True hasta que termina la primera carga de botones (muestra skeletons). */
+const isLoadingButtons = ref(true)
 const showPinGate = ref(false)
 const pinGateInput = ref('')
 const pinGateError = ref('')
@@ -287,6 +293,12 @@ const gridItems = computed(() => {
 })
 
 onMounted(async () => {
+  // Red de seguridad: nunca dejar los skeletons colgados si la carga
+  // no llega a ejecutarse (sin conexión, sin auth, servidor apagado…).
+  window.setTimeout(() => {
+    isLoadingButtons.value = false
+  }, 3000)
+
   // Inicializar tema
   const savedTheme = localStorage.getItem('theme')
   if (savedTheme) {
@@ -568,6 +580,8 @@ const loadButtons = async () => {
     }
   } catch (error) {
     console.error('Error loading buttons:', error)
+  } finally {
+    isLoadingButtons.value = false
   }
 }
 
@@ -738,17 +752,33 @@ const {
   setSelectedSound,
 } = useButtonSound()
 
+/** Marca el resultado de un botón y lo devuelve a idle tras la animación. */
+const setButtonStatus = (id: string, status: 'success' | 'error') => {
+  buttonStatus.value[id] = status
+  window.setTimeout(
+    () => {
+      // Solo limpiar si no hay una nueva ejecución en curso.
+      if (buttonStatus.value[id] === status) {
+        delete buttonStatus.value[id]
+      }
+    },
+    status === 'error' ? 1200 : 800,
+  )
+}
+
 const handleButtonClick = async (button: ButtonType | null) => {
   if (!button) return
 
   // No ejecutar si se está arrastrando en mobile
   if (touchDragButton.value) return
 
-  // Reproducir sonido de tecla
+  // Reproducir sonido de tecla + feedback háptico en móvil
   playClickSound()
+  void haptics.tap()
 
   try {
     isExecuting.value = button.id
+    buttonStatus.value[button.id] = 'running'
 
     let result: { success: boolean; output?: string; message?: string }
 
@@ -769,6 +799,8 @@ const handleButtonClick = async (button: ButtonType | null) => {
     }
 
     if (result.success) {
+      setButtonStatus(button.id, 'success')
+      void haptics.success()
       toast.removeAllGroups()
       toast.add({
         severity: 'success',
@@ -777,6 +809,8 @@ const handleButtonClick = async (button: ButtonType | null) => {
         life: 3000,
       })
     } else {
+      setButtonStatus(button.id, 'error')
+      void haptics.error()
       toast.removeAllGroups()
       toast.add({
         severity: 'error',
@@ -787,6 +821,8 @@ const handleButtonClick = async (button: ButtonType | null) => {
     }
   } catch (error) {
     console.error('Error executing command:', error)
+    setButtonStatus(button.id, 'error')
+    void haptics.error()
     toast.removeAllGroups()
     toast.add({
       severity: 'error',
@@ -1456,6 +1492,8 @@ function handleBiometricOptInDecline() {
             :isDragging="isDragging(item.button)"
             :isDragOver="isDragOver({ row: item.row, col: item.col })"
             :isSelected="false"
+            :status="item.button ? buttonStatus[item.button.id] : undefined"
+            :isLoading="isLoadingButtons && !item.button"
             @click="handleButtonClick(item.button)"
             @edit="
               handleButtonEdit(item.button, { row: item.row, col: item.col })
