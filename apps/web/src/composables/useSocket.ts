@@ -56,18 +56,51 @@ export function useSocket() {
   }
 
   /** Ejecutar un comando por ID via WebSocket */
+  /** Default de tiempo de espera para respuestas del servidor (ms). */
+  const ACK_TIMEOUT_MS = 5000
+
+  /**
+   * Emite un evento que espera respuesta (ack) del servidor, con timeout.
+   * Si el socket no está conectado o el servidor no responde a tiempo,
+   * resuelve con `fallback` en lugar de quedar colgado indefinidamente.
+   */
+  const emitWithAck = <T>(
+    event: string,
+    payload: unknown,
+    fallback: T,
+    timeoutMs = ACK_TIMEOUT_MS,
+  ): Promise<T> => {
+    return new Promise((resolve) => {
+      if (!socket.value?.connected) {
+        resolve(fallback)
+        return
+      }
+      socket.value
+        .timeout(timeoutMs)
+        .emit(event, payload, (err: Error | null, response: T) => {
+          if (err) {
+            console.warn(`⚠️ Timeout esperando "${event}" del servidor`)
+            resolve(fallback)
+            return
+          }
+          resolve(response ?? fallback)
+        })
+    })
+  }
+
   const execute = (
     id: string,
   ): Promise<{ success: boolean; output?: string; message?: string }> => {
-    return new Promise((resolve) => {
-      if (!socket.value?.connected) {
-        resolve({ success: false, message: 'Socket no conectado' })
-        return
-      }
-      socket.value.emit('execute', { id }, (response: any) => {
-        resolve(response)
-      })
-    })
+    return emitWithAck(
+      'execute',
+      { id },
+      {
+        success: false,
+        message: socket.value?.connected
+          ? 'El servidor no respondió a tiempo'
+          : 'Socket no conectado',
+      },
+    )
   }
 
   /** Guardar comandos y notificar a todos los clientes */
@@ -77,28 +110,12 @@ export function useSocket() {
 
   /** Obtener comandos */
   const getCommands = (): Promise<any[]> => {
-    return new Promise((resolve) => {
-      if (!socket.value?.connected) {
-        resolve([])
-        return
-      }
-      socket.value.emit('commands:get', {}, (response: any) => {
-        resolve(response || [])
-      })
-    })
+    return emitWithAck<any[]>('commands:get', {}, [])
   }
 
   /** Obtener settings */
   const getSettings = (): Promise<{ gridSize: number }> => {
-    return new Promise((resolve) => {
-      if (!socket.value?.connected) {
-        resolve({ gridSize: 12 })
-        return
-      }
-      socket.value.emit('settings:get', {}, (response: any) => {
-        resolve(response || { gridSize: 12 })
-      })
-    })
+    return emitWithAck('settings:get', {}, { gridSize: 12 })
   }
 
   /** Cambiar gridSize y notificar a todos los clientes */
@@ -118,15 +135,7 @@ export function useSocket() {
 
   /** Obtener volumen actual */
   const getVolume = (): Promise<{ volume: number; muted: boolean }> => {
-    return new Promise((resolve) => {
-      if (!socket.value?.connected) {
-        resolve({ volume: 0, muted: false })
-        return
-      }
-      socket.value.emit('volume:get', {}, (response: any) => {
-        resolve(response || { volume: 0, muted: false })
-      })
-    })
+    return emitWithAck('volume:get', {}, { volume: 0, muted: false })
   }
 
   /** Establecer volumen (0-100) */
