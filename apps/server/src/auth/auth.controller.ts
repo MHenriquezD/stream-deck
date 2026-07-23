@@ -15,13 +15,13 @@ export class AuthController {
 
   /** POST /auth/setup-pin — Set PIN for the first time (public, only works when no PIN exists) */
   @Post('setup-pin')
-  setupPin(@Body() body: { pin: string }) {
+  setupPin(@Body() body: { pin: string }, @Req() req: Request) {
     if (!body.pin || body.pin.length !== 4 || !/^\d{4}$/.test(body.pin)) {
       return { success: false, message: 'El PIN debe ser de 4 dígitos' };
     }
     if (this.authService.isPinConfigured()) {
       // PIN already exists — try to login with the provided PIN
-      return this.authService.login(body.pin);
+      return this.authService.login(body.pin, this.getOrigin(req));
     }
     return this.authService.setPin(body.pin);
   }
@@ -38,8 +38,8 @@ export class AuthController {
 
   /** POST /auth/login — Validate PIN and return session token (public) */
   @Post('login')
-  login(@Body() body: { pin: string }) {
-    return this.authService.login(body.pin);
+  login(@Body() body: { pin: string }, @Req() req: Request) {
+    return this.authService.login(body.pin, this.getOrigin(req));
   }
 
   /** POST /auth/logout — Invalidate session token */
@@ -60,6 +60,15 @@ export class AuthController {
       return { authenticated: true };
     }
     return { authenticated: false };
+  }
+
+  /** Best-effort caller identity for per-origin rate limiting. */
+  private getOrigin(req: Request): string {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.length > 0) {
+      return forwarded.split(',')[0].trim();
+    }
+    return req.ip || req.socket?.remoteAddress || 'unknown';
   }
 
   private extractToken(req: Request): string | null {
