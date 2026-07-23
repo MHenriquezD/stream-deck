@@ -24,6 +24,7 @@
     "@capacitor/browser": "^8.0.1",
     "@capacitor/cli": "^8.0.1",
     "@capacitor/core": "^8.0.1",
+    "@capacitor/haptics": "^8.0.2",
     "@primevue/themes": "^4.5.4",
     "@shared/core": "workspace:*",
     "network-address": "^1.1.2",
