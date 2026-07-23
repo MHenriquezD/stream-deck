@@ -5,10 +5,12 @@ import ConnectionIndicator from './components/ConnectionIndicator.vue'
 import StreamDeckGrid from './components/StreamDeckGrid.vue'
 import { useAuth } from './composables/useAuth'
 import { useExternalLinks } from './composables/useExternalLinks'
+import { useSettingsRequest } from './composables/useSettingsRequest'
 
 const { isAuthenticated, checkAuth, checkPinStatus, logout, serverReachable } =
   useAuth()
 const ready = ref(false)
+const { requestSettings } = useSettingsRequest()
 
 // Interceptar links externos para abrir en el navegador del sistema
 useExternalLinks()
@@ -45,20 +47,19 @@ onMounted(async () => {
       <template v-if="ready">
         <Toast position="top-right" />
         <ConnectionIndicator v-if="isAuthenticated" />
-        <div
+        <button
           v-else-if="serverReachable === false"
+          type="button"
           class="server-unreachable"
-          role="alert"
+          aria-label="No se encuentra el servidor. Abrir Configuración para emparejar tu PC"
+          @click="requestSettings"
         >
           <span class="su-icon" aria-hidden="true">📡</span>
-          <div class="su-text">
+          <span class="su-text">
             <strong>No se encuentra el servidor</strong>
-            <span
-              >Empareja tu PC desde Configuración (escanea el QR o introduce la
-              IP).</span
-            >
-          </div>
-        </div>
+            <span class="su-cta">Toca aquí para emparejar tu PC <span aria-hidden="true">→</span></span>
+          </span>
+        </button>
         <StreamDeckGrid :rows="3" :cols="4" />
       </template>
     </div>
@@ -77,12 +78,37 @@ onMounted(async () => {
   gap: 0.65rem;
   max-width: min(92vw, 30rem);
   padding: 0.6rem 0.9rem;
+  border: none;
   border-radius: 14px;
   background: rgba(245, 158, 11, 0.18);
   color: rgb(146, 64, 14);
   backdrop-filter: blur(6px);
   font-size: 0.82rem;
+  font-family: inherit;
   line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    transform 0.12s ease;
+}
+
+.server-unreachable:hover {
+  background: rgba(245, 158, 11, 0.28);
+}
+
+.server-unreachable:active {
+  transform: translateX(-50%) scale(0.97);
+}
+
+.server-unreachable:focus-visible {
+  outline: 2px solid rgb(245, 158, 11);
+  outline-offset: 2px;
+}
+
+.su-cta {
+  font-weight: 600;
+  opacity: 0.9;
 }
 
 .su-icon {

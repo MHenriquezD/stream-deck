@@ -7,6 +7,7 @@ import { useAuth } from '../composables/useAuth'
 import { useBiometric } from '../composables/useBiometric'
 import { useButtonSound } from '../composables/useButtonSound'
 import { useHaptics } from '../composables/useHaptics'
+import { useSettingsRequest } from '../composables/useSettingsRequest'
 import { useSocket } from '../composables/useSocket'
 import { useServerUrlStore } from '../store/serverUrl.store'
 import ButtonEditor from './ButtonEditor.vue'
@@ -17,6 +18,7 @@ import TailwindConfirmDialog from './TailwindConfirmDialog.vue'
 
 const toast = useToast()
 const haptics = useHaptics()
+const { requestCount: settingsRequestCount } = useSettingsRequest()
 const {
   getAuthHeaders,
   checkPinStatus,
@@ -607,6 +609,12 @@ const openSettings = async () => {
   }
   showSettings.value = true
 }
+
+// Permite abrir Configuración desde fuera del grid (p. ej. el aviso de
+// "no se encuentra el servidor" en App.vue) reutilizando el gate de PIN.
+watch(settingsRequestCount, () => {
+  void openSettings()
+})
 
 const handlePinGateSubmit = async () => {
   pinGateError.value = ''
