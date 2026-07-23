@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -210,9 +211,37 @@ export class CommandController {
     return { success: true, filename: file.filename };
   }
 
+  /**
+   * Resolve a user-supplied icon name to an absolute path, guaranteeing the
+   * result stays inside the custom-icons directory. Returns null for any name
+   * that tries to escape (path traversal) or contains path separators.
+   */
+  private resolveIconPath(name: string): string | null {
+    if (!name || typeof name !== 'string') return null;
+    // Reject anything that isn't a bare filename (no separators, no traversal).
+    if (name !== path.basename(name)) return null;
+    if (name === '.' || name === '..' || name.includes('\0')) return null;
+
+    const dir = this.customIconsDir;
+    const resolved = path.resolve(dir, name);
+    // Ensure the resolved path is strictly inside the icons directory.
+    const relative = path.relative(dir, resolved);
+    if (
+      relative === '' ||
+      relative.startsWith('..') ||
+      path.isAbsolute(relative)
+    ) {
+      return null;
+    }
+    return resolved;
+  }
+
   @Delete('custom-icons/:name')
   deleteCustomIcon(@Param('name') name: string) {
-    const filePath = path.join(this.customIconsDir, name);
+    const filePath = this.resolveIconPath(name);
+    if (!filePath) {
+      throw new BadRequestException('Nombre de archivo inválido');
+    }
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       return { success: true };
