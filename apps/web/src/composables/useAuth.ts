@@ -4,6 +4,12 @@ import { useServerUrlStore } from '../store/serverUrl.store'
 const authToken = ref<string | null>(localStorage.getItem('authToken'))
 const isAuthenticated = ref(!!authToken.value)
 const pinConfigured = ref(false)
+/**
+ * Si el servidor respondió a la última comprobación.
+ * `null` = aún sin comprobar. Permite distinguir "no hay PIN configurado"
+ * de "no se puede hablar con el servidor", que son casos muy distintos.
+ */
+const serverReachable = ref<boolean | null>(null)
 
 export function useAuth() {
   const serverUrlStore = useServerUrlStore()
@@ -13,9 +19,13 @@ export function useAuth() {
     try {
       const response = await fetch(`${serverUrlStore.serverUrl}/auth/status`)
       const data = await response.json()
+      serverReachable.value = true
       pinConfigured.value = data.pinConfigured
       return data.pinConfigured
     } catch {
+      // Ojo: `false` aquí significa "no lo sé", no "no hay PIN".
+      // Quien llame debe consultar `serverReachable` antes de dar acceso.
+      serverReachable.value = false
       return false
     }
   }
@@ -173,6 +183,7 @@ export function useAuth() {
     authToken,
     isAuthenticated,
     pinConfigured,
+    serverReachable,
     login,
     logout,
     setupPin,
