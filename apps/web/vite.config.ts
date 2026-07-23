@@ -62,10 +62,12 @@ export default defineConfig({
             type: 'image/png',
           },
           {
-            src: '/pwa-icon-512.png',
+            // Versión con zona segura: Android recorta los maskable en
+            // círculo/squircle, así que el logo va al 80% sobre fondo sólido.
+            src: '/pwa-icon-512-maskable.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable',
+            purpose: 'maskable',
           },
         ],
       },
