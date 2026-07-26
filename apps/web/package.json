@@ -1,7 +1,7 @@
 {
   "name": "web",
   "private": true,
-  "version": "beta 0.1.0.0",
+  "version": "0.1.0-beta.0",
   "description": "Spartan Hub - Control your PC with a custom stream deck",
   "author": "Spartan Hub Team",
   "type": "module",
