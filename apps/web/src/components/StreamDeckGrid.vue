@@ -8,7 +8,9 @@ import { useBiometric } from '../composables/useBiometric'
 import { useButtonSound } from '../composables/useButtonSound'
 import { useHaptics } from '../composables/useHaptics'
 import { useSettingsRequest } from '../composables/useSettingsRequest'
+import { useDraggableFab } from '../composables/useDraggableFab'
 import { useSocket } from '../composables/useSocket'
+import { useTheme } from '../composables/useTheme'
 import { useVolume } from '../composables/useVolume'
 import { useServerUrlStore } from '../store/serverUrl.store'
 import ButtonEditor from './ButtonEditor.vue'
@@ -38,23 +40,8 @@ const {
   authenticateAndGetPin,
 } = useBiometric()
 
-// Theme toggle
-const isDark = ref(true)
-const applyTheme = () => {
-  const app = document.querySelector('.app')
-  if (isDark.value) {
-    app?.classList.add('dark')
-    document.documentElement.setAttribute('data-theme', 'dark')
-  } else {
-    app?.classList.remove('dark')
-    document.documentElement.setAttribute('data-theme', 'light')
-  }
-}
-const toggleTheme = () => {
-  isDark.value = !isDark.value
-  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
-  applyTheme()
-}
+// Tema claro/oscuro (estado + persistencia)
+const { isDark, toggleTheme, initTheme } = useTheme()
 const serverUrlStore = useServerUrlStore()
 const {
   isConnected,
@@ -145,96 +132,16 @@ const showMouseController = ref(false)
 
 
 // Theme FAB draggable
-const themeFabRef = ref<HTMLButtonElement | null>(null)
-const fabCorner = ref<'tl' | 'tr' | 'bl' | 'br'>(
-  (localStorage.getItem('theme-fab-corner') as any) || 'br',
-)
-let fabDragging = false
-let fabMoved = false
-let fabStartX = 0
-let fabStartY = 0
-let fabCurrentX = 0
-let fabCurrentY = 0
-
-const fabStyle = computed(() => {
-  const margin = 20
-  const pos: Record<string, string> = {}
-  switch (fabCorner.value) {
-    case 'tl':
-      pos.top = `calc(${margin}px + env(safe-area-inset-top, 0px))`
-      pos.left = `calc(${margin}px + env(safe-area-inset-left, 0px))`
-      break
-    case 'tr':
-      pos.top = `calc(${margin}px + env(safe-area-inset-top, 0px))`
-      pos.right = `calc(${margin}px + env(safe-area-inset-right, 0px))`
-      break
-    case 'bl':
-      pos.bottom = `calc(${margin}px + env(safe-area-inset-bottom, 0px))`
-      pos.left = `calc(${margin}px + env(safe-area-inset-left, 0px))`
-      break
-    case 'br':
-    default:
-      pos.bottom = `calc(${margin}px + env(safe-area-inset-bottom, 0px))`
-      pos.right = `calc(${margin}px + env(safe-area-inset-right, 0px))`
-      break
-  }
-  return pos
-})
-
-const snapToCorner = (x: number, y: number) => {
-  const midX = window.innerWidth / 2
-  const midY = window.innerHeight / 2
-  const corner = y < midY ? (x < midX ? 'tl' : 'tr') : x < midX ? 'bl' : 'br'
-  fabCorner.value = corner as 'tl' | 'tr' | 'bl' | 'br'
-  localStorage.setItem('theme-fab-corner', corner)
-}
-
-const handleFabTouchStart = (e: TouchEvent) => {
-  fabDragging = true
-  fabMoved = false
-  const t = e.touches[0]
-  fabStartX = t.clientX
-  fabStartY = t.clientY
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  fabCurrentX = rect.left + rect.width / 2
-  fabCurrentY = rect.top + rect.height / 2
-}
-
-const handleFabTouchMove = (e: TouchEvent) => {
-  if (!fabDragging) return
-  const t = e.touches[0]
-  const dx = Math.abs(t.clientX - fabStartX)
-  const dy = Math.abs(t.clientY - fabStartY)
-  if (dx > 8 || dy > 8) fabMoved = true
-  if (!fabMoved) return
-  e.preventDefault()
-  const el = themeFabRef.value
-  if (!el) return
-  el.style.transition = 'none'
-  el.style.position = 'fixed'
-  el.style.left = `${t.clientX - 24}px`
-  el.style.top = `${t.clientY - 24}px`
-  el.style.right = 'auto'
-  el.style.bottom = 'auto'
-}
-
-const handleFabTouchEnd = (e: TouchEvent) => {
-  if (!fabDragging) return
-  fabDragging = false
-  const el = themeFabRef.value
-  if (!el) return
-  if (fabMoved) {
-    e.preventDefault()
-    const ct = e.changedTouches[0]
-    snapToCorner(ct.clientX, ct.clientY)
-    // Reset inline styles so CSS class takes over
-    el.style.transition = ''
-    el.style.left = ''
-    el.style.top = ''
-    el.style.right = ''
-    el.style.bottom = ''
-  }
-}
+// Botón flotante arrastrable (persiste su esquina, distingue tap de arrastre)
+const {
+  fabRef: themeFabRef,
+  fabCorner,
+  fabStyle,
+  fabMoved,
+  onTouchStart: handleFabTouchStart,
+  onTouchMove: handleFabTouchMove,
+  onTouchEnd: handleFabTouchEnd,
+} = useDraggableFab()
 
 // Detectar plataforma nativa (Android/iOS) vs desktop
 const platform = Capacitor.getPlatform()
@@ -277,11 +184,7 @@ onMounted(async () => {
   }, 3000)
 
   // Inicializar tema
-  const savedTheme = localStorage.getItem('theme')
-  if (savedTheme) {
-    isDark.value = savedTheme === 'dark'
-  }
-  applyTheme()
+  initTheme()
 
   isMobileView.value = window.innerWidth <= 850
 
