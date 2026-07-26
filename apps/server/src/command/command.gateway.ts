@@ -2,10 +2,12 @@ import {
   MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
+import { OnModuleDestroy } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
 import { CommandService } from './command.service';
@@ -16,16 +18,33 @@ import { SettingsService } from './settings.service';
   cors: { origin: '*' },
 })
 export class CommandGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
+  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy
 {
   @WebSocketServer()
   server!: Server;
+
+  /** Cada cuánto se revalidan los tokens de los sockets ya conectados. */
+  private static readonly REVALIDATE_INTERVAL_MS = 60_000; // 60s
+  private revalidateTimer?: ReturnType<typeof setInterval>;
 
   constructor(
     private readonly commandService: CommandService,
     private readonly settingsService: SettingsService,
     private readonly authService: AuthService,
   ) {}
+
+  afterInit() {
+    // El token se valida al conectar, pero un socket puede quedarse abierto
+    // más allá de la expiración del token. Este barrido cierra esas sesiones.
+    this.revalidateTimer = setInterval(
+      () => this.revalidateClients(),
+      CommandGateway.REVALIDATE_INTERVAL_MS,
+    );
+  }
+
+  onModuleDestroy() {
+    if (this.revalidateTimer) clearInterval(this.revalidateTimer);
+  }
 
   handleConnection(client: Socket) {
     // If no PIN configured, allow all connections
@@ -34,9 +53,7 @@ export class CommandGateway
       return;
     }
 
-    const token =
-      (client.handshake.auth as any)?.token ||
-      client.handshake.headers?.authorization?.replace('Bearer ', '');
+    const token = this.extractToken(client);
 
     if (!token || !this.authService.validateToken(token)) {
       console.log(`🚫 Cliente rechazado (sin auth): ${client.id}`);
@@ -45,11 +62,41 @@ export class CommandGateway
       return;
     }
 
+    // Guardar el token para poder revalidarlo periódicamente.
+    client.data.token = token;
     console.log(`🔌 Cliente conectado: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
     console.log(`❌ Cliente desconectado: ${client.id}`);
+  }
+
+  private extractToken(client: Socket): string | undefined {
+    return (
+      (client.handshake.auth as { token?: string })?.token ||
+      client.handshake.headers?.authorization?.replace('Bearer ', '')
+    );
+  }
+
+  /**
+   * Recorre los sockets conectados y desconecta los que ya no tienen un token
+   * válido (expirado, o invalidado al cambiar el PIN). Sin PIN configurado no
+   * hay nada que revalidar.
+   */
+  revalidateClients() {
+    if (!this.authService.isPinConfigured()) return;
+
+    const sockets = this.server?.sockets?.sockets;
+    if (!sockets) return;
+
+    for (const client of sockets.values()) {
+      const token = (client.data as { token?: string })?.token;
+      if (!token || !this.authService.validateToken(token)) {
+        console.log(`⏳ Sesión expirada, desconectando: ${client.id}`);
+        client.emit('auth:error', { message: 'Sesión expirada' });
+        client.disconnect(true);
+      }
+    }
   }
 
   // ─── Ejecutar comando ───
