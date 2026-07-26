@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+import { JsonStore } from '../common/json-store';
 import { AuthService } from './auth.service';
 
 // Keep the service fully in-memory: no real disk access.
@@ -8,6 +8,13 @@ jest.mock('fs', () => ({
   writeFileSync: jest.fn(),
   mkdirSync: jest.fn(),
 }));
+
+// Persistence goes through JsonStore (tested separately); stub it out so the
+// auth tests never touch disk.
+jest.spyOn(JsonStore, 'write').mockResolvedValue(undefined);
+jest
+  .spyOn(JsonStore, 'update')
+  .mockImplementation(async (_p, fallback) => fallback as never);
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -61,13 +68,14 @@ describe('AuthService — session expiry', () => {
 
   it('persists sessions in the { token: expiresAt } format', () => {
     const { token } = service.setPin('1234');
-    const writes = (fs.writeFileSync as jest.Mock).mock.calls;
-    const sessionWrite = writes
+    const writeMock = JsonStore.write as jest.Mock;
+    const sessionWrite = writeMock.mock.calls
+      .slice()
       .reverse()
       .find(([p]) => String(p).includes('sessions.json'));
     expect(sessionWrite).toBeDefined();
-    const parsed = JSON.parse(sessionWrite[1]);
-    expect(Array.isArray(parsed)).toBe(false);
-    expect(typeof parsed[token]).toBe('number');
+    const payload = sessionWrite[1] as Record<string, number>;
+    expect(Array.isArray(payload)).toBe(false);
+    expect(typeof payload[token]).toBe('number');
   });
 });

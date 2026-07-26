@@ -110,23 +110,23 @@ export class CommandController {
   }
 
   @Post('settings/grid-size')
-  setGridSize(@Body() body: { gridSize: number }) {
-    this.settingsService.setGridSize(body.gridSize);
+  async setGridSize(@Body() body: { gridSize: number }) {
+    await this.settingsService.setGridSize(body.gridSize);
     return { success: true, gridSize: body.gridSize };
   }
 
   @Post('settings/button-sound')
-  setButtonSound(@Body() body: { enabled: boolean; file?: string }) {
+  async setButtonSound(@Body() body: { enabled: boolean; file?: string }) {
     if (typeof body.enabled === 'boolean') {
-      this.settingsService.setButtonSound(body.enabled);
+      await this.settingsService.setButtonSound(body.enabled);
     }
     if (body.file) {
-      this.settingsService.setButtonSoundFile(body.file);
+      await this.settingsService.setButtonSoundFile(body.file);
     }
     return {
       success: true,
-      buttonSound: this.settingsService.getButtonSound(),
-      buttonSoundFile: this.settingsService.getButtonSoundFile(),
+      buttonSound: await this.settingsService.getButtonSound(),
+      buttonSoundFile: await this.settingsService.getButtonSoundFile(),
     };
   }
 

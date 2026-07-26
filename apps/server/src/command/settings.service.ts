@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import * as fs from 'fs';
 import * as path from 'path';
+import { JsonStore } from '../common/json-store';
 
 export interface AppSettings {
   gridSize: number;
@@ -20,71 +20,58 @@ const DEFAULT_SETTINGS: AppSettings = {
 export class SettingsService {
   private filePath = path.join(process.cwd(), 'data', 'settings.json');
 
-  private ensureFile() {
-    const dir = path.dirname(this.filePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    if (!fs.existsSync(this.filePath)) {
-      fs.writeFileSync(
-        this.filePath,
-        JSON.stringify(DEFAULT_SETTINGS, null, 2),
-      );
-    }
+  async getAll(): Promise<AppSettings> {
+    // El fichero settings.json lo comparte auth.service (guarda el pinHash),
+    // por eso conservamos las claves desconocidas al leer.
+    const data = await JsonStore.read<Record<string, unknown>>(
+      this.filePath,
+      {},
+    );
+    return { ...DEFAULT_SETTINGS, ...data };
   }
 
-  getAll(): AppSettings {
-    this.ensureFile();
-    try {
-      const data = JSON.parse(fs.readFileSync(this.filePath, 'utf-8'));
-      return { ...DEFAULT_SETTINGS, ...data };
-    } catch {
-      return { ...DEFAULT_SETTINGS };
-    }
+  async getGridSize(): Promise<number> {
+    return (await this.getAll()).gridSize;
   }
 
-  getGridSize(): number {
-    return this.getAll().gridSize;
+  async setGridSize(gridSize: number): Promise<void> {
+    await this.patch({ gridSize });
   }
 
-  setGridSize(gridSize: number) {
-    const settings = this.getAll();
-    settings.gridSize = gridSize;
-    this.save(settings);
+  async isServerEnabled(): Promise<boolean> {
+    return (await this.getAll()).serverEnabled;
   }
 
-  isServerEnabled(): boolean {
-    return this.getAll().serverEnabled;
+  async setServerEnabled(enabled: boolean): Promise<void> {
+    await this.patch({ serverEnabled: enabled });
   }
 
-  setServerEnabled(enabled: boolean) {
-    const settings = this.getAll();
-    settings.serverEnabled = enabled;
-    this.save(settings);
+  async getButtonSound(): Promise<boolean> {
+    return (await this.getAll()).buttonSound;
   }
 
-  getButtonSound(): boolean {
-    return this.getAll().buttonSound;
+  async setButtonSound(enabled: boolean): Promise<void> {
+    await this.patch({ buttonSound: enabled });
   }
 
-  setButtonSound(enabled: boolean) {
-    const settings = this.getAll();
-    settings.buttonSound = enabled;
-    this.save(settings);
+  async getButtonSoundFile(): Promise<string> {
+    return (await this.getAll()).buttonSoundFile;
   }
 
-  getButtonSoundFile(): string {
-    return this.getAll().buttonSoundFile;
+  async setButtonSoundFile(file: string): Promise<void> {
+    await this.patch({ buttonSoundFile: file });
   }
 
-  setButtonSoundFile(file: string) {
-    const settings = this.getAll();
-    settings.buttonSoundFile = file;
-    this.save(settings);
-  }
-
-  private save(settings: AppSettings) {
-    this.ensureFile();
-    fs.writeFileSync(this.filePath, JSON.stringify(settings, null, 2));
+  /**
+   * Aplica un cambio parcial mediante un read-modify-write atómico y
+   * serializado. Preserva las claves ajenas (p. ej. pinHash de auth) porque
+   * parte del contenido real del fichero, no de AppSettings.
+   */
+  private async patch(changes: Partial<AppSettings>): Promise<void> {
+    await JsonStore.update<Record<string, unknown>>(
+      this.filePath,
+      {},
+      (current) => ({ ...current, ...changes }),
+    );
   }
 }

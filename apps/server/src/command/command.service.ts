@@ -6,6 +6,7 @@ import {
 import { exec } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { JsonStore } from '../common/json-store';
 import { validateCommand } from './command-validator';
 import { StreamCommand } from './interfaces/command.interface';
 
@@ -22,21 +23,12 @@ export class CommandService {
   private appsCache = path.join(process.cwd(), 'data', 'installed-apps.json');
   private iconsDir = path.join(process.cwd(), 'data', 'app-icons');
 
-  private ensureFile() {
-    if (!fs.existsSync(this.filePath)) {
-      fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
-      fs.writeFileSync(this.filePath, JSON.stringify([], null, 2));
-    }
-  }
-
   async getAll(): Promise<StreamCommand[]> {
-    this.ensureFile();
-    return JSON.parse(fs.readFileSync(this.filePath, 'utf-8'));
+    return JsonStore.read<StreamCommand[]>(this.filePath, []);
   }
 
   async saveAll(commands: StreamCommand[]) {
-    this.ensureFile();
-    fs.writeFileSync(this.filePath, JSON.stringify(commands, null, 2));
+    await JsonStore.write(this.filePath, commands);
   }
 
   getMultimediaPresets() {

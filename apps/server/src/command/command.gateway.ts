@@ -83,15 +83,14 @@ export class CommandGateway
 
   // ─── Obtener settings ───
   @SubscribeMessage('settings:get')
-  handleGetSettings() {
-    const settings = this.settingsService.getAll();
-    return settings;
+  async handleGetSettings() {
+    return await this.settingsService.getAll();
   }
 
   // ─── Actualizar gridSize (y notificar a todos) ───
   @SubscribeMessage('settings:gridSize')
-  handleSetGridSize(@MessageBody() data: { gridSize: number }) {
-    this.settingsService.setGridSize(data.gridSize);
+  async handleSetGridSize(@MessageBody() data: { gridSize: number }) {
+    await this.settingsService.setGridSize(data.gridSize);
     // Notificar a TODOS los clientes conectados
     this.server.emit('settings:gridSizeChanged', { gridSize: data.gridSize });
     return { success: true };
@@ -99,19 +98,19 @@ export class CommandGateway
 
   // ─── Actualizar sonido (y notificar a todos) ───
   @SubscribeMessage('settings:buttonSound')
-  handleSetButtonSound(
+  async handleSetButtonSound(
     @MessageBody() data: { enabled: boolean; file: string },
   ) {
     if (typeof data.enabled === 'boolean') {
-      this.settingsService.setButtonSound(data.enabled);
+      await this.settingsService.setButtonSound(data.enabled);
     }
     if (data.file) {
-      this.settingsService.setButtonSoundFile(data.file);
+      await this.settingsService.setButtonSoundFile(data.file);
     }
     // Notificar a TODOS los clientes conectados
     this.server.emit('settings:buttonSoundChanged', {
-      enabled: this.settingsService.getButtonSound(),
-      file: this.settingsService.getButtonSoundFile(),
+      enabled: await this.settingsService.getButtonSound(),
+      file: await this.settingsService.getButtonSoundFile(),
     });
     return { success: true };
   }
@@ -153,8 +152,8 @@ export class CommandGateway
 
   // ─── Activar/Desactivar servidor (desktop toggle, notifica a todos) ───
   @SubscribeMessage('server:setEnabled')
-  handleSetServerEnabled(@MessageBody() data: { enabled: boolean }) {
-    this.settingsService.setServerEnabled(data.enabled);
+  async handleSetServerEnabled(@MessageBody() data: { enabled: boolean }) {
+    await this.settingsService.setServerEnabled(data.enabled);
     // Notificar a TODOS los clientes conectados
     this.server.emit('server:enabledChanged', { enabled: data.enabled });
     return { success: true };

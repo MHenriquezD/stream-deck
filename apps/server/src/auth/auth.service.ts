@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { JsonStore } from '../common/json-store';
 
 /** Tracks failed login attempts and lockout state for a single origin (IP). */
 interface AttemptRecord {
@@ -47,11 +48,12 @@ export class AuthService {
 
   /** Set or change the PIN. Returns a session token (auto-login for the setter) */
   setPin(pin: string): { success: boolean; token: string } {
-    const settings = this.readSettings();
-    settings.pinHash = this.hashPin(pin);
-    // Remove any legacy plaintext PIN.
-    delete settings.pin;
-    this.writeSettings(settings);
+    const pinHash = this.hashPin(pin);
+    this.patchSettings((s) => {
+      s.pinHash = pinHash;
+      // Remove any legacy plaintext PIN.
+      delete s.pin;
+    });
     // A new PIN invalidates every existing session and any lockout state.
     this.activeSessions.clear();
     this.attempts.clear();
@@ -162,9 +164,11 @@ export class AuthService {
       const b = Buffer.from(String(settings.pin));
       const match = a.length === b.length && crypto.timingSafeEqual(a, b);
       if (match) {
-        settings.pinHash = this.hashPin(pin);
-        delete settings.pin;
-        this.writeSettings(settings);
+        const pinHash = this.hashPin(pin);
+        this.patchSettings((s) => {
+          s.pinHash = pinHash;
+          delete s.pin;
+        });
         this.logger.log('PIN heredado en texto plano migrado a hash scrypt');
       }
       return match;
@@ -273,28 +277,21 @@ export class AuthService {
     }
   }
 
+  /**
+   * Persiste las sesiones de forma atómica y ordenada. La fuente de verdad es
+   * el mapa en memoria; el disco es solo respaldo, por eso el guardado es
+   * fire-and-forget (la cola de JsonStore preserva el orden de escrituras).
+   */
   private saveSessions() {
-    try {
-      const dir = path.dirname(this.sessionsPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-      const serialized = Object.fromEntries(this.activeSessions);
-      fs.writeFileSync(
-        this.sessionsPath,
-        JSON.stringify(serialized, null, 2),
-      );
-    } catch (err) {
-      this.logger.warn(`No se pudieron guardar las sesiones: ${err}`);
-    }
+    void JsonStore.write(
+      this.sessionsPath,
+      Object.fromEntries(this.activeSessions),
+    );
   }
 
+  /** Lectura síncrona de settings.json (segura: JsonStore escribe atómico). */
   private readSettings(): Record<string, any> {
     try {
-      const dir = path.dirname(this.settingsPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
       if (fs.existsSync(this.settingsPath)) {
         return JSON.parse(fs.readFileSync(this.settingsPath, 'utf-8'));
       }
@@ -304,11 +301,16 @@ export class AuthService {
     return {};
   }
 
-  private writeSettings(settings: Record<string, any>) {
-    const dir = path.dirname(this.settingsPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(this.settingsPath, JSON.stringify(settings, null, 2));
+  /**
+   * Aplica un cambio parcial a settings.json dentro del lock compartido con
+   * SettingsService (merge in-lock), de modo que dos servicios que escriben el
+   * mismo fichero no se pisen. Fire-and-forget: no bloquea al guard/login.
+   */
+  private patchSettings(mutate: (s: Record<string, any>) => void) {
+    void JsonStore.update<Record<string, any>>(this.settingsPath, {}, (s) => {
+      const next = { ...s };
+      mutate(next);
+      return next;
+    });
   }
 }
