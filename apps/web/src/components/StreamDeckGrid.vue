@@ -9,6 +9,7 @@ import { useButtonSound } from '../composables/useButtonSound'
 import { useHaptics } from '../composables/useHaptics'
 import { useSettingsRequest } from '../composables/useSettingsRequest'
 import { useSocket } from '../composables/useSocket'
+import { useVolume } from '../composables/useVolume'
 import { useServerUrlStore } from '../store/serverUrl.store'
 import ButtonEditor from './ButtonEditor.vue'
 import MouseController from './MouseController.vue'
@@ -67,10 +68,17 @@ const {
   setGridSize: socketSetGridSize,
   setButtonSound: socketSetButtonSound,
   setServerEnabled: socketSetServerEnabled,
-  getVolume: socketGetVolume,
-  setVolume: socketSetVolume,
-  toggleMute: socketToggleMute,
 } = useSocket()
+
+// Control de volumen (estado, sync con debounce y listener volume:changed)
+const {
+  showVolumeSlider,
+  systemVolume,
+  systemMuted,
+  onVolumeInput,
+  onMuteToggle,
+  toggleVolumeSlider,
+} = useVolume()
 
 const props = defineProps<{
   rows?: number
@@ -135,39 +143,6 @@ const pendingPinForBiometric = ref('')
 // Mouse controller
 const showMouseController = ref(false)
 
-// Volume control
-const showVolumeSlider = ref(false)
-const systemVolume = ref(50)
-const systemMuted = ref(false)
-let volumeDebounce: ReturnType<typeof setTimeout> | null = null
-
-const onVolumeInput = (e: Event) => {
-  const val = parseInt((e.target as HTMLInputElement).value)
-  systemVolume.value = val
-  if (volumeDebounce) clearTimeout(volumeDebounce)
-  volumeDebounce = setTimeout(() => {
-    socketSetVolume(val)
-  }, 80)
-}
-
-const onMuteToggle = () => {
-  socketToggleMute()
-}
-
-const fetchVolume = async () => {
-  try {
-    const state = await socketGetVolume()
-    systemVolume.value = state.volume
-    systemMuted.value = state.muted
-  } catch {
-    /* ignore */
-  }
-}
-
-const toggleVolumeSlider = () => {
-  showVolumeSlider.value = !showVolumeSlider.value
-  if (showVolumeSlider.value) fetchVolume()
-}
 
 // Theme FAB draggable
 const themeFabRef = ref<HTMLButtonElement | null>(null)
@@ -394,11 +369,6 @@ onMounted(async () => {
     },
   )
 
-  // Escuchar cambios de volumen en tiempo real
-  socketOn('volume:changed', (data: { volume: number; muted: boolean }) => {
-    systemVolume.value = data.volume
-    systemMuted.value = data.muted
-  })
 
   // Detectar error de conexión para actualizar el estado
   socketOn('connect_error', () => {
@@ -435,9 +405,6 @@ onMounted(async () => {
 
   // Check PIN status for settings gate (desktop uses this)
   await checkPinStatus()
-
-  // Fetch initial volume
-  fetchVolume()
 })
 
 onUnmounted(() => {
@@ -445,7 +412,6 @@ onUnmounted(() => {
   socketOff('commands:updated')
   socketOff('server:enabledChanged')
   socketOff('settings:buttonSoundChanged')
-  socketOff('volume:changed')
   socketOff('connect_error')
 })
 

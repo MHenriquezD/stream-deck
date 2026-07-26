@@ -1,13 +1,21 @@
+import type {
+  AppSettings,
+  ExecuteResponse,
+  StreamButton,
+  VolumeState,
+} from '@shared/core'
 import { io, Socket } from 'socket.io-client'
 import { ref, shallowRef } from 'vue'
 import { useAuth } from './useAuth'
 import { useServerUrl } from './useServerUrl'
 
+type SocketListener = (...args: unknown[]) => void
+
 const socket = shallowRef<Socket | null>(null)
 const isConnected = ref(false)
 
 // Registry of listeners that survive socket recreation (disconnect → connect)
-const registeredListeners = new Map<string, Set<(...args: any[]) => void>>()
+const registeredListeners = new Map<string, Set<SocketListener>>()
 
 export function useSocket() {
   const { getServerUrl } = useServerUrl()
@@ -88,10 +96,8 @@ export function useSocket() {
     })
   }
 
-  const execute = (
-    id: string,
-  ): Promise<{ success: boolean; output?: string; message?: string }> => {
-    return emitWithAck(
+  const execute = (id: string): Promise<ExecuteResponse> => {
+    return emitWithAck<ExecuteResponse>(
       'execute',
       { id },
       {
@@ -104,18 +110,23 @@ export function useSocket() {
   }
 
   /** Guardar comandos y notificar a todos los clientes */
-  const saveCommands = (commands: any[]) => {
+  const saveCommands = (commands: StreamButton[]) => {
     socket.value?.emit('commands:save', commands)
   }
 
   /** Obtener comandos */
-  const getCommands = (): Promise<any[]> => {
-    return emitWithAck<any[]>('commands:get', {}, [])
+  const getCommands = (): Promise<StreamButton[]> => {
+    return emitWithAck<StreamButton[]>('commands:get', {}, [])
   }
 
   /** Obtener settings */
-  const getSettings = (): Promise<{ gridSize: number }> => {
-    return emitWithAck('settings:get', {}, { gridSize: 12 })
+  const getSettings = (): Promise<AppSettings> => {
+    return emitWithAck<AppSettings>('settings:get', {}, {
+      gridSize: 12,
+      serverEnabled: true,
+      buttonSound: true,
+      buttonSoundFile: 'key-click.wav',
+    })
   }
 
   /** Cambiar gridSize y notificar a todos los clientes */
@@ -134,8 +145,11 @@ export function useSocket() {
   }
 
   /** Obtener volumen actual */
-  const getVolume = (): Promise<{ volume: number; muted: boolean }> => {
-    return emitWithAck('volume:get', {}, { volume: 0, muted: false })
+  const getVolume = (): Promise<VolumeState> => {
+    return emitWithAck<VolumeState>('volume:get', {}, {
+      volume: 0,
+      muted: false,
+    })
   }
 
   /** Establecer volumen (0-100) */
@@ -149,7 +163,7 @@ export function useSocket() {
   }
 
   /** Escuchar un evento del servidor (persiste entre reconexiones) */
-  const on = (event: string, callback: (...args: any[]) => void) => {
+  const on = (event: string, callback: SocketListener) => {
     if (!registeredListeners.has(event)) {
       registeredListeners.set(event, new Set())
     }
@@ -158,7 +172,7 @@ export function useSocket() {
   }
 
   /** Dejar de escuchar un evento */
-  const off = (event: string, callback?: (...args: any[]) => void) => {
+  const off = (event: string, callback?: SocketListener) => {
     if (callback) {
       registeredListeners.get(event)?.delete(callback)
     } else {

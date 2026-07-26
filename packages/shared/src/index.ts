@@ -31,3 +31,26 @@ export interface CommandResponse {
   output?: string
   error?: string
 }
+
+// ─── Contrato del WebSocket (cliente ↔ servidor) ───
+
+/** Respuesta a la ejecución de un comando. */
+export interface ExecuteResponse {
+  success: boolean
+  output?: string
+  message?: string
+}
+
+/** Ajustes de la app persistidos en el servidor. */
+export interface AppSettings {
+  gridSize: number
+  serverEnabled: boolean
+  buttonSound: boolean
+  buttonSoundFile: string
+}
+
+/** Estado de volumen del sistema. */
+export interface VolumeState {
+  volume: number
+  muted: boolean
+}
