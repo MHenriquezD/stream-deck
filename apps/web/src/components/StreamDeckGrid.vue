@@ -5,7 +5,9 @@ import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useBiometric } from '../composables/useBiometric'
+import { useButtons } from '../composables/useButtons'
 import { useButtonSound } from '../composables/useButtonSound'
+import { useDragAndDrop } from '../composables/useDragAndDrop'
 import { useHaptics } from '../composables/useHaptics'
 import { useSettingsRequest } from '../composables/useSettingsRequest'
 import { useDraggableFab } from '../composables/useDraggableFab'
@@ -48,7 +50,6 @@ const {
   connect: socketConnect,
   disconnect: socketDisconnect,
   execute: socketExecute,
-  saveCommands: socketSaveCommands,
   on: socketOn,
   off: socketOff,
   getSettings: socketGetSettings,
@@ -72,29 +73,6 @@ const props = defineProps<{
   cols?: number
 }>()
 
-const calculateGridDimensions = (totalButtons: number) => {
-  const layouts: Record<number, { rows: number; cols: number }> = {
-    8: { rows: 2, cols: 4 },
-    12: { rows: 3, cols: 4 },
-    16: { rows: 4, cols: 4 },
-    24: { rows: 4, cols: 6 },
-    32: { rows: 4, cols: 8 },
-  }
-  return layouts[totalButtons] || { rows: 3, cols: 4 }
-}
-
-// Inicializar con valor por defecto, luego se actualiza desde el servidor
-const gridRows = ref(3)
-const gridCols = ref(4)
-
-const updateGridFromSize = (gridSize: number) => {
-  const dims = calculateGridDimensions(gridSize)
-  gridRows.value = dims.rows
-  gridCols.value = dims.cols
-  console.log('Grid actualizado:', gridSize, '->', dims)
-}
-
-const buttons = ref<Map<string, ButtonType>>(new Map())
 const showEditor = ref(false)
 const showSettings = ref(false)
 const editingButton = ref<ButtonType | null>(null)
@@ -102,9 +80,6 @@ const editingPosition = ref({ row: 0, col: 0 })
 const isExecuting = ref<string | null>(null)
 /** Estado visual por botón: 'running' | 'success' | 'error' (ausente = idle). */
 const buttonStatus = ref<Record<string, 'running' | 'success' | 'error'>>({})
-const isReloadingGrid = ref(false)
-/** True hasta que termina la primera carga de botones (muestra skeletons). */
-const isLoadingButtons = ref(true)
 const showPinGate = ref(false)
 const pinGateInput = ref('')
 const pinGateError = ref('')
@@ -119,6 +94,22 @@ const connectionStatus = ref<'connected' | 'disconnected' | 'connecting'>(
   'disconnected',
 )
 const serverEnabled = ref(true)
+
+// Estado central de botones, dimensiones y persistencia
+const {
+  buttons,
+  gridRows,
+  gridCols,
+  gridItems,
+  isReloadingGrid,
+  isLoadingButtons,
+  updateGridFromSize,
+  swapButtons,
+  parseAndSetButtons,
+  loadButtons,
+  saveButtons,
+  reloadButtonsWithAnimation,
+} = useButtons({ serverEnabled })
 
 // Server unreachable dialog (mobile)
 const showServerUnreachableDialog = ref(false)
@@ -150,31 +141,37 @@ const isMobile = platform === 'android' || platform === 'ios'
 // Detectar mobile por tamaño de pantalla (responsive layout)
 const isMobileView = ref(false)
 
-// Desktop Drag and drop state
-const draggedButton = ref<ButtonType | null>(null)
-const dragOverPosition = ref<{ row: number; col: number } | null>(null)
-
-// Touch Drag and drop state (Mobile - siempre activo)
-const touchDragButton = ref<ButtonType | null>(null)
-const touchOverPosition = ref<{ row: number; col: number } | null>(null)
-const touchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
-const isPressing = ref<string | null>(null) // Para la animación visual
+// Drag & drop (ratón + táctil), delegando el intercambio en useButtons
+const {
+  touchDragButton,
+  isPressing,
+  handleDragStart,
+  handleDragEnd,
+  handleDragOver,
+  handleDragLeave,
+  handleDrop,
+  isDragging,
+  isDragOver,
+  handleTouchStart,
+  handleTouchMove,
+  handleTouchEnd,
+  handleTouchCancel,
+  isTouchDragging,
+  isTouchDragOver,
+} = useDragAndDrop({
+  swapButtons,
+  onMouseDrop: () => {
+    toast.removeAllGroups()
+    toast.add({
+      severity: 'success',
+      summary: 'Botón movido',
+      detail: 'El botón se ha reubicado correctamente',
+      life: 2000,
+    })
+  },
+})
 
 const API_URL = computed(() => serverUrlStore.serverUrl)
-
-const gridItems = computed(() => {
-  const items: Array<{ row: number; col: number; button: ButtonType | null }> =
-    []
-  for (let row = 0; row < gridRows.value; row++) {
-    for (let col = 0; col < gridCols.value; col++) {
-      const button = Array.from(buttons.value.values()).find(
-        (b) => b.position.row === row && b.position.col === col,
-      )
-      items.push({ row, col, button: button || null })
-    }
-  }
-  return items
-})
 
 onMounted(async () => {
   // Red de seguridad: nunca dejar los skeletons colgados si la carga
@@ -406,67 +403,6 @@ const loadSettings = async () => {
   }
 }
 
-const parseAndSetButtons = (data: any[]) => {
-  data.forEach((cmd: any, index: number) => {
-    let actionType = ActionType.COMMAND
-    if (cmd.type === 'url' || (cmd.payload && cmd.payload.startsWith('http'))) {
-      actionType = ActionType.URL
-    }
-
-    const button: ButtonType = {
-      id: cmd.id,
-      label: cmd.label || 'Sin nombre',
-      icon: cmd.icon || '⚙️',
-      color: cmd.color || '#ffffff',
-      backgroundColor: cmd.backgroundColor || '#2c3e50',
-      action: {
-        type: actionType,
-        payload: cmd.payload,
-      },
-      position: cmd.position || {
-        row: Math.floor(index / gridCols.value),
-        col: index % gridCols.value,
-      },
-    }
-
-    if (
-      button.position.row < gridRows.value &&
-      button.position.col < gridCols.value
-    ) {
-      buttons.value.set(button.id, button)
-    }
-  })
-}
-
-const loadButtons = async () => {
-  try {
-    const response = await fetch(`${API_URL.value}/command`, {
-      headers: { ...getAuthHeaders() },
-    })
-    if (response.ok) {
-      const data = await response.json()
-      if (Array.isArray(data)) {
-        parseAndSetButtons(data)
-      }
-    }
-  } catch (error) {
-    console.error('Error loading buttons:', error)
-  } finally {
-    isLoadingButtons.value = false
-  }
-}
-
-const reloadButtonsWithAnimation = async () => {
-  isReloadingGrid.value = true
-  buttons.value.clear()
-  if (isConnected.value && serverEnabled.value) {
-    await loadButtons()
-  }
-  setTimeout(() => {
-    isReloadingGrid.value = false
-  }, 600)
-}
-
 /** Open settings — if PIN is configured and user not authenticated, ask PIN first (desktop only) */
 const openSettings = async () => {
   // Mobile: PIN is handled at app startup via lock screen, no need for gate here
@@ -594,35 +530,6 @@ const cleanupAndReset = async () => {
   })
 }
 
-const saveButtons = async () => {
-  try {
-    const commandsToSave = Array.from(buttons.value.values()).map((btn) => ({
-      id: btn.id,
-      label: btn.label,
-      icon: btn.icon,
-      color: btn.color,
-      backgroundColor: btn.backgroundColor,
-      type: 'command',
-      payload: btn.action.payload,
-      position: btn.position,
-    }))
-
-    if (isConnected.value) {
-      // Via WebSocket (más rápido + sincroniza con otros clientes)
-      socketSaveCommands(commandsToSave)
-    } else {
-      // Fallback HTTP
-      await fetch(`${API_URL.value}/command`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify(commandsToSave),
-      })
-    }
-  } catch (error) {
-    console.error('Error saving buttons:', error)
-  }
-}
-
 const {
   play: playClickSound,
   setEnabled: setSoundEnabled,
@@ -726,132 +633,6 @@ const handleButtonEdit = (
   showEditor.value = true
 }
 
-// Touch drag & drop - siempre activo en mobile
-const startY = ref(0) // Para detectar si el usuario intenta hacer scroll
-
-const handleTouchStart = (
-  button: ButtonType | null,
-  position: { row: number; col: number },
-  event: TouchEvent,
-) => {
-  if (!button) return
-
-  // Guardamos la posición inicial del toque
-  startY.value = event.touches[0].clientY
-  isPressing.value = button.id
-
-  if (touchTimer.value) clearTimeout(touchTimer.value)
-
-  touchTimer.value = setTimeout(() => {
-    if (navigator.vibrate) navigator.vibrate(100)
-    touchDragButton.value = button
-    isPressing.value = null
-  }, 1000) // 1 segundos
-}
-
-const handleTouchMove = (event: TouchEvent) => {
-  // Si NO se ha activado el modo arrastre (no han pasado los 2s)
-  if (!touchDragButton.value) {
-    const currentY = event.touches[0].clientY
-    const diffY = Math.abs(currentY - startY.value)
-
-    // Si el usuario mueve el dedo más de 10px, asumimos que quiere hacer SCROLL
-    if (diffY > 10) {
-      if (touchTimer.value) {
-        clearTimeout(touchTimer.value)
-        touchTimer.value = null
-      }
-      isPressing.value = null
-    }
-    return // Salimos para dejar que el navegador haga scroll
-  }
-
-  // SI YA PASARON LOS 2 SEGUNDOS: Bloqueamos scroll y movemos el botón
-  if (event.cancelable) event.preventDefault()
-
-  const touch = event.touches[0]
-  const element = document.elementFromPoint(touch.clientX, touch.clientY)
-  const gridItem = element?.closest('[data-grid-row]')
-
-  if (gridItem) {
-    const row = parseInt(gridItem.getAttribute('data-grid-row') || '-1')
-    const col = parseInt(gridItem.getAttribute('data-grid-col') || '-1')
-    if (row !== -1 && col !== -1) {
-      touchOverPosition.value = { row, col }
-    }
-  }
-}
-
-const handleTouchEnd = () => {
-  // 1. Limpiamos el temporizador SIEMPRE
-  if (touchTimer.value) {
-    clearTimeout(touchTimer.value)
-    touchTimer.value = null
-  }
-
-  // 2. Limpiamos la animación de pulso SIEMPRE
-  isPressing.value = null
-
-  // 3. Si no se llegó a activar el drag, salimos aquí
-  if (!touchDragButton.value) return
-
-  // Lógica de intercambio de posición (tu lógica actual)
-  const sourceButton = touchDragButton.value
-  const targetPos = touchOverPosition.value
-
-  if (
-    targetPos &&
-    (sourceButton.position.row !== targetPos.row ||
-      sourceButton.position.col !== targetPos.col)
-  ) {
-    const targetButton = Array.from(buttons.value.values()).find(
-      (b) =>
-        b.position.row === targetPos.row && b.position.col === targetPos.col,
-    )
-
-    const oldPosition = { ...sourceButton.position }
-    sourceButton.position = { ...targetPos }
-
-    if (targetButton) {
-      targetButton.position = oldPosition
-      buttons.value.set(targetButton.id, targetButton)
-    }
-
-    buttons.value.set(sourceButton.id, sourceButton)
-    saveButtons()
-
-    if (navigator.vibrate) navigator.vibrate([30, 10, 30])
-  }
-
-  // 4. Limpiamos el estado de arrastre al final
-  touchDragButton.value = null
-  touchOverPosition.value = null
-}
-
-/** Force-clear ALL touch/drag state (safety net for touchcancel, edge cases) */
-const handleTouchCancel = () => {
-  if (touchTimer.value) {
-    clearTimeout(touchTimer.value)
-    touchTimer.value = null
-  }
-  isPressing.value = null
-  touchDragButton.value = null
-  touchOverPosition.value = null
-}
-
-const isTouchDragging = (button: ButtonType | null): boolean => {
-  if (!button || !touchDragButton.value) return false
-  return touchDragButton.value.id === button.id
-}
-
-const isTouchDragOver = (position: { row: number; col: number }): boolean => {
-  return !!(
-    touchOverPosition.value?.row === position.row &&
-    touchOverPosition.value?.col === position.col &&
-    touchDragButton.value !== null
-  )
-}
-
 const handleSaveButton = (button: ButtonType) => {
   buttons.value.set(button.id, button)
   saveButtons()
@@ -932,119 +713,6 @@ const addPresetButton = (preset: any) => {
     summary: 'Sin espacio',
     detail: 'No hay espacio disponible en la cuadrícula',
     life: 4000,
-  })
-}
-
-// Desktop Drag and Drop handlers
-const handleDragStart = (button: ButtonType | null) => {
-  if (!button) return
-  draggedButton.value = button
-}
-
-const handleDragEnd = () => {
-  draggedButton.value = null
-  dragOverPosition.value = null
-}
-
-const handleDragOver = (position: { row: number; col: number }) => {
-  dragOverPosition.value = position
-}
-
-const handleDragLeave = () => {
-  dragOverPosition.value = null
-}
-
-const handleDrop = (targetPosition: { row: number; col: number }) => {
-  if (!draggedButton.value) return
-
-  const sourceButton = draggedButton.value
-  const targetButton = Array.from(buttons.value.values()).find(
-    (b) =>
-      b.position.row === targetPosition.row &&
-      b.position.col === targetPosition.col,
-  )
-
-  const oldPosition = { ...sourceButton.position }
-  sourceButton.position = targetPosition
-
-  if (targetButton) {
-    targetButton.position = oldPosition
-  }
-
-  buttons.value.set(sourceButton.id, sourceButton)
-  if (targetButton) {
-    buttons.value.set(targetButton.id, targetButton)
-  }
-
-  saveButtons()
-  draggedButton.value = null
-  dragOverPosition.value = null
-
-  toast.removeAllGroups()
-  toast.add({
-    severity: 'success',
-    summary: 'Botón movido',
-    detail: 'El botón se ha reubicado correctamente',
-    life: 2000,
-  })
-}
-
-const isDragging = (button: ButtonType | null): boolean => {
-  return !!(button && draggedButton.value?.id === button.id)
-}
-
-const isDragOver = (position: { row: number; col: number }): boolean => {
-  return !!(
-    dragOverPosition.value?.row === position.row &&
-    dragOverPosition.value?.col === position.col
-  )
-}
-
-const handleMovePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
-  if (!editingButton.value) return
-
-  const currentPos = editingPosition.value
-  let newRow = currentPos.row
-  let newCol = currentPos.col
-
-  switch (direction) {
-    case 'up':
-      newRow = Math.max(0, currentPos.row - 1)
-      break
-    case 'down':
-      newRow = Math.min(gridRows.value - 1, currentPos.row + 1)
-      break
-    case 'left':
-      newCol = Math.max(0, currentPos.col - 1)
-      break
-    case 'right':
-      newCol = Math.min(gridCols.value - 1, currentPos.col + 1)
-      break
-  }
-
-  if (newRow === currentPos.row && newCol === currentPos.col) return
-
-  const targetButton = Array.from(buttons.value.values()).find(
-    (b) => b.position.row === newRow && b.position.col === newCol,
-  )
-
-  editingButton.value.position = { row: newRow, col: newCol }
-  if (targetButton) {
-    targetButton.position = currentPos
-    buttons.value.set(targetButton.id, targetButton)
-  }
-
-  buttons.value.set(editingButton.value.id, editingButton.value)
-  editingPosition.value = { row: newRow, col: newCol }
-
-  saveButtons()
-
-  toast.removeAllGroups()
-  toast.add({
-    severity: 'success',
-    summary: 'Botón movido',
-    detail: 'El botón se ha reubicado correctamente',
-    life: 2000,
   })
 }
 
@@ -1471,7 +1139,6 @@ function handleBiometricOptInDecline() {
       :position="editingPosition"
       @save="handleSaveButton"
       @delete="handleDeleteButton"
-      @move-position="handleMovePosition"
       @close="showEditor = false"
     />
 

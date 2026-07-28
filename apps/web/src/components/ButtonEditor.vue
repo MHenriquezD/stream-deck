@@ -20,7 +20,6 @@ const emit = defineEmits<{
   save: [button: StreamButton]
   close: []
   delete: [id: string]
-  movePosition: [direction: 'up' | 'down' | 'left' | 'right']
 }>()
 
 const showIconPicker = ref(false)
@@ -318,9 +317,6 @@ const handleIconInputBlur = () => {
   }, 200)
 }
 
-const movePosition = (direction: 'up' | 'down' | 'left' | 'right') => {
-  emit('movePosition', direction)
-}
 </script>
 
 <template>
