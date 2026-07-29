@@ -163,22 +163,25 @@ export function useSocket() {
   }
 
   /** Escuchar un evento del servidor (persiste entre reconexiones) */
-  const on = (event: string, callback: SocketListener) => {
+  const on = <Args extends unknown[] = unknown[]>(
+    event: string,
+    callback: (...args: Args) => void,
+  ) => {
     if (!registeredListeners.has(event)) {
       registeredListeners.set(event, new Set())
     }
-    registeredListeners.get(event)!.add(callback)
-    socket.value?.on(event, callback)
+    registeredListeners.get(event)!.add(callback as SocketListener)
+    socket.value?.on(event, callback as SocketListener)
   }
 
   /** Dejar de escuchar un evento */
-  const off = (event: string, callback?: SocketListener) => {
+  const off = (event: string, callback?: (...args: never[]) => void) => {
     if (callback) {
-      registeredListeners.get(event)?.delete(callback)
+      registeredListeners.get(event)?.delete(callback as SocketListener)
     } else {
       registeredListeners.delete(event)
     }
-    socket.value?.off(event, callback)
+    socket.value?.off(event, callback as SocketListener)
   }
 
   return {
