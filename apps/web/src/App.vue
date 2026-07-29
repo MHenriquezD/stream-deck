@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core'
 import { onMounted, ref } from 'vue'
 import ConnectionIndicator from './components/ConnectionIndicator.vue'
 import StreamDeckGrid from './components/StreamDeckGrid.vue'
+import ToastHost from './components/ToastHost.vue'
 import { useAuth } from './composables/useAuth'
 import { useExternalLinks } from './composables/useExternalLinks'
 import { useSettingsRequest } from './composables/useSettingsRequest'
@@ -45,7 +46,7 @@ onMounted(async () => {
   <div class="app-container">
     <div class="app">
       <template v-if="ready">
-        <Toast position="top-right" />
+        <ToastHost />
         <ConnectionIndicator v-if="isAuthenticated" />
         <button
           v-else-if="serverReachable === false"
@@ -167,11 +168,6 @@ body {
 </style>
 
 <style>
-/* Toast siempre por encima de todos los overlays */
-.p-toast {
-  z-index: 9999999 !important;
-}
-
 /* ⭐ Scanner QR - Ocultar toda la app cuando está escaneando */
 body.qr-scanning {
   background: transparent !important;

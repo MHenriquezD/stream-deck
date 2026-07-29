@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Capacitor } from '@capacitor/core'
 import { ActionType, type StreamButton as ButtonType } from '@shared/core'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '../composables/useToast'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useBiometric } from '../composables/useBiometric'
+import { useAuthGates } from '../composables/useAuthGates'
 import { useButtons } from '../composables/useButtons'
 import { useButtonSound } from '../composables/useButtonSound'
 import { useDragAndDrop } from '../composables/useDragAndDrop'
@@ -37,7 +38,6 @@ const {
   biometryAvailable,
   hasSavedPin,
   checkBiometry,
-  savePin,
   clearSavedPin,
   authenticateAndGetPin,
 } = useBiometric()
@@ -80,16 +80,6 @@ const editingPosition = ref({ row: 0, col: 0 })
 const isExecuting = ref<string | null>(null)
 /** Estado visual por botón: 'running' | 'success' | 'error' (ausente = idle). */
 const buttonStatus = ref<Record<string, 'running' | 'success' | 'error'>>({})
-const showPinGate = ref(false)
-const pinGateInput = ref('')
-const pinGateError = ref('')
-const pinGateLoading = ref(false)
-
-// Mobile mandatory PIN lock
-const showMobilePinLock = ref(false)
-const mobileLockPin = ref('')
-const mobileLockError = ref('')
-const mobileLockLoading = ref(false)
 const connectionStatus = ref<'connected' | 'disconnected' | 'connecting'>(
   'disconnected',
 )
@@ -114,9 +104,37 @@ const {
 // Server unreachable dialog (mobile)
 const showServerUnreachableDialog = ref(false)
 
-// Biometric opt-in dialog
-const showBiometricOptIn = ref(false)
-const pendingPinForBiometric = ref('')
+// Gates de desbloqueo: PIN (escritorio), lock móvil y opt-in biométrico
+const {
+  showPinGate,
+  pinGateInput,
+  pinGateError,
+  pinGateLoading,
+  openPinGate,
+  cancelPinGate,
+  handlePinGateSubmit,
+  showMobilePinLock,
+  mobileLockPin,
+  mobileLockError,
+  mobileLockLoading,
+  handleMobilePinLockSubmit,
+  handleBiometricRetry,
+  showBiometricOptIn,
+  handleBiometricOptInAccept,
+  handleBiometricOptInDecline,
+} = useAuthGates({
+  onDesktopUnlocked: () => {
+    showSettings.value = true
+  },
+  onBiometricEnabled: () => {
+    toast.add({
+      severity: 'success',
+      summary: 'Biometría activada',
+      detail: 'La próxima vez podrás desbloquear con tu huella',
+      life: 4000,
+    })
+  },
+})
 
 // Mouse controller
 const showMouseController = ref(false)
@@ -407,9 +425,7 @@ const loadSettings = async () => {
 const openSettings = async () => {
   // Mobile: PIN is handled at app startup via lock screen, no need for gate here
   if (!isMobile && pinConfigured.value && !isAuthenticated.value) {
-    showPinGate.value = true
-    pinGateInput.value = ''
-    pinGateError.value = ''
+    openPinGate()
     return
   }
   showSettings.value = true
@@ -420,81 +436,6 @@ const openSettings = async () => {
 watch(settingsRequestCount, () => {
   void openSettings()
 })
-
-const handlePinGateSubmit = async () => {
-  pinGateError.value = ''
-  if (!/^\d{4}$/.test(pinGateInput.value)) {
-    pinGateError.value = 'El PIN debe ser de 4 dígitos'
-    return
-  }
-  pinGateLoading.value = true
-  const result = await login(pinGateInput.value)
-  pinGateLoading.value = false
-  if (result.success) {
-    showPinGate.value = false
-    pinGateInput.value = ''
-    // Reconectar socket con el nuevo token
-    socketDisconnect()
-    socketConnect()
-    showSettings.value = true
-  } else {
-    pinGateError.value = result.message || 'PIN incorrecto'
-    pinGateInput.value = ''
-  }
-}
-
-const cancelPinGate = () => {
-  showPinGate.value = false
-  pinGateInput.value = ''
-  pinGateError.value = ''
-}
-
-/** Mobile mandatory PIN submit */
-const handleMobilePinLockSubmit = async () => {
-  mobileLockError.value = ''
-  if (!/^\d{4}$/.test(mobileLockPin.value)) {
-    mobileLockError.value = 'El PIN debe ser de 4 dígitos'
-    return
-  }
-  mobileLockLoading.value = true
-  const result = await login(mobileLockPin.value)
-  mobileLockLoading.value = false
-  if (result.success) {
-    showMobilePinLock.value = false
-    // Ask to save PIN for biometric (only first time, if device supports it)
-    if (biometryAvailable.value && !hasSavedPin.value) {
-      pendingPinForBiometric.value = mobileLockPin.value
-      showBiometricOptIn.value = true
-    }
-    mobileLockPin.value = ''
-    // Reconectar socket con el nuevo token y recargar datos
-    socketDisconnect()
-    socketConnect()
-  } else {
-    mobileLockError.value = result.message || 'PIN incorrecto'
-    mobileLockPin.value = ''
-  }
-}
-
-/** Retry biometric authentication from lock screen */
-const handleBiometricRetry = async () => {
-  const pin = await authenticateAndGetPin()
-  if (pin) {
-    mobileLockLoading.value = true
-    const result = await login(pin)
-    mobileLockLoading.value = false
-    if (result.success) {
-      showMobilePinLock.value = false
-      socketDisconnect()
-      socketConnect()
-    } else {
-      // PIN changed on desktop — clear saved PIN
-      clearSavedPin()
-      mobileLockError.value =
-        'PIN guardado ya no es válido. Ingresa el nuevo PIN.'
-    }
-  }
-}
 
 /** Check if the saved server URL is reachable (5s timeout) */
 const checkServerReachable = async (): Promise<boolean> => {
@@ -588,7 +529,7 @@ const handleButtonClick = async (button: ButtonType | null) => {
       toast.removeAllGroups()
       toast.add({
         severity: 'success',
-        summary: '✅ Ejecutado',
+        summary: 'Ejecutado',
         detail: `${button.label} ejecutado correctamente`,
         life: 3000,
       })
@@ -797,22 +738,6 @@ async function handleServerUnreachableClean() {
   await cleanupAndReset()
 }
 
-// Biometric opt-in dialog handlers
-function handleBiometricOptInAccept() {
-  savePin(pendingPinForBiometric.value)
-  pendingPinForBiometric.value = ''
-  showBiometricOptIn.value = false
-  toast.add({
-    severity: 'success',
-    summary: 'Biometría activada',
-    detail: 'La próxima vez podrás desbloquear con tu huella',
-    life: 4000,
-  })
-}
-function handleBiometricOptInDecline() {
-  pendingPinForBiometric.value = ''
-  showBiometricOptIn.value = false
-}
 </script>
 
 <template>

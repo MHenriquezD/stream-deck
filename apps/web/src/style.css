@@ -1,8 +1,7 @@
-@layer tailwind-base, primevue, tailwind-utilities;
+@layer tailwind-base, tailwind-utilities;
 @import 'tailwindcss/preflight' layer(tailwind-base);
 @import 'tailwindcss/theme' layer(tailwind-base);
 @import 'tailwindcss/utilities' layer(tailwind-utilities);
-@import 'tailwindcss-primeui';
 
 /* Tailwind Light Theme: Aplica colores base para modo claro */
 [data-theme='light'] {
