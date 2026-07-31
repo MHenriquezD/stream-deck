@@ -543,8 +543,8 @@ const handleIconInputBlur = () => {
             <div
               class="preview-button"
               :style="{
-                backgroundColor: formData.backgroundColor,
                 color: formData.color,
+                '--glow': formData.backgroundColor,
               }"
             >
               <div v-if="formData.icon" class="preview-icon">
@@ -661,7 +661,8 @@ const handleIconInputBlur = () => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: var(--edit-bg-color);
+  background: var(--scrim);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -670,17 +671,22 @@ const handleIconInputBlur = () => {
 }
 
 /* ===========================
-   CONTAINER
+   CONTAINER — panel de vidrio
    =========================== */
 .modal-container {
-  background: var(--edit-bg-color);
-  border-radius: 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   width: 100%;
   max-width: 600px;
   max-height: 90vh;
   max-height: 90dvh;
   overflow: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 24px 70px rgba(0, 0, 0, 0.6),
+    0 0 40px -10px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 /* ===========================
@@ -690,8 +696,8 @@ const handleIconInputBlur = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--glass-border);
 }
 
 .modal-header h2 {
@@ -743,7 +749,7 @@ const handleIconInputBlur = () => {
 label {
   display: block;
   margin-bottom: 8px;
-  color: #aaa;
+  color: var(--text-2);
   font-size: 0.9rem;
   font-weight: 500;
 }
@@ -753,20 +759,25 @@ label {
 .form-textarea {
   width: 100%;
   padding: 12px;
-  background: var(--form-bg-color);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: var(--edit-color);
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  border-radius: 10px;
+  color: var(--text-1);
   font-size: 1rem;
   font-family: inherit;
-  transition: border-color 0.2s;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
 }
 
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus {
   outline: none;
-  border-color: #4a9eff;
+  border-color: var(--field-focus);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .form-textarea {
@@ -784,9 +795,9 @@ select option {
   width: 100%;
   height: 50px;
   padding: 4px;
-  background: var(--form-bg-color);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  border-radius: 10px;
   cursor: pointer;
 }
 
@@ -958,28 +969,25 @@ select option {
   overflow: visible;
   transform-style: preserve-3d;
 
+  /* Mismo look que en el grid: recuadro oscuro + marco/glow del acento */
   background: linear-gradient(
-    145deg,
-    rgba(40, 40, 60, 0.15) 0%,
-    rgba(25, 25, 40, 0.2) 50%,
-    rgba(20, 20, 35, 0.25) 100%
+    160deg,
+    color-mix(in srgb, var(--glow, transparent) 14%, #22222c) 0%,
+    #15151c 100%
   );
-  backdrop-filter: blur(40px) saturate(200%);
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  border-right-width: 3px;
-  border-bottom-width: 3px;
-  border-right-color: rgba(255, 255, 255, 0.15);
-  border-bottom-color: rgba(0, 0, 0, 0.4);
+  border: 1.5px solid
+    color-mix(in srgb, var(--glow, transparent) 55%, rgba(255, 255, 255, 0.45));
 
   box-shadow:
-    12px 0 24px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 0 12px 2px rgba(255, 255, 255, 0.07),
+    0 0 0 1px color-mix(in srgb, var(--glow, transparent) 70%, transparent),
+    0 0 14px 1px color-mix(in srgb, var(--glow, transparent) 55%, transparent),
+    0 0 28px 4px color-mix(in srgb, var(--glow, transparent) 35%, transparent),
     0 16px 32px rgba(0, 0, 0, 0.5),
-    0 6px 12px rgba(0, 0, 0, 0.3),
-    inset 0 3px 6px rgba(255, 255, 255, 0.15),
-    inset 0 -3px 6px rgba(0, 0, 0, 0.4),
-    inset -3px 0 6px rgba(0, 0, 0, 0.3);
+    inset 0 3px 6px rgba(255, 255, 255, 0.12);
 
-  transform: rotateY(-3deg) translateZ(30px);
+  transform: translateZ(30px);
 }
 
 .preview-button::before {
@@ -988,11 +996,9 @@ select option {
   inset: 0;
   border-radius: 20px;
   background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.4) 0%,
-    rgba(255, 255, 255, 0.15) 30%,
-    transparent 60%,
-    rgba(0, 0, 0, 0.15) 100%
+    160deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    transparent 45%
   );
   pointer-events: none;
   transform: translateZ(1px);
@@ -1021,7 +1027,7 @@ select option {
   display: flex;
   gap: 12px;
   padding: 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--glass-border);
 }
 
 .spacer {
@@ -1033,16 +1039,27 @@ select option {
    =========================== */
 .btn {
   padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.1s ease,
+    filter 0.18s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-1);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .btn:disabled {
@@ -1051,35 +1068,40 @@ select option {
 }
 
 .btn-primary {
-  background: #4a9eff;
-  color: white;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  box-shadow: 0 0 22px -6px var(--accent);
 }
 
 @media (hover: hover) {
   .btn-primary:hover:not(:disabled) {
-    background: #3a8eef;
+    box-shadow: 0 0 30px -4px var(--accent);
+    filter: brightness(1.08);
   }
 }
 
 .btn-secondary {
-  background: #3a3a3a;
-  color: white;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-1);
 }
 
 @media (hover: hover) {
   .btn-secondary:hover {
-    background: #4a4a4a;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
   }
 }
 
 .btn-danger {
-  background: #ff4a4a;
-  color: white;
+  border-color: color-mix(in srgb, #ef4444 45%, transparent);
+  background: color-mix(in srgb, #ef4444 16%, transparent);
+  color: #fca5a5;
 }
 
 @media (hover: hover) {
   .btn-danger:hover {
-    background: #ef3a3a;
+    background: color-mix(in srgb, #ef4444 26%, transparent);
   }
 }
 

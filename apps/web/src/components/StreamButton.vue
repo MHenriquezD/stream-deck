@@ -42,14 +42,15 @@ observer.observe(document.documentElement, {
   attributeFilter: ['data-theme'],
 })
 const buttonStyle = computed(() => {
-  // Si hay botón, usar los colores elegidos por el usuario
+  // El color del botón se usa como acento (marco + glow); el relleno del
+  // recuadro es oscuro. El icono/label usan `color`.
   if (props.button) {
+    const accent =
+      props.button.backgroundColor ||
+      (theme.value === 'dark' ? '#8b5cf6' : '#6366f1')
     return {
-      color:
-        props.button.color || (theme.value === 'dark' ? '#FFF' : '#2E333B'),
-      backgroundColor:
-        props.button.backgroundColor ||
-        (theme.value === 'dark' ? '#4D6178' : '#ffffff'),
+      color: props.button.color || '#FFF',
+      '--glow': accent,
     }
   }
   // Si está vacío, fondo degradado adaptado al tema
@@ -261,14 +262,56 @@ const handleDrop = (e: DragEvent) => {
   border-bottom-color: rgba(0, 0, 0, 0.4);
 
   box-shadow:
-    12px 0 24px rgba(0, 0, 0, 0.6),
+    /* ── Base neutra: separa el recuadro del fondo aunque el acento sea negro;
+       sobre ella se suma el glow del color ── */
+    0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 0 12px 2px rgba(255, 255, 255, 0.07),
+    /* ── Glow neón derivado del color del botón (transparente si vacío) ── */
+    0 0 0 1px color-mix(in srgb, var(--glow, transparent) 70%, transparent),
+    0 0 14px 1px color-mix(in srgb, var(--glow, transparent) 55%, transparent),
+    0 0 28px 4px color-mix(in srgb, var(--glow, transparent) 35%, transparent),
+    /* ── Profundidad ── */
     0 16px 32px rgba(0, 0, 0, 0.5),
     0 6px 12px rgba(0, 0, 0, 0.3),
     inset 0 3px 6px rgba(255, 255, 255, 0.15),
-    inset 0 -3px 6px rgba(0, 0, 0, 0.4),
-    inset -3px 0 6px rgba(0, 0, 0, 0.3);
+    inset 0 -3px 6px rgba(0, 0, 0, 0.4);
 
-  transform: rotateY(-3deg) translateZ(30px);
+  transform: translateZ(30px);
+}
+
+/* Recuadro oscuro con marco de acento (estilo tablet): el color va en el
+   borde y el glow, no en el relleno; el icono queda dentro. */
+.stream-button:not(.empty) {
+  /* Relleno un poco más claro que el panel: la tecla se despega sola aunque
+     no tenga glow de color. */
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--glow, transparent) 14%, #22222c) 0%,
+    #15151c 100%
+  );
+  backdrop-filter: none;
+  /* El acento se mezcla sobre una base neutra visible: un botón con color
+     negro/oscuro conserva un marco claro en vez de desaparecer. */
+  border: 1.5px solid
+    color-mix(in srgb, var(--glow, transparent) 55%, rgba(255, 255, 255, 0.45));
+}
+
+/* Halo más intenso al pasar el cursor / pulsar */
+.stream-button:not(.empty)::before {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    transparent 45%
+  );
+}
+
+.stream-button:not(.empty):hover {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--glow, transparent) 90%, transparent),
+    0 0 18px 2px color-mix(in srgb, var(--glow, transparent) 70%, transparent),
+    0 0 40px 8px color-mix(in srgb, var(--glow, transparent) 45%, transparent),
+    0 16px 32px rgba(0, 0, 0, 0.5),
+    inset 0 3px 6px rgba(255, 255, 255, 0.18);
 }
 
 .stream-button::before {
