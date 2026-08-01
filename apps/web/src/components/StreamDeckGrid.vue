@@ -1134,31 +1134,27 @@ async function handleServerUnreachableClean() {
 /* Evita que el estado active/hover se quede pegado en móviles */
 @media (hover: none) {
   .grid-item:active,
-  .btn-icon:active {
+  .action-btn:active {
     background: inherit;
     transform: none;
   }
 }
 
 .header {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  display: flex; flex-direction: column; align-items: center;
+  margin-bottom: 24px; padding-bottom: 20px;
+  border-bottom: 1px solid var(--glass-border);
+  position: relative;
+}
+.header::after {
+  content: ''; position: absolute; bottom: -1px; left: 10%; width: 80%; height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 50%, transparent), transparent);
 }
 
 .header h1 {
-  margin: 0;
-  font-size: 2rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+  margin: 0; font-size: 2rem; font-weight: 700;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
 
 @media (max-width: 850px) {
@@ -1169,7 +1165,7 @@ async function handleServerUnreachableClean() {
     gap: 10px !important;
   }
 
-  .actions .btn-icon {
+  .actions .action-btn {
     flex-direction: column;
     padding: 12px 8px;
     height: auto;
@@ -1184,37 +1180,22 @@ async function handleServerUnreachableClean() {
 }
 
 @media (max-width: 640px) {
-  .header {
-    gap: 16px;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .header h1 {
-    font-size: 1.5rem !important;
-  }
+  .header { gap: 14px; margin-bottom: 18px; padding-bottom: 14px; }
+  .header h1 { font-size: 1.5rem !important; }
 }
 
 .connection-status {
-  background-color: var(--connect-bg-color);
-  color: var(--connect-color);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 20px;
-  background: var(--connect-bg-color);
-  font-size: 0.85rem;
-  text-align: center;
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(8px);
+  font-size: 0.82rem; color: var(--text-2);
   width: max-content;
 }
+.connection-status.connected { color: #4ade80; border-color: rgba(74, 222, 128, 0.2); }
+.connection-status.disconnected { color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
+.connection-status.connecting { color: #fbbf24; border-color: rgba(251, 191, 36, 0.2); }
 
 .status-dot {
   width: 8px;
@@ -1612,67 +1593,41 @@ async function handleServerUnreachableClean() {
 }
 
 .footer {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 2px solid rgba(255, 255, 255, 0.1);
-  text-align: center;
+  margin-top: 32px; padding-top: 20px;
+  border-top: 1px solid var(--glass-border);
+  text-align: center; position: relative;
+}
+.footer::before {
+  content: ''; position: absolute; top: -1px; left: 10%; width: 80%; height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 40%, transparent), transparent);
 }
 
 .credits {
-  color: var(--credits-color);
-  font-size: 0.9rem;
-  margin: 0 0 8px 0;
-  transition: color 0.3s ease;
+  color: var(--text-2); font-size: 0.85rem; margin: 0 0 6px 0;
 }
-
 .credits a {
-  color: rgba(139, 92, 246, 0.9);
-  text-decoration: none;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  border-bottom: 1px solid transparent;
+  color: var(--accent); text-decoration: none; font-weight: 600;
+  transition: all 0.2s; border-bottom: 1px solid transparent;
 }
-
 @media (hover: hover) {
   .credits a:hover {
-    color: rgb(139, 92, 246);
-    border-bottom-color: rgba(139, 92, 246, 0.5);
+    border-bottom-color: color-mix(in srgb, var(--accent) 60%, transparent);
+    text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 40%, transparent);
   }
 }
 
 .copyright {
-  color: var(--credits-color);
-  font-size: 0.8rem;
-  margin: 0;
-  opacity: 0.7;
+  color: var(--text-2); font-size: 0.78rem; margin: 0; opacity: 0.5;
 }
 
 .title-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding-bottom: 10px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; padding-bottom: 10px;
 }
 
 @media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    gap: 16px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .title-section {
-    flex-direction: column;
-    gap: 12px;
-    text-align: center;
-  }
+  .header { gap: 16px; }
+  .title-section { gap: 12px; text-align: center; }
 
   .grid {
     gap: 12px;
