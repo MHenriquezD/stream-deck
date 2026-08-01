@@ -39,141 +39,51 @@ const formData = reactive({
 })
 
 const actionTypes = [
-  { value: 'COMMAND', label: 'Comando Shell' },
-  { value: 'HOTKEY', label: 'Atajo de Teclado' },
-  { value: 'OPEN_APP', label: 'Abrir Aplicación' },
-  { value: 'URL', label: 'Abrir URL' },
+  { value: 'COMMAND', label: 'Comando', icon: 'pi pi-code' },
+  { value: 'HOTKEY', label: 'Atajo', icon: 'pi pi-bolt' },
+  { value: 'OPEN_APP', label: 'App', icon: 'pi pi-desktop' },
+  { value: 'URL', label: 'URL', icon: 'pi pi-globe' },
+]
+
+const colorSwatches = [
+  '#8b5cf6', '#6366f1', '#3b82f6', '#06b6d4',
+  '#10b981', '#eab308', '#f97316', '#ef4444',
+  '#ec4899', '#a855f7', '#2c3e50', '#000000',
 ]
 
 const emojiPresets = [
-  '🎮',
-  '🎵',
-  '🎬',
-  '💻',
-  '🔊',
-  '🎨',
-  '📁',
-  '🌐',
-  '⚙️',
-  '🚀',
-  '💡',
-  '📊',
-  '🔧',
-  '🎯',
-  '⭐',
+  '🎮', '🎵', '🎬', '💻', '🔊', '🎨',
+  '📁', '🌐', '⚙️', '🚀', '💡', '📊',
+  '🔧', '🎯', '⭐',
 ]
 
 const iconCatalog = [
   { icon: '🎵', label: 'Música', keywords: ['musica', 'music', 'nota'] },
-  {
-    icon: '🔊',
-    label: 'Volumen Alto',
-    keywords: ['volumen', 'volume', 'alto', 'sonido'],
-  },
+  { icon: '🔊', label: 'Volumen Alto', keywords: ['volumen', 'volume', 'alto', 'sonido'] },
   { icon: '🔇', label: 'Silencio', keywords: ['silencio', 'mute', 'mudo'] },
-  {
-    icon: '⏯️',
-    label: 'Play/Pausa',
-    keywords: ['play', 'pausa', 'pause', 'reproducir'],
-  },
-  {
-    icon: '⏭️',
-    label: 'Siguiente',
-    keywords: ['siguiente', 'next', 'adelante'],
-  },
+  { icon: '⏯️', label: 'Play/Pausa', keywords: ['play', 'pausa', 'pause', 'reproducir'] },
+  { icon: '⏭️', label: 'Siguiente', keywords: ['siguiente', 'next', 'adelante'] },
   { icon: '⏮️', label: 'Anterior', keywords: ['anterior', 'prev', 'atras'] },
-  {
-    icon: '🌐',
-    label: 'Navegador',
-    keywords: ['navegador', 'browser', 'web', 'internet'],
-  },
-  {
-    icon: '💻',
-    label: 'Computadora',
-    keywords: ['computadora', 'pc', 'ordenador', 'computer'],
-  },
-  {
-    icon: '📁',
-    label: 'Carpeta',
-    keywords: ['carpeta', 'folder', 'directorio'],
-  },
+  { icon: '🌐', label: 'Navegador', keywords: ['navegador', 'browser', 'web', 'internet'] },
+  { icon: '💻', label: 'Computadora', keywords: ['computadora', 'pc', 'ordenador', 'computer'] },
+  { icon: '📁', label: 'Carpeta', keywords: ['carpeta', 'folder', 'directorio'] },
   { icon: '🎮', label: 'Juego', keywords: ['juego', 'game', 'gaming'] },
-  {
-    icon: '⚙️',
-    label: 'Configuración',
-    keywords: ['config', 'configuracion', 'settings'],
-  },
-  {
-    icon: 'fas fa-music',
-    label: 'Música (FA)',
-    keywords: ['musica', 'music', 'fontawesome'],
-  },
-  {
-    icon: 'fas fa-volume-high',
-    label: 'Volumen (FA)',
-    keywords: ['volumen', 'volume', 'fontawesome'],
-  },
-  {
-    icon: 'fas fa-play',
-    label: 'Play (FA)',
-    keywords: ['play', 'reproducir', 'fontawesome'],
-  },
-  {
-    icon: 'fas fa-pause',
-    label: 'Pausa (FA)',
-    keywords: ['pausa', 'pause', 'fontawesome'],
-  },
-  {
-    icon: 'fas fa-home',
-    label: 'Casa (FA)',
-    keywords: ['casa', 'home', 'inicio', 'fontawesome'],
-  },
-  {
-    icon: 'fas fa-folder',
-    label: 'Carpeta (FA)',
-    keywords: ['carpeta', 'folder', 'fontawesome'],
-  },
-  {
-    icon: 'fas fa-gamepad',
-    label: 'Juego (FA)',
-    keywords: ['juego', 'game', 'gaming', 'fontawesome'],
-  },
-  {
-    icon: 'fab fa-chrome',
-    label: 'Chrome',
-    keywords: ['chrome', 'navegador', 'google'],
-  },
-  {
-    icon: 'fab fa-firefox-browser',
-    label: 'Firefox',
-    keywords: ['firefox', 'navegador', 'mozilla'],
-  },
+  { icon: '⚙️', label: 'Configuración', keywords: ['config', 'configuracion', 'settings'] },
+  { icon: 'fas fa-music', label: 'Música (FA)', keywords: ['musica', 'music', 'fontawesome'] },
+  { icon: 'fas fa-volume-high', label: 'Volumen (FA)', keywords: ['volumen', 'volume', 'fontawesome'] },
+  { icon: 'fas fa-play', label: 'Play (FA)', keywords: ['play', 'reproducir', 'fontawesome'] },
+  { icon: 'fas fa-pause', label: 'Pausa (FA)', keywords: ['pausa', 'pause', 'fontawesome'] },
+  { icon: 'fas fa-home', label: 'Casa (FA)', keywords: ['casa', 'home', 'inicio', 'fontawesome'] },
+  { icon: 'fas fa-folder', label: 'Carpeta (FA)', keywords: ['carpeta', 'folder', 'fontawesome'] },
+  { icon: 'fas fa-gamepad', label: 'Juego (FA)', keywords: ['juego', 'game', 'gaming', 'fontawesome'] },
+  { icon: 'fab fa-chrome', label: 'Chrome', keywords: ['chrome', 'navegador', 'google'] },
+  { icon: 'fab fa-firefox-browser', label: 'Firefox', keywords: ['firefox', 'navegador', 'mozilla'] },
   { icon: 'fab fa-discord', label: 'Discord', keywords: ['discord', 'chat'] },
-  {
-    icon: 'fab fa-spotify',
-    label: 'Spotify',
-    keywords: ['spotify', 'musica', 'music'],
-  },
-  {
-    icon: 'fab fa-steam',
-    label: 'Steam',
-    keywords: ['steam', 'juego', 'game'],
-  },
-  {
-    icon: 'pi pi-home',
-    label: 'Casa (PI)',
-    keywords: ['casa', 'home', 'inicio', 'primeicons'],
-  },
-  {
-    icon: 'pi pi-cog',
-    label: 'Config (PI)',
-    keywords: ['config', 'configuracion', 'primeicons'],
-  },
-  {
-    icon: 'pi pi-folder',
-    label: 'Carpeta (PI)',
-    keywords: ['carpeta', 'folder', 'primeicons'],
-  },
+  { icon: 'fab fa-spotify', label: 'Spotify', keywords: ['spotify', 'musica', 'music'] },
+  { icon: 'fab fa-steam', label: 'Steam', keywords: ['steam', 'juego', 'game'] },
+  { icon: 'pi pi-home', label: 'Casa (PI)', keywords: ['casa', 'home', 'inicio', 'primeicons'] },
+  { icon: 'pi pi-cog', label: 'Config (PI)', keywords: ['config', 'configuracion', 'primeicons'] },
+  { icon: 'pi pi-folder', label: 'Carpeta (PI)', keywords: ['carpeta', 'folder', 'primeicons'] },
 ]
 
 const iconSuggestions = computed(() => {
@@ -245,12 +155,9 @@ const handleSave = () => {
 
 const handleDelete = () => {
   if (!props.button) return
-  openDeleteDialog()
-}
-
-const openDeleteDialog = () => {
   showDeleteDialog.value = true
 }
+
 const handleDeleteConfirm = () => {
   if (props.button) {
     emit('delete', props.button.id)
@@ -283,11 +190,9 @@ const handleAppSelect = (data: {
   name?: string
 }) => {
   formData.payload = data.command
-  // Auto-set icon if extracted icon is available
   if (data.icon) {
     formData.icon = `appicon:${data.icon}`
   }
-  // Auto-set label if empty
   if (!formData.label && data.name) {
     formData.label = data.name
       .replace(/\s*\(.*\)\s*$/, '')
@@ -316,42 +221,64 @@ const handleIconInputBlur = () => {
     showIconSuggestions.value = false
   }, 200)
 }
-
 </script>
 
 <template>
-  <Transition name="modal">
-    <div v-if="show" class="modal-overlay" @click="handleClose">
-      <div class="modal-container" @click.stop>
-        <div class="modal-header">
+  <Transition name="editor">
+    <div v-if="show" class="editor-backdrop" @click="handleClose">
+      <div class="editor-panel" @click.stop>
+        <!-- ─── HEADER ─── -->
+        <header class="editor-header">
           <h2>{{ button ? 'Editar' : 'Nuevo' }} Botón</h2>
-          <button class="close-btn" @click="handleClose">✕</button>
-        </div>
+          <button class="header-close" @click="handleClose" aria-label="Cerrar">
+            <i class="pi pi-times"></i>
+          </button>
+        </header>
 
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Etiqueta</label>
+        <div class="editor-scroll">
+          <!-- ─── LIVE PREVIEW ─── -->
+          <section class="preview-stage">
+            <div
+              class="preview-button"
+              :style="{ color: formData.color, '--glow': formData.backgroundColor }"
+            >
+              <div v-if="formData.icon" class="preview-icon">
+                <img v-if="formData.icon.startsWith('svg:')" :src="'./icons/' + formData.icon.replace('svg:', '')" class="preview-img" alt="icon" />
+                <img v-else-if="formData.icon.startsWith('appicon:')" :src="serverUrlStore.serverUrl + formData.icon.replace('appicon:', '')" class="preview-img" alt="app icon" />
+                <img v-else-if="formData.icon.startsWith('sd:')" :src="'./streamdeck-icons/' + formData.icon.replace('sd:', '')" class="preview-img" alt="icon" />
+                <img v-else-if="formData.icon.startsWith('custom:')" :src="serverUrlStore.serverUrl + '/custom-icons/' + formData.icon.replace('custom:', '')" class="preview-img" alt="icon" />
+                <i v-else-if="formData.icon.startsWith('pi ') || formData.icon.startsWith('fa')" :class="formData.icon"></i>
+                <span v-else>{{ formData.icon }}</span>
+              </div>
+              <div class="preview-label">{{ formData.label || 'Sin nombre' }}</div>
+            </div>
+          </section>
+
+          <!-- ─── CARD: ETIQUETA ─── -->
+          <section class="card">
+            <label class="card-label">Etiqueta</label>
             <input
               v-model="formData.label"
               type="text"
               placeholder="Ej: Abrir Discord"
-              class="form-input"
+              class="field"
             />
-          </div>
+          </section>
 
-          <div class="form-group">
-            <label>Icono</label>
-            <div class="icon-input-wrapper">
-              <div class="icon-search-container">
+          <!-- ─── CARD: ICONO ─── -->
+          <section class="card">
+            <label class="card-label">Icono</label>
+            <div class="icon-row">
+              <div class="icon-search-wrap">
                 <input
                   v-model="formData.icon"
                   type="text"
                   placeholder="Buscar: música, home, juego..."
-                  class="form-input"
+                  class="field"
                   @focus="handleIconInputFocus"
                   @blur="handleIconInputBlur"
                 />
-                <div v-if="showIconSuggestions" class="icon-suggestions">
+                <div v-if="showIconSuggestions" class="suggestions-dropdown">
                   <button
                     v-for="item in iconSuggestions"
                     :key="item.icon"
@@ -359,264 +286,136 @@ const handleIconInputBlur = () => {
                     class="suggestion-item"
                     @click="selectSuggestion(item.icon)"
                   >
-                    <span
-                      v-if="
-                        item.icon.startsWith('pi ') ||
-                        item.icon.startsWith('fa')
-                      "
-                      class="suggestion-icon"
-                    >
-                      <i :class="item.icon"></i>
-                    </span>
-                    <span v-else class="suggestion-icon emoji-icon">
-                      {{ item.icon }}
-                    </span>
-                    <span class="suggestion-label">{{ item.label }}</span>
+                    <span v-if="item.icon.startsWith('pi ') || item.icon.startsWith('fa')" class="sug-icon"><i :class="item.icon"></i></span>
+                    <span v-else class="sug-icon sug-emoji">{{ item.icon }}</span>
+                    <span class="sug-label">{{ item.label }}</span>
                   </button>
                 </div>
               </div>
-              <button
-                type="button"
-                @click="showIconPicker = true"
-                class="icon-picker-btn"
-                title="Seleccionar icono"
-              >
-                <i class="pi pi-search"></i> Buscar
+              <button type="button" @click="showIconPicker = true" class="btn-neon btn-sm" title="Buscar icono">
+                <i class="pi pi-search"></i>
               </button>
             </div>
-            <div class="icon-preview" v-if="formData.icon">
-              <span class="preview-label">Vista previa:</span>
-              <img
-                v-if="formData.icon.startsWith('svg:')"
-                :src="'./icons/' + formData.icon.replace('svg:', '')"
-                class="icon-display custom-icon-display"
-                alt="icon"
-              />
-              <img
-                v-else-if="formData.icon.startsWith('appicon:')"
-                :src="
-                  serverUrlStore.serverUrl +
-                  formData.icon.replace('appicon:', '')
-                "
-                class="icon-display custom-icon-display"
-                alt="app icon"
-              />
-              <img
-                v-else-if="formData.icon.startsWith('sd:')"
-                :src="'./streamdeck-icons/' + formData.icon.replace('sd:', '')"
-                class="icon-display custom-icon-display"
-                alt="icon"
-              />
-              <img
-                v-else-if="formData.icon.startsWith('custom:')"
-                :src="
-                  serverUrlStore.serverUrl +
-                  '/custom-icons/' +
-                  formData.icon.replace('custom:', '')
-                "
-                class="icon-display custom-icon-display"
-                alt="icon"
-              />
-              <span
-                v-else-if="
-                  formData.icon.startsWith('pi ') ||
-                  formData.icon.startsWith('fa')
-                "
-                class="icon-display"
-              >
-                <i :class="formData.icon"></i>
-              </span>
-              <span v-else class="icon-display emoji-display">
-                {{ formData.icon }}
-              </span>
+
+            <!-- icon preview inline -->
+            <div v-if="formData.icon" class="icon-inline-preview">
+              <img v-if="formData.icon.startsWith('svg:')" :src="'./icons/' + formData.icon.replace('svg:', '')" class="icon-thumb" alt="icon" />
+              <img v-else-if="formData.icon.startsWith('appicon:')" :src="serverUrlStore.serverUrl + formData.icon.replace('appicon:', '')" class="icon-thumb" alt="app icon" />
+              <img v-else-if="formData.icon.startsWith('sd:')" :src="'./streamdeck-icons/' + formData.icon.replace('sd:', '')" class="icon-thumb" alt="icon" />
+              <img v-else-if="formData.icon.startsWith('custom:')" :src="serverUrlStore.serverUrl + '/custom-icons/' + formData.icon.replace('custom:', '')" class="icon-thumb" alt="icon" />
+              <span v-else-if="formData.icon.startsWith('pi ') || formData.icon.startsWith('fa')" class="icon-thumb-fa"><i :class="formData.icon"></i></span>
+              <span v-else class="icon-thumb-emoji">{{ formData.icon }}</span>
             </div>
-            <div class="emoji-presets">
+
+            <div class="emoji-grid">
               <button
                 v-for="emoji in emojiPresets"
                 :key="emoji"
                 type="button"
-                class="emoji-btn"
+                class="emoji-chip"
                 @click="setEmoji(emoji)"
+              >{{ emoji }}</button>
+            </div>
+          </section>
+
+          <!-- ─── CARD: COLORES ─── -->
+          <section class="card">
+            <label class="card-label">Color de acento</label>
+            <div class="swatch-row">
+              <button
+                v-for="c in colorSwatches"
+                :key="c"
+                type="button"
+                class="swatch"
+                :class="{ active: formData.backgroundColor === c }"
+                :style="{ '--sw': c }"
+                @click="formData.backgroundColor = c"
+              ></button>
+              <label class="swatch swatch-custom" title="Color personalizado">
+                <input type="color" v-model="formData.backgroundColor" class="sr-only" />
+                <i class="pi pi-palette"></i>
+              </label>
+            </div>
+
+            <label class="card-label" style="margin-top: 14px;">Color de texto</label>
+            <div class="swatch-row">
+              <button
+                v-for="c in ['#ffffff', '#e2e8f0', '#94a3b8', '#000000']"
+                :key="c"
+                type="button"
+                class="swatch"
+                :class="{ active: formData.color === c }"
+                :style="{ '--sw': c }"
+                @click="formData.color = c"
+              ></button>
+              <label class="swatch swatch-custom" title="Color personalizado">
+                <input type="color" v-model="formData.color" class="sr-only" />
+                <i class="pi pi-palette"></i>
+              </label>
+            </div>
+          </section>
+
+          <!-- ─── CARD: ACCIÓN ─── -->
+          <section class="card">
+            <label class="card-label">Tipo de acción</label>
+            <div class="segmented">
+              <button
+                v-for="t in actionTypes"
+                :key="t.value"
+                type="button"
+                class="seg-item"
+                :class="{ active: formData.actionType === t.value }"
+                @click="formData.actionType = t.value as ActionType"
               >
-                {{ emoji }}
+                <i :class="t.icon"></i>
+                <span>{{ t.label }}</span>
               </button>
             </div>
-          </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label>Color de Texto</label>
-              <input
-                v-model="formData.color"
-                type="color"
-                class="color-input"
-              />
-            </div>
-            <div class="form-group">
-              <label>Color de Fondo</label>
-              <input
-                v-model="formData.backgroundColor"
-                type="color"
-                class="color-input"
-              />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Tipo de Acción</label>
-            <select v-model="formData.actionType" class="form-select">
-              <option
-                v-for="type in actionTypes"
-                :key="type.value"
-                :value="type.value"
-              >
-                {{ type.label }}
-              </option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>
-              {{
-                formData.actionType === 'COMMAND'
-                  ? 'Comando'
-                  : formData.actionType === 'HOTKEY'
-                    ? 'Atajo (Ej: Ctrl+C)'
-                    : formData.actionType === 'OPEN_APP'
-                      ? 'Ruta de la App'
-                      : 'URL'
-              }}
+            <label class="card-label" style="margin-top: 14px;">
+              {{ formData.actionType === 'COMMAND' ? 'Comando' : formData.actionType === 'HOTKEY' ? 'Atajo (Ej: Ctrl+C)' : formData.actionType === 'OPEN_APP' ? 'Ruta de la App' : 'URL' }}
             </label>
-            <div
-              class="command-input-wrapper"
-              v-if="formData.actionType === 'COMMAND'"
-            >
-              <textarea
-                v-model="formData.payload"
-                placeholder="Ej: notepad.exe"
-                class="form-textarea"
-                rows="3"
-              ></textarea>
-              <button
-                type="button"
-                @click="showCommandPicker = true"
-                class="command-picker-btn"
-                title="Seleccionar comando"
-              >
+
+            <textarea
+              v-model="formData.payload"
+              :placeholder="
+                formData.actionType === 'COMMAND' ? 'Ej: notepad.exe' :
+                formData.actionType === 'HOTKEY' ? 'Ej: Ctrl+Alt+T' :
+                formData.actionType === 'OPEN_APP' ? 'Ej: C:\\Program Files\\App\\app.exe' :
+                'Ej: https://google.com'
+              "
+              class="field field-textarea"
+              rows="3"
+            ></textarea>
+
+            <div class="action-helpers" v-if="formData.actionType === 'COMMAND'">
+              <button type="button" @click="showCommandPicker = true" class="btn-neon btn-sm">
                 <i class="pi pi-list"></i> Comandos
               </button>
             </div>
-            <div
-              class="command-input-wrapper"
-              v-else-if="formData.actionType === 'OPEN_APP'"
-            >
-              <textarea
-                v-model="formData.payload"
-                placeholder="Ej: C:\Program Files\App\app.exe"
-                class="form-textarea"
-                rows="3"
-              ></textarea>
-              <button
-                type="button"
-                @click="showAppPicker = true"
-                class="command-picker-btn"
-                title="Seleccionar aplicación"
-              >
+            <div class="action-helpers" v-else-if="formData.actionType === 'OPEN_APP'">
+              <button type="button" @click="showAppPicker = true" class="btn-neon btn-sm">
                 <i class="pi pi-desktop"></i> Aplicaciones
               </button>
             </div>
-            <textarea
-              v-else
-              v-model="formData.payload"
-              :placeholder="
-                formData.actionType === 'HOTKEY'
-                  ? 'Ej: Ctrl+Alt+T'
-                  : 'Ej: https://google.com'
-              "
-              class="form-textarea"
-              rows="3"
-            ></textarea>
-          </div>
-
-          <div class="preview">
-            <div class="preview-label">Vista Previa:</div>
-            <div
-              class="preview-button"
-              :style="{
-                color: formData.color,
-                '--glow': formData.backgroundColor,
-              }"
-            >
-              <div v-if="formData.icon" class="preview-icon">
-                <img
-                  v-if="formData.icon.startsWith('svg:')"
-                  :src="'./icons/' + formData.icon.replace('svg:', '')"
-                  class="preview-custom-icon"
-                  alt="icon"
-                />
-                <img
-                  v-else-if="formData.icon.startsWith('appicon:')"
-                  :src="
-                    serverUrlStore.serverUrl +
-                    formData.icon.replace('appicon:', '')
-                  "
-                  class="preview-custom-icon"
-                  alt="app icon"
-                />
-                <img
-                  v-else-if="formData.icon.startsWith('sd:')"
-                  :src="
-                    './streamdeck-icons/' + formData.icon.replace('sd:', '')
-                  "
-                  class="preview-custom-icon"
-                  alt="icon"
-                />
-                <img
-                  v-else-if="formData.icon.startsWith('custom:')"
-                  :src="
-                    serverUrlStore.serverUrl +
-                    '/custom-icons/' +
-                    formData.icon.replace('custom:', '')
-                  "
-                  class="preview-custom-icon"
-                  alt="icon"
-                />
-                <i
-                  v-else-if="
-                    formData.icon.startsWith('pi ') ||
-                    formData.icon.startsWith('fa')
-                  "
-                  :class="formData.icon"
-                ></i>
-                <span v-else>{{ formData.icon }}</span>
-              </div>
-              <div class="preview-text">
-                {{ formData.label || 'Sin nombre' }}
-              </div>
-            </div>
-          </div>
-
-          <div class="modal-footer">
-            <button v-if="button" class="btn btn-danger" @click="handleDelete">
-              <i class="pi pi-trash"></i>
-              <span class="btn-text">Eliminar</span>
-            </button>
-            <div class="spacer"></div>
-            <button class="btn btn-secondary" @click="handleClose">
-              <i class="pi pi-times"></i>
-              <span class="btn-text">Cancelar</span>
-            </button>
-            <button
-              class="btn btn-primary"
-              @click="handleSave"
-              :disabled="!formData.label || !formData.payload"
-            >
-              <i v-if="button" class="fa-solid fa-floppy-disk"></i>
-              <i v-else class="pi pi-check"></i>
-              <span class="btn-text">Guardar</span>
-            </button>
-          </div>
+          </section>
         </div>
+
+        <!-- ─── FOOTER ─── -->
+        <footer class="editor-footer">
+          <button v-if="button" class="btn-neon btn-neon-danger btn-foot" @click="handleDelete">
+            <i class="pi pi-trash"></i>
+          </button>
+          <div class="footer-spacer"></div>
+          <button class="btn-neon btn-foot" @click="handleClose">Cancelar</button>
+          <button
+            class="btn-neon btn-neon-primary btn-foot"
+            @click="handleSave"
+            :disabled="!formData.label || !formData.payload"
+          >
+            <i class="pi pi-check"></i> Guardar
+          </button>
+        </footer>
       </div>
     </div>
   </Transition>
@@ -635,14 +434,12 @@ const handleIconInputBlur = () => {
     @cancel="handleDeleteCancel"
     @close="handleDeleteCancel"
   />
-
   <CommandPicker
     :show="showCommandPicker"
     :currentCommand="formData.payload"
     @select="handleCommandSelect"
     @close="showCommandPicker = false"
   />
-
   <AppPicker
     :show="showAppPicker"
     :currentApp="formData.payload"
@@ -652,332 +449,103 @@ const handleIconInputBlur = () => {
 </template>
 
 <style scoped>
-/* ===========================
-   OVERLAY — FIX PRINCIPAL
-   =========================== */
-.modal-overlay {
+/* ── BACKDROP ── */
+.editor-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   background: var(--scrim);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
+  padding: 16px;
 }
 
-/* ===========================
-   CONTAINER — panel de vidrio
-   =========================== */
-.modal-container {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
-  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+/* ── PANEL ── */
+.editor-panel {
   width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
-  max-height: 90dvh;
-  overflow: auto;
+  max-width: 480px;
+  max-height: 92vh;
+  max-height: 92dvh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
+  background: linear-gradient(170deg, rgba(22, 22, 32, 0.92) 0%, rgba(10, 10, 16, 0.96) 100%);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 24px 70px rgba(0, 0, 0, 0.6),
-    0 0 40px -10px color-mix(in srgb, var(--accent) 40%, transparent);
+    0 32px 80px rgba(0, 0, 0, 0.7),
+    0 0 60px -10px color-mix(in srgb, var(--accent) 30%, transparent);
+  overflow: hidden;
 }
 
-/* ===========================
-   HEADER
-   =========================== */
-.modal-header {
+/* ── HEADER ── */
+.editor-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 22px 24px;
+  justify-content: space-between;
+  padding: 18px 22px;
   border-bottom: 1px solid var(--glass-border);
 }
 
-.modal-header h2 {
+.editor-header h2 {
   margin: 0;
-  font-size: 1.5rem;
-  color: var(--edit-color);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-1);
+  letter-spacing: 0.01em;
 }
 
-.close-btn {
-  background: transparent;
-  border: none;
-  color: var(--edit-color);
-  font-size: 1.5rem;
+.header-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-2);
   cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  transition: background 0.2s;
+  display: grid;
+  place-items: center;
+  font-size: 0.9rem;
+  transition: all 0.18s;
 }
-
 @media (hover: hover) {
-  .close-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+  .header-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-1);
     transform: rotate(90deg);
   }
 }
 
-/* ===========================
-   BODY / FORM
-   =========================== */
-.modal-body {
-  padding: 24px;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-label {
-  display: block;
-  margin-bottom: 8px;
-  color: var(--text-2);
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.form-input,
-.form-select,
-.form-textarea {
-  width: 100%;
-  padding: 12px;
-  background: var(--field-bg);
-  border: 1px solid var(--field-border);
-  border-radius: 10px;
-  color: var(--text-1);
-  font-size: 1rem;
-  font-family: inherit;
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    background 0.18s ease;
-}
-
-.form-input:focus,
-.form-select:focus,
-.form-textarea:focus {
-  outline: none;
-  border-color: var(--field-focus);
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-
-.form-textarea {
-  resize: vertical;
-  min-height: 80px;
-}
-
-select,
-select option {
-  background-color: var(--edit-bg-color);
-  color: var(--edit-color);
-}
-
-.color-input {
-  width: 100%;
-  height: 50px;
-  padding: 4px;
-  background: var(--field-bg);
-  border: 1px solid var(--field-border);
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-/* ===========================
-   ICON INPUT & SUGGESTIONS
-   =========================== */
-.icon-input-wrapper {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.icon-input-wrapper .form-input {
+/* ── SCROLL AREA ── */
+.editor-scroll {
   flex: 1;
-}
-
-.icon-search-container {
-  position: relative;
-  flex: 1;
-}
-
-.icon-suggestions {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 4px;
-  background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  border-radius: 8px;
-  max-height: 300px;
   overflow-y: auto;
-  z-index: 1000;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 6px 18px 18px;
 }
 
-.suggestion-item {
-  width: 100%;
+/* ── LIVE PREVIEW ── */
+.preview-stage {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  background: transparent;
-  border: none;
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: left;
-}
-
-@media (hover: hover) {
-  .suggestion-item:hover {
-    background: rgba(139, 92, 246, 0.2);
-  }
-}
-
-.suggestion-item:not(:last-child) {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.suggestion-icon {
-  font-size: 1.5rem;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-}
-
-.suggestion-icon.emoji-icon {
-  font-size: 1.8rem;
-}
-
-.suggestion-label {
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-/* ===========================
-   ICON PREVIEW
-   =========================== */
-.icon-preview {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 12px;
-  background: var(--form-bg-color);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.preview-label {
-  font-size: 0.85rem;
-  color: var(--edit-color);
-}
-.icon-display {
-  font-size: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.custom-icon-display {
-  width: 2rem;
-  height: 2rem;
-  object-fit: contain;
-}
-
-.icon-display i {
-  color: var(--edit-color);
-}
-
-.emoji-display {
-  font-size: 2.5rem;
-}
-
-/* ===========================
-   EMOJI PRESETS
-   =========================== */
-.emoji-presets {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-
-.emoji-btn {
-  background: var(--form-bg-color);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  width: 40px;
-  height: 40px;
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-@media (hover: hover) {
-  .emoji-btn:hover {
-    background: var(--edit-bg-color);
-    transform: scale(1.1);
-  }
-}
-
-/* ===========================
-   PREVIEW BOX
-   =========================== */
-.preview {
-  margin-top: 24px;
-  padding: 20px;
-  background: var(--form-bg-color);
-  border-radius: 8px;
+  padding: 28px 0 20px;
 }
 
 .preview-button {
+  width: 120px;
   aspect-ratio: 1;
-  max-width: 150px;
-  border-radius: 20px;
+  border-radius: 22px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 16px;
-  margin: 0 auto;
+  padding: 14px;
   position: relative;
-  overflow: visible;
-  transform-style: preserve-3d;
-
-  /* Mismo look que en el grid: recuadro oscuro + marco/glow del acento */
-  background: linear-gradient(
-    160deg,
-    color-mix(in srgb, var(--glow, transparent) 14%, #22222c) 0%,
-    #15151c 100%
-  );
-  border: 1.5px solid
-    color-mix(in srgb, var(--glow, transparent) 55%, rgba(255, 255, 255, 0.45));
-
+  background: linear-gradient(160deg, color-mix(in srgb, var(--glow, transparent) 14%, #22222c) 0%, #15151c 100%);
+  border: 1.5px solid color-mix(in srgb, var(--glow, transparent) 55%, rgba(255, 255, 255, 0.45));
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.18),
     0 0 12px 2px rgba(255, 255, 255, 0.07),
@@ -986,320 +554,296 @@ select option {
     0 0 28px 4px color-mix(in srgb, var(--glow, transparent) 35%, transparent),
     0 16px 32px rgba(0, 0, 0, 0.5),
     inset 0 3px 6px rgba(255, 255, 255, 0.12);
-
-  transform: translateZ(30px);
+  transition: all 0.3s ease;
 }
-
 .preview-button::before {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 20px;
-  background: linear-gradient(
-    160deg,
-    rgba(255, 255, 255, 0.08) 0%,
-    transparent 45%
-  );
+  border-radius: 22px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08) 0%, transparent 45%);
   pointer-events: none;
-  transform: translateZ(1px);
 }
 
-.preview-icon {
-  font-size: 2.5rem;
+.preview-icon { font-size: 2.5rem; line-height: 1; }
+.preview-img { width: 2.5rem; height: 2.5rem; object-fit: contain; }
+.preview-label { font-weight: 600; font-size: 0.85rem; text-align: center; opacity: 0.95; }
+
+/* ── CARDS ── */
+.card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
 }
 
-.preview-custom-icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  object-fit: contain;
-}
-
-.preview-text {
+.card-label {
+  display: block;
+  font-size: 0.78rem;
   font-weight: 600;
-  font-size: 0.9rem;
-  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+  margin-bottom: 10px;
 }
 
-/* ===========================
-   FOOTER
-   =========================== */
-.modal-footer {
-  display: flex;
-  gap: 12px;
-  padding: 24px;
-  border-top: 1px solid var(--glass-border);
-}
-
-.spacer {
-  flex: 1;
-}
-
-/* ===========================
-   BUTTONS
-   =========================== */
-.btn {
-  padding: 12px 24px;
+/* ── FIELDS ── */
+.field {
+  width: 100%;
+  padding: 11px 14px;
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
   border-radius: 10px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    transform 0.1s ease,
-    filter 0.18s ease;
+  color: var(--text-1);
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+}
+.field:focus {
+  outline: none;
+  border-color: var(--field-focus);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.field-textarea {
+  resize: vertical;
+  min-height: 70px;
+}
+
+/* ── ICON ROW ── */
+.icon-row {
+  display: flex;
+  gap: 8px;
+}
+.icon-search-wrap {
+  flex: 1;
+  position: relative;
+}
+
+.icon-inline-preview {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.05);
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.icon-thumb, .icon-thumb-fa, .icon-thumb-emoji {
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+}
+.icon-thumb { width: 1.8rem; height: 1.8rem; object-fit: contain; }
+
+/* ── SUGGESTIONS DROPDOWN ── */
+.suggestions-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: linear-gradient(145deg, rgba(22, 22, 32, 0.98), rgba(10, 10, 16, 0.98));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 12px;
+  max-height: 260px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(16px);
+}
+.suggestion-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
   color: var(--text-1);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
 }
-
-.btn:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  border-color: transparent;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #fff;
-  box-shadow: 0 0 22px -6px var(--accent);
-}
-
 @media (hover: hover) {
-  .btn-primary:hover:not(:disabled) {
-    box-shadow: 0 0 30px -4px var(--accent);
-    filter: brightness(1.08);
-  }
+  .suggestion-item:hover { background: color-mix(in srgb, var(--accent) 15%, transparent); }
 }
+.suggestion-item:not(:last-child) { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.sug-icon { font-size: 1.4rem; width: 28px; text-align: center; flex-shrink: 0; }
+.sug-emoji { font-size: 1.6rem; }
+.sug-label { font-size: 0.88rem; }
 
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-1);
+/* ── EMOJI GRID ── */
+.emoji-grid {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
 }
-
+.emoji-chip {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 1.15rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: grid;
+  place-items: center;
+}
 @media (hover: hover) {
-  .btn-secondary:hover {
+  .emoji-chip:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.2);
+    transform: scale(1.12);
   }
 }
 
-.btn-danger {
-  border-color: color-mix(in srgb, #ef4444 45%, transparent);
-  background: color-mix(in srgb, #ef4444 16%, transparent);
-  color: #fca5a5;
+/* ── COLOR SWATCHES ── */
+.swatch-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
-
-@media (hover: hover) {
-  .btn-danger:hover {
-    background: color-mix(in srgb, #ef4444 26%, transparent);
-  }
-}
-
-/* ===========================
-   ICON / COMMAND PICKER BUTTONS
-   =========================== */
-.icon-picker-btn {
-  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-  border: none;
-  color: #fff;
-  padding: 10px 16px;
-  border-radius: 8px;
+.swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background: var(--sw);
   cursor: pointer;
-  font-size: 0.9rem;
+  transition: all 0.15s;
+  position: relative;
+}
+.swatch.active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px var(--sw), 0 0 12px color-mix(in srgb, var(--sw) 60%, transparent);
+}
+@media (hover: hover) {
+  .swatch:hover:not(.active) {
+    transform: scale(1.12);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--sw) 50%, transparent);
+  }
+}
+.swatch-custom {
+  background: linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.swatch-custom i { font-size: 0.85rem; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* ── SEGMENTED CONTROL ── */
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.seg-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 4px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 0.72rem;
   font-weight: 500;
+  transition: all 0.18s;
+}
+.seg-item i { font-size: 1rem; }
+.seg-item.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  box-shadow: 0 0 16px -4px var(--accent);
+}
+@media (hover: hover) {
+  .seg-item:not(.active):hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-1);
+  }
+}
+
+/* ── ACTION HELPERS ── */
+.action-helpers {
+  margin-top: 10px;
+}
+
+/* ── BTN UTILS ── */
+.btn-sm {
+  padding: 10px 14px;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
-  transition: all 0.2s;
 }
-
-@media (hover: hover) {
-  .icon-picker-btn:hover {
-    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
-    transform: translateY(-1px);
-  }
-}
-
-.icon-picker-btn i {
-  font-size: 1rem;
-}
-
-.command-input-wrapper {
+.btn-foot {
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.command-picker-btn {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border: none;
-  color: #fff;
-  padding: 10px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  transition: all 0.2s;
-}
-
-@media (hover: hover) {
-  .command-picker-btn:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
-    transform: translateY(-1px);
-  }
-}
-
-.command-picker-btn i {
-  font-size: 1rem;
-}
-
-/* ===========================
-   POSITION CONTROLS
-   =========================== */
-.position-controls {
-  display: none;
-  flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 20px;
-  background: #2a2a2a;
-  border-radius: 8px;
-  width: 100%;
-  margin: 0 auto;
+}
+.btn-foot:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.position-row {
+/* ── FOOTER ── */
+.editor-footer {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--glass-border);
+  background: rgba(10, 10, 16, 0.5);
 }
+.footer-spacer { flex: 1; }
 
-.btn-position {
-  width: 40px;
-  height: 40px;
-  border: none;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  font-size: 1.3rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* ── TRANSITIONS ── */
+.editor-enter-active, .editor-leave-active { transition: opacity 0.25s ease; }
+.editor-enter-from, .editor-leave-to { opacity: 0; }
+.editor-enter-active .editor-panel, .editor-leave-active .editor-panel { transition: transform 0.25s ease; }
+.editor-enter-from .editor-panel { transform: translateY(20px) scale(0.96); }
+.editor-leave-to .editor-panel { transform: translateY(10px) scale(0.98); }
 
-@media (hover: hover) {
-  .btn-position:hover {
-    background: rgba(139, 92, 246, 0.3);
-    transform: scale(1.1);
-  }
-}
+/* ── SCROLLBAR ── */
+.editor-scroll::-webkit-scrollbar { width: 4px; }
+.editor-scroll::-webkit-scrollbar-track { background: transparent; }
+.editor-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
 
-.btn-position:active {
-  transform: scale(0.95);
-}
-
-.position-info {
-  padding: 6px 12px;
-  background: rgba(139, 92, 246, 0.2);
-  border-radius: 6px;
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.9);
-  min-width: 100px;
-  text-align: center;
-}
-
-.position-section {
-  display: none;
-  margin-top: 24px;
-}
-
-/* ===========================
-   TRANSITIONS
-   =========================== */
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.3s;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-active .modal-container,
-.modal-leave-active .modal-container {
-  transition: transform 0.3s;
-}
-
-.modal-enter-from .modal-container,
-.modal-leave-to .modal-container {
-  transform: scale(0.9);
-}
-
-/* ===========================
-   RESPONSIVE
-   =========================== */
+/* ── MOBILE ── */
 @media (max-width: 640px) {
-  .btn .btn-text {
-    display: none;
+  .editor-backdrop { align-items: flex-end; padding: 0; }
+  .editor-panel {
+    max-width: 100%;
+    max-height: 95dvh;
+    border-radius: 24px 24px 0 0;
   }
-
-  .btn {
-    padding: 12px;
-    min-width: 44px;
-  }
-
-  .btn i {
-    font-size: 1.2rem;
-  }
-
-  .position-section {
-    display: block;
-  }
-
-  .position-controls {
-    display: flex;
-    padding: 8px;
-    gap: 4px;
-    max-width: fit-content;
-    margin: 0 auto;
-  }
-
-  .position-row {
-    gap: 4px;
-  }
-
-  .btn-position {
-    width: 36px;
-    height: 36px;
-    font-size: 1.1rem;
-  }
-
-  .position-info {
-    padding: 4px 8px;
-    font-size: 0.75rem;
-    min-width: 80px;
-  }
-}
-
-::-webkit-scrollbar {
-  width: 0px;
+  .segmented { grid-template-columns: repeat(4, 1fr); }
+  .seg-item span { font-size: 0.65rem; }
+  .btn-foot span { display: none; }
+  .preview-button { width: 100px; }
 }
 </style>
