@@ -764,82 +764,38 @@ async function handleServerUnreachableClean() {
         </div>
       </div>
       <div class="actions">
-        <button
-          @click="openSettings"
-          title="Configuración"
-          class="btn-icon btn-settings flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-linear-to-r from-green-500 to-green-700 text-white hover:from-green-600 hover:to-green-800 dark:bg-linear-to-r dark:from-green-600 dark:to-green-800 dark:text-green-100"
-        >
+        <button @click="openSettings" title="Configuración" class="action-btn action-settings">
           <img src="/icons/config.svg" alt="Configuración" class="btn-svg" />
           <span class="btn-text">Configuración</span>
         </button>
 
         <template v-if="pinConfigured || isMobile">
-          <button
-            @click="loadMultimediaPresets"
-            title="Comandos multimedia"
-            class="btn-icon btn-multimedia flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-linear-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 dark:bg-linear-to-r dark:from-purple-600 dark:to-indigo-700 dark:text-purple-100"
-          >
+          <button @click="loadMultimediaPresets" title="Comandos multimedia" class="action-btn action-accent">
             <img src="/icons/note-music.svg" alt="Multimedia" class="btn-svg" />
             <span class="btn-text">Multimedia</span>
           </button>
-          <button
-            @click="toggleVolumeSlider"
-            title="Control de volumen"
-            class="btn-icon btn-volume flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-linear-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600 hover:to-orange-700 dark:bg-linear-to-r dark:from-amber-600 dark:to-orange-700 dark:text-amber-100"
-          >
-            <span class="text-xl">{{ systemMuted ? '🔇' : '🔊' }}</span>
+          <button @click="toggleVolumeSlider" title="Control de volumen" class="action-btn action-amber">
+            <span class="action-emoji">{{ systemMuted ? '🔇' : '🔊' }}</span>
             <span class="btn-text">Volumen</span>
           </button>
-          <button
-            v-if="isMobile"
-            @click="showMouseController = true"
-            title="Mouse & Teclado"
-            class="btn-icon btn-mouse flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-linear-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-600 hover:to-blue-700 dark:bg-linear-to-r dark:from-cyan-600 dark:to-blue-700 dark:text-cyan-100"
-          >
-            🖱️
+          <button v-if="isMobile" @click="showMouseController = true" title="Mouse & Teclado" class="action-btn action-cyan">
+            <span class="action-emoji">🖱️</span>
             <span class="btn-text">Mouse</span>
           </button>
           <button
             @click="handleReconnectButton"
-            :title="
-              isMobile
-                ? 'Reconectar'
-                : serverEnabled
-                  ? 'Desactivar servidor'
-                  : 'Activar servidor'
-            "
-            class="btn-icon btn-reconnect flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2"
-            :class="
-              serverEnabled
-                ? 'bg-gray-200 text-neutral-800 hover:bg-gray-900 dark:bg-gray-700 dark:text-neutral-100 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600'
-                : 'bg-red-200 text-red-800 hover:bg-red-300 dark:bg-red-900/50 dark:text-red-200 dark:hover:bg-red-800/50 border border-red-300 dark:border-red-700'
-            "
+            :title="isMobile ? 'Reconectar' : serverEnabled ? 'Desactivar servidor' : 'Activar servidor'"
+            class="action-btn"
+            :class="serverEnabled ? 'action-neutral' : 'action-danger'"
           >
             <img src="/icons/reconect.svg" alt="Reconectar" class="btn-svg" />
-            <span class="btn-text">
-              {{
-                isMobile
-                  ? 'Reconectar'
-                  : serverEnabled
-                    ? 'Desactivar'
-                    : 'Activar'
-              }}
-            </span>
+            <span class="btn-text">{{ isMobile ? 'Reconectar' : serverEnabled ? 'Desactivar' : 'Activar' }}</span>
           </button>
-          <button
-            @click="reloadButtonsWithAnimation"
-            title="Recargar"
-            class="btn-icon btn-reload flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200 text-neutral-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-neutral-100 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600"
-          >
+          <button @click="reloadButtonsWithAnimation" title="Recargar" class="action-btn action-neutral">
             <img src="/icons/reload.svg" alt="Recargar" class="btn-svg" />
             <span class="btn-text">Recargar Botones</span>
           </button>
-          <button
-            v-if="!isMobile"
-            @click="openClearAllDialog"
-            title="Limpiar todo"
-            class="btn-icon btn-clear flex items-center gap-3 px-6 py-4 rounded-xl shadow font-semibold text-lg transition mx-2 bg-gray-200 text-red-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-red-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600"
-          >
+          <button v-if="!isMobile" @click="openClearAllDialog" title="Limpiar todo" class="action-btn action-danger">
             <img src="/icons/delete-grid.svg" alt="Eliminar" class="btn-svg" />
             <span class="btn-text">Limpiar Botones</span>
           </button>
@@ -1295,74 +1251,45 @@ async function handleServerUnreachableClean() {
   gap: 12px;
 }
 
-.btn-icon {
-  width: auto;
-  min-width: 44px;
-  height: 44px;
-  border: none;
-  border-radius: 10px;
-  /* background eliminado para permitir que Tailwind controle el color de fondo */
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 0 12px;
+/* ── Action buttons (glass) ── */
+.action-btn {
+  --_clr: var(--text-2);
+  display: flex; align-items: center; gap: 8px;
+  min-width: 44px; height: 44px; padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--_clr) 25%, transparent);
+  border-radius: 12px; cursor: pointer;
+  background: color-mix(in srgb, var(--_clr) 8%, rgba(255,255,255,0.04));
+  backdrop-filter: blur(12px);
+  color: var(--text-1); font-size: 0.9rem; font-weight: 500;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--_clr) 15%, transparent),
+              inset 0 1px 0 rgba(255,255,255,0.06);
+  transition: all 0.2s ease;
 }
-
-.btn-svg {
-  width: 24px;
-  height: 24px;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.btn-text {
-  white-space: nowrap;
-}
-
 @media (hover: hover) {
-  .btn-icon:hover {
-    background: rgba(255, 255, 255, 0.2);
+  .action-btn:hover {
+    background: color-mix(in srgb, var(--_clr) 18%, rgba(255,255,255,0.06));
+    border-color: color-mix(in srgb, var(--_clr) 50%, transparent);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--_clr) 30%, transparent),
+                inset 0 1px 0 rgba(255,255,255,0.08);
     transform: translateY(-2px);
   }
-
-  .btn-icon.btn-danger:hover {
-    background: rgba(239, 68, 68, 0.3);
-  }
 }
+.action-btn:active { transform: scale(0.97); }
 
-.btn-icon.btn-settings {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
+.action-settings { --_clr: #10b981; }
+.action-accent   { --_clr: var(--accent); }
+.action-amber    { --_clr: #f59e0b; }
+.action-cyan     { --_clr: #06b6d4; }
+.action-neutral  { --_clr: rgba(255,255,255,0.5); }
+.action-danger   { --_clr: #ef4444; }
 
-@media (hover: hover) {
-  .btn-icon.btn-settings:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  }
-}
+.action-emoji { font-size: 1.2rem; line-height: 1; }
 
-.btn-icon.btn-multimedia {
-  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+.btn-svg {
+  width: 22px; height: 22px; flex-shrink: 0;
+  transition: all 0.2s;
 }
-
-@media (hover: hover) {
-  .btn-icon.btn-multimedia:hover {
-    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
-  }
-}
-
-.btn-icon.btn-volume {
-  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
-}
-
-@media (hover: hover) {
-  .btn-icon.btn-volume:hover {
-    background: linear-gradient(135deg, #d97706 0%, #c2410c 100%);
-  }
-}
+.btn-text { white-space: nowrap; }
 
 /* ── Volume panel ── */
 .volume-panel {
