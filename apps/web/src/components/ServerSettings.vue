@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BarcodeScanner } from '@capacitor-community/barcode-scanner'
+import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning'
 import { Capacitor } from '@capacitor/core'
 import QRCode from 'qrcode'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
@@ -314,24 +314,19 @@ const startScanner = async () => {
   scanError.value = null
 
   try {
-    // First check without forcing — see current permission state
-    let status = await BarcodeScanner.checkPermission({ force: false })
+    const { camera } = await BarcodeScanner.checkPermissions()
 
-    if (!status.granted) {
-      if (status.denied) {
-        // User permanently denied — need to open app settings
-        const confirm = window.confirm(
-          'El permiso de cámara fue denegado. ¿Abrir configuración de la app para habilitarlo?',
-        )
-        if (confirm) {
-          await BarcodeScanner.openAppSettings()
-        }
-        return
-      }
+    if (camera === 'denied') {
+      const confirm = window.confirm(
+        'El permiso de cámara fue denegado. ¿Abrir configuración de la app para habilitarlo?',
+      )
+      if (confirm) await BarcodeScanner.openSettings()
+      return
+    }
 
-      // Not yet granted and not permanently denied — request permission
-      status = await BarcodeScanner.checkPermission({ force: true })
-      if (!status.granted) {
+    if (camera !== 'granted') {
+      const result = await BarcodeScanner.requestPermissions()
+      if (result.camera !== 'granted') {
         scanError.value = 'Se necesita permiso de cámara'
         return
       }
@@ -345,16 +340,17 @@ const startScanner = async () => {
 
     await new Promise((resolve) => setTimeout(resolve, 150))
 
-    BarcodeScanner.hideBackground()
-    const result = await BarcodeScanner.startScan()
+    const listener = await BarcodeScanner.addListener('barcodeScanned', async (event) => {
+      await listener.remove()
+      await stopScanner()
+      if (event.barcode?.rawValue) {
+        handleScanResult(event.barcode.rawValue)
+      } else {
+        scanError.value = 'No se pudo leer el código QR'
+      }
+    })
 
-    await stopScanner()
-
-    if (result.hasContent) {
-      handleScanResult(result.content)
-    } else {
-      scanError.value = 'No se pudo leer el código QR'
-    }
+    await BarcodeScanner.startScan({ formats: [BarcodeFormat.QrCode] })
   } catch (error: any) {
     console.error('Error al escanear:', error)
     scanError.value = 'Error al acceder a la cámara'
@@ -365,7 +361,7 @@ const startScanner = async () => {
 const stopScanner = async () => {
   try {
     await BarcodeScanner.stopScan()
-    await BarcodeScanner.showBackground()
+    await BarcodeScanner.removeAllListeners()
   } catch (error) {
     console.error('Error stopping scanner:', error)
   } finally {

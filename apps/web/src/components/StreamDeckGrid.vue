@@ -885,7 +885,7 @@ async function handleServerUnreachableClean() {
         reorganizar
       </p>
       <p class="hint" v-else>
-        Toca para ejecutar • Doble toque para editar • Mantén presionado 1s para reorganizar
+        Toca para ejecutar • 2 dedos para editar • Mantén presionado 1s para reorganizar
       </p>
 
       <div

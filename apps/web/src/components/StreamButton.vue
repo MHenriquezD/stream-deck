@@ -71,28 +71,23 @@ const handleClick = () => {
 }
 
 const handleEdit = (e: MouseEvent | TouchEvent) => {
+  if ('touches' in e || 'changedTouches' in e) return
   e.stopPropagation()
   e.preventDefault()
   emit('edit', props.button)
 }
 
-// Touch events — double-tap to edit, long-press reserved for drag (grid handles it)
-let lastTapTime = 0
-const DOUBLE_TAP_WINDOW = 300
-
-const handleTouchStart = () => {
+// Touch: two-finger tap to edit, long-press reserved for drag (grid handles it)
+const handleTouchStart = (e: TouchEvent) => {
+  if (e.touches.length >= 2) {
+    e.preventDefault()
+    handleEdit(e)
+    return
+  }
   isLongPressing.value = false
 }
 
-const handleTouchEnd = (e: TouchEvent) => {
-  const now = Date.now()
-  if (now - lastTapTime < DOUBLE_TAP_WINDOW) {
-    e.preventDefault()
-    handleEdit(e)
-    lastTapTime = 0
-    return
-  }
-  lastTapTime = now
+const handleTouchEnd = () => {
   isLongPressing.value = false
 }
 

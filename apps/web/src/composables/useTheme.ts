@@ -35,6 +35,8 @@ export function useTheme() {
       app?.classList.remove('dark')
       document.documentElement.setAttribute('data-theme', 'light')
     }
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (meta) meta.setAttribute('content', isDark.value ? '#0a0a10' : '#f5f5f7')
   }
 
   const toggleTheme = () => {
