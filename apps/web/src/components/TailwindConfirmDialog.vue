@@ -1,57 +1,26 @@
 <template>
   <Teleport to="body">
-    <div
-      v-if="show"
-      class="fixed inset-0 z-[1200] flex items-center justify-center"
-      @click.self="$emit('close')"
-    >
+    <Transition name="confirm">
       <div
-        class="confirm-dialog relative rounded-2xl shadow-xl max-w-sm w-full p-8"
+        v-if="show"
+        class="confirm-backdrop"
+        @click.self="$emit('close')"
       >
-        <button
-          @click="$emit('close')"
-          class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl font-bold focus:outline-none"
-        >
-          <i class="pi pi-times"></i>
-        </button>
-        <div class="flex flex-col items-center text-center">
-          <div class="mb-4">
-            <svg
-              class="w-12 h-12 text-yellow-400"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
+        <div class="confirm-panel">
+          <div class="confirm-icon-wrap">
+            <svg class="confirm-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 class="text-xl font-semibold mb-2">
-            {{ title }}
-          </h2>
-          <p class="mb-6">{{ message }}</p>
-          <div class="flex gap-4 w-full justify-center">
-            <button
-              @click="$emit('cancel')"
-              class="px-6 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
-            >
-              {{ cancelLabel }}
-            </button>
-            <button
-              @click="$emit('confirm')"
-              :class="confirmClass || 'bg-red-500 hover:bg-red-600'"
-              class="px-6 py-2 rounded-lg text-white font-semibold transition"
-            >
-              {{ confirmLabel }}
-            </button>
+          <h2 class="confirm-title">{{ title }}</h2>
+          <p class="confirm-msg">{{ message }}</p>
+          <div class="confirm-actions">
+            <button @click="$emit('cancel')" class="btn-neon btn-act">{{ cancelLabel }}</button>
+            <button @click="$emit('confirm')" class="btn-neon btn-neon-danger btn-act">{{ confirmLabel }}</button>
           </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
@@ -76,16 +45,70 @@ defineEmits(['confirm', 'cancel', 'close'])
 </script>
 
 <style scoped>
-.confirm-dialog {
-  background: var(--confirm-bg-light);
-  background-color: var(--confirm-bg-light);
-  color: var(--confirm-text-light);
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
 }
 
-/* Light theme adaptation */
-[data-theme='light'] .confirm-dialog {
-  background: var(--confirm-bg-light);
-  background-color: var(--confirm-bg-light);
-  color: var(--confirm-text-light);
+.confirm-panel {
+  max-width: 380px;
+  width: 100%;
+  padding: 32px 28px 24px;
+  border-radius: 20px;
+  background: linear-gradient(170deg, rgba(22, 22, 32, 0.94) 0%, rgba(10, 10, 16, 0.97) 100%);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 24px 60px rgba(0, 0, 0, 0.7);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
+
+.confirm-icon-wrap { margin-bottom: 6px; }
+.confirm-icon { width: 48px; height: 48px; color: #fbbf24; }
+
+.confirm-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.confirm-msg {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 14px;
+}
+
+.btn-act {
+  flex: 1;
+  padding: 11px 18px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.confirm-enter-active, .confirm-leave-active { transition: opacity 0.2s; }
+.confirm-enter-from, .confirm-leave-to { opacity: 0; }
+.confirm-enter-active .confirm-panel, .confirm-leave-active .confirm-panel { transition: transform 0.2s; }
+.confirm-enter-from .confirm-panel { transform: scale(0.95); }
+.confirm-leave-to .confirm-panel { transform: scale(0.98); }
 </style>

@@ -898,52 +898,47 @@ const close = () => {
 }
 
 /* ===========================
-   SETTINGS OVERLAY — FIX PRINCIPAL
+   SETTINGS OVERLAY
    =========================== */
 .settings-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(8px);
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
-  animation: fadeIn 0.2s;
+  padding: 16px;
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slideUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  from { transform: translateY(16px) scale(0.97); opacity: 0; }
+  to { transform: none; opacity: 1; }
 }
 
 /* ===========================
    DIALOG
    =========================== */
 .settings-dialog {
-  background: var(--edit-bg-color);
-  border-radius: 20px;
+  background: linear-gradient(170deg, rgba(22, 22, 32, 0.94) 0%, rgba(10, 10, 16, 0.97) 100%);
+  border-radius: 24px;
   max-width: 500px;
-  width: 90%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  animation: slideUp 0.3s;
-  color: var(--confirm-text-light);
+  width: 100%;
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 32px 80px rgba(0, 0, 0, 0.7),
+    0 0 60px -10px color-mix(in srgb, var(--accent) 30%, transparent);
+  animation: slideUp 0.25s ease;
+  color: var(--text-1);
+  overflow: hidden;
 }
 
 /* ===========================
@@ -953,31 +948,35 @@ const close = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--glass-border);
 }
 
 .settings-header h2 {
   margin: 0;
-  font-size: 1.4rem;
-  color: var(--confirm-text-light);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-1);
 }
 
 .close-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--confirm-text-light);
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-2);
   cursor: pointer;
-  font-size: 1.2rem;
-  transition: all 0.2s;
+  font-size: 1rem;
+  transition: all 0.18s;
+  display: grid;
+  place-items: center;
 }
 
 @media (hover: hover) {
   .close-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-1);
     transform: rotate(90deg);
   }
 }
@@ -986,7 +985,7 @@ const close = () => {
    CONTENT
    =========================== */
 .settings-content {
-  padding: 24px;
+  padding: 18px 22px;
   max-height: 70vh;
   max-height: 70dvh;
   overflow-y: auto;
@@ -1244,19 +1243,20 @@ const close = () => {
   display: block;
   margin-bottom: 8px;
   font-weight: 600;
-  color: var(--form-bg-text-color);
+  font-size: 0.85rem;
+  color: var(--text-2);
 }
 
 .server-input {
   width: 100%;
-  padding: 12px 16px;
-  background: var(--form-bg-color);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  padding: 11px 14px;
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
   border-radius: 10px;
-  color: var(--form-bg-text-color);
-  font-size: 1rem;
+  color: var(--text-1);
+  font-size: 0.95rem;
   font-family: 'Courier New', monospace;
-  transition: all 0.3s;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
 }
 
 select.server-input {
@@ -1264,28 +1264,25 @@ select.server-input {
   cursor: pointer;
 }
 
-select.server-input option {
-  background: var(--form-bg-color);
-  color: var(--form-bg-text-color);
-}
-
+select.server-input option,
 select#gridSize option,
 select#soundSelector option {
-  background-color: var(--edit-bg-color) !important;
-  color: var(--edit-color) !important;
+  background: rgba(16, 16, 24, 0.98);
+  color: var(--text-1);
 }
 
 .server-input:focus {
   outline: none;
-  border-color: #8b5cf6;
-  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--field-focus);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .form-group small {
   display: block;
   margin-top: 6px;
-  color: var(--form-bg-text-color);
-  font-size: 0.85rem;
+  color: var(--text-2);
+  font-size: 0.82rem;
 }
 
 /* Sound toggle */
@@ -1298,14 +1295,14 @@ select#soundSelector option {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: none;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--field-border);
+  border-radius: 10px;
   padding: 8px 14px;
-  color: var(--form-bg-text-color);
+  color: var(--text-1);
   cursor: pointer;
   font-size: 0.9rem;
-  transition: all 0.2s;
+  transition: all 0.18s;
 }
 
 .toggle-track {
@@ -1373,21 +1370,21 @@ select#soundSelector option {
 .btn-test {
   width: 100%;
   padding: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
   border-radius: 10px;
-  color: #f5f5f5;
+  color: var(--text-1);
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.18s;
   margin-bottom: 16px;
 }
 
 @media (hover: hover) {
   .btn-test:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
   }
 }
 
@@ -1422,9 +1419,10 @@ select#soundSelector option {
    =========================== */
 .settings-footer {
   display: flex;
-  gap: 12px;
-  padding: 20px 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 10px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--glass-border);
+  background: rgba(10, 10, 16, 0.5);
 }
 
 .btn-cancel,
@@ -1433,54 +1431,54 @@ select#soundSelector option {
   padding: 12px;
   border-radius: 10px;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.3s;
-  border: none;
+  transition: all 0.18s;
 }
 
 .btn-cancel {
-  background: rgba(250, 59, 59, 0.781);
-  color: #f5f5f5;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-1);
 }
 
 @media (hover: hover) {
   .btn-cancel:hover {
-    background: rgba(255, 27, 27, 0.836);
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
   }
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-  color: #f5f5f5;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border: none;
+  color: #fff;
+  box-shadow: 0 0 22px -6px var(--accent);
 }
 
 @media (hover: hover) {
   .btn-save:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+    box-shadow: 0 0 30px -4px var(--accent);
+    filter: brightness(1.08);
   }
 }
 
 .btn-change-pin {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: #f5f5f5;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
   border: none;
   padding: 10px 20px;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 600;
-  transition: all 0.3s;
+  transition: all 0.18s;
   width: 100%;
+  box-shadow: 0 0 16px -4px var(--accent);
 }
 
 @media (hover: hover) {
-  .btn-change-pin:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
-  }
+  .btn-change-pin:hover { filter: brightness(1.08); box-shadow: 0 0 24px -2px var(--accent); }
 }
 
 .pin-change-form {
@@ -1503,40 +1501,35 @@ select#soundSelector option {
 
 .btn-pin-save {
   flex: 1;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: #f5f5f5;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
   border: none;
   padding: 10px;
   border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
-  transition: all 0.3s;
+  transition: all 0.18s;
+  box-shadow: 0 0 16px -4px var(--accent);
 }
 
 @media (hover: hover) {
-  .btn-pin-save:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
-  }
+  .btn-pin-save:hover { filter: brightness(1.08); box-shadow: 0 0 24px -2px var(--accent); }
 }
 
 .btn-pin-cancel {
   flex: 1;
-  background: rgba(250, 59, 59, 0.781);
-  color: #f5f5f5;
-  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-1);
   padding: 10px;
   border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
-  transition: all 0.3s;
+  transition: all 0.18s;
 }
 
 @media (hover: hover) {
-  .btn-pin-cancel:hover {
-    background: rgba(255, 27, 27, 0.836);
-    transform: translateY(-2px);
-  }
+  .btn-pin-cancel:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
 }
 
 .pin-error {
@@ -1554,7 +1547,12 @@ select#soundSelector option {
   font-weight: 600;
 }
 
-::-webkit-scrollbar {
-  width: 0px;
+.settings-content::-webkit-scrollbar { width: 4px; }
+.settings-content::-webkit-scrollbar-track { background: transparent; }
+.settings-content::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+
+@media (max-width: 640px) {
+  .settings-overlay { align-items: flex-end; padding: 0; }
+  .settings-dialog { max-width: 100%; border-radius: 24px 24px 0 0; }
 }
 </style>
