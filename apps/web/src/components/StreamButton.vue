@@ -26,7 +26,6 @@ const emit = defineEmits<{
 }>()
 
 // Long press detection for mobile
-let longPressTimer: number | null = null
 const serverUrlStore = useServerUrlStore()
 const isLongPressing = ref(false)
 
@@ -77,37 +76,32 @@ const handleEdit = (e: MouseEvent | TouchEvent) => {
   emit('edit', props.button)
 }
 
-// Touch events for mobile long press
-const handleTouchStart = (e: TouchEvent) => {
+// Touch events — double-tap to edit, long-press reserved for drag (grid handles it)
+let lastTapTime = 0
+const DOUBLE_TAP_WINDOW = 300
+
+const handleTouchStart = () => {
   isLongPressing.value = false
-  longPressTimer = window.setTimeout(() => {
-    isLongPressing.value = true
-    handleEdit(e)
-  }, 500)
 }
 
-const handleTouchEnd = () => {
-  if (longPressTimer) {
-    clearTimeout(longPressTimer)
-    longPressTimer = null
+const handleTouchEnd = (e: TouchEvent) => {
+  const now = Date.now()
+  if (now - lastTapTime < DOUBLE_TAP_WINDOW) {
+    e.preventDefault()
+    handleEdit(e)
+    lastTapTime = 0
+    return
   }
+  lastTapTime = now
   isLongPressing.value = false
 }
 
 const handleTouchMove = () => {
-  if (longPressTimer) {
-    clearTimeout(longPressTimer)
-    longPressTimer = null
-    isLongPressing.value = false
-  }
+  isLongPressing.value = false
 }
 
 // ⭐ Agregar touchcancel para limpiar estado
 const handleTouchCancel = () => {
-  if (longPressTimer) {
-    clearTimeout(longPressTimer)
-    longPressTimer = null
-  }
   isLongPressing.value = false
 }
 

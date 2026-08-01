@@ -43,7 +43,8 @@ const {
 } = useBiometric()
 
 // Tema claro/oscuro (estado + persistencia)
-const { isDark, toggleTheme, initTheme } = useTheme()
+const { isDark, toggleTheme, initTheme, currentAccent, accentPresets, setAccent } = useTheme()
+const showAccentPicker = ref(false)
 const serverUrlStore = useServerUrlStore()
 const {
   isConnected,
@@ -566,9 +567,6 @@ const handleButtonEdit = (
   button: ButtonType | null,
   position: { row: number; col: number },
 ) => {
-  // No abrir editor en mobile/tablet
-  if (isMobileView.value) return
-
   editingButton.value = button
   editingPosition.value = position
   showEditor.value = true
@@ -836,25 +834,37 @@ async function handleServerUnreachableClean() {
     </div>
 
     <!-- Floating theme toggle (draggable, snaps to corners) -->
-    <button
-      ref="themeFabRef"
-      @click="!fabMoved && toggleTheme()"
-      :title="isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
-      class="theme-fab"
-      :class="`fab-${fabCorner}`"
-      :style="fabStyle"
-      @touchstart.passive="handleFabTouchStart"
-      @touchmove="handleFabTouchMove"
-      @touchend="handleFabTouchEnd"
-    >
-      <img
-        v-if="isDark"
-        src="/icons/sun.svg"
-        alt="Claro"
-        class="theme-fab-icon"
-      />
-      <img v-else src="/icons/moon.svg" alt="Oscuro" class="theme-fab-icon" />
-    </button>
+    <div class="fab-container" :class="`fab-${fabCorner}`" :style="fabStyle">
+      <button
+        ref="themeFabRef"
+        @click="!fabMoved && toggleTheme()"
+        @contextmenu.prevent="showAccentPicker = !showAccentPicker"
+        :title="isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
+        class="theme-fab"
+        @touchstart.passive="handleFabTouchStart"
+        @touchmove="handleFabTouchMove"
+        @touchend="handleFabTouchEnd"
+      >
+        <img v-if="isDark" src="/icons/sun.svg" alt="Claro" class="theme-fab-icon" />
+        <img v-else src="/icons/moon.svg" alt="Oscuro" class="theme-fab-icon" />
+      </button>
+      <button class="accent-toggle" @click="showAccentPicker = !showAccentPicker" title="Cambiar color">
+        <span class="accent-dot" :style="{ background: currentAccent.accent }"></span>
+      </button>
+      <Transition name="accent-pop">
+        <div v-if="showAccentPicker" class="accent-picker">
+          <button
+            v-for="p in accentPresets"
+            :key="p.name"
+            class="accent-swatch"
+            :class="{ active: currentAccent.accent === p.accent }"
+            :style="{ '--sw': p.accent }"
+            :title="p.name"
+            @click="setAccent(p)"
+          />
+        </div>
+      </Transition>
+    </div>
 
     <!-- Mensaje cuando no hay PIN configurado (solo desktop) -->
     <div v-if="!pinConfigured && !isMobile" class="no-pin-message">
@@ -875,7 +885,7 @@ async function handleServerUnreachableClean() {
         reorganizar
       </p>
       <p class="hint" v-else>
-        Toca para ejecutar • Mantén presionado 1s para reorganizar
+        Toca para ejecutar • Doble toque para editar • Mantén presionado 1s para reorganizar
       </p>
 
       <div
@@ -1014,7 +1024,6 @@ async function handleServerUnreachableClean() {
 
     <!-- Editor solo en desktop -->
     <ButtonEditor
-      v-if="!isMobileView"
       :show="showEditor"
       :button="editingButton"
       :position="editingPosition"
@@ -1167,16 +1176,17 @@ async function handleServerUnreachableClean() {
 
   .actions .action-btn {
     flex-direction: column;
-    padding: 12px 8px;
+    padding: 10px 6px;
     height: auto;
-    min-height: 60px;
-    font-size: 0.75rem;
+    min-height: 56px;
+    font-size: 0.7rem;
   }
-
-  .actions .btn-svg {
-    width: 28px;
-    height: 28px;
+  .actions .action-btn .btn-text {
+    overflow: hidden; text-overflow: ellipsis;
+    max-width: 100%; text-align: center;
   }
+  .actions .btn-svg { width: 24px; height: 24px; }
+  .actions .action-emoji { font-size: 1.3rem; }
 }
 
 @media (max-width: 640px) {
@@ -1257,11 +1267,26 @@ async function handleServerUnreachableClean() {
 }
 .action-btn:active { transform: scale(0.97); }
 
+[data-theme='light'] .action-btn {
+  color: #1a1a2e;
+  background: color-mix(in srgb, var(--_clr) 10%, rgba(0,0,0,0.04));
+  border-color: color-mix(in srgb, var(--_clr) 30%, rgba(0,0,0,0.1));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--_clr) 12%, transparent),
+              inset 0 1px 0 rgba(255,255,255,0.5);
+}
+@media (hover: hover) {
+  [data-theme='light'] .action-btn:hover {
+    background: color-mix(in srgb, var(--_clr) 18%, rgba(0,0,0,0.06));
+    border-color: color-mix(in srgb, var(--_clr) 50%, rgba(0,0,0,0.12));
+  }
+}
+
 .action-settings { --_clr: #10b981; }
 .action-accent   { --_clr: var(--accent); }
 .action-amber    { --_clr: #f59e0b; }
 .action-cyan     { --_clr: #06b6d4; }
 .action-neutral  { --_clr: rgba(255,255,255,0.5); }
+[data-theme='light'] .action-neutral { --_clr: rgba(0,0,0,0.45); }
 .action-danger   { --_clr: #ef4444; }
 
 .action-emoji { font-size: 1.2rem; line-height: 1; }
@@ -1458,18 +1483,11 @@ async function handleServerUnreachableClean() {
 }
 
 .hint {
-  color: var(--hint-color);
-  font-size: 0.9rem;
-  margin: 0 0 16px 0;
-  text-align: center;
-  transition: color 0.3s ease;
+  color: var(--text-2); font-size: 0.85rem;
+  margin: 0 0 16px 0; text-align: center;
 }
-
 @media (max-width: 640px) {
-  .hint {
-    font-size: 0.75rem;
-    margin-bottom: 12px;
-  }
+  .hint { font-size: 0.72rem; margin-bottom: 10px; }
 }
 
 .grid {
@@ -1619,6 +1637,14 @@ async function handleServerUnreachableClean() {
 .copyright {
   color: var(--text-2); font-size: 0.78rem; margin: 0; opacity: 0.5;
 }
+
+[data-theme='light'] .footer { border-top-color: rgba(0,0,0,0.1); }
+[data-theme='light'] .footer::before {
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 30%, transparent), transparent);
+}
+[data-theme='light'] .credits { color: #444; }
+[data-theme='light'] .credits a { color: var(--accent); }
+[data-theme='light'] .copyright { color: #666; }
 
 .title-section {
   display: flex; flex-direction: column; align-items: center;
@@ -2108,49 +2134,74 @@ async function handleServerUnreachableClean() {
 }
 
 /* Floating theme toggle button */
-.theme-fab {
-  position: fixed;
-  z-index: 900;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(30, 30, 50, 0.85);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+/* ── FAB container ── */
+.fab-container {
+  position: fixed; z-index: 900;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
   transition:
-    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
     top 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
     bottom 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
     left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
     right 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  touch-action: none;
-  -webkit-user-select: none;
-  user-select: none;
 }
 
+.theme-fab {
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(30, 30, 50, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+  touch-action: none; -webkit-user-select: none; user-select: none;
+}
 [data-theme='light'] .theme-fab {
   background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-color: rgba(0, 0, 0, 0.12);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
+.theme-fab:active { transform: scale(0.9); }
+@media (hover: hover) { .theme-fab:hover { transform: scale(1.1); } }
+.theme-fab-icon { width: 22px; height: 22px; }
 
-.theme-fab:active {
-  transform: scale(0.9);
+/* Small accent dot toggle */
+.accent-toggle {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: rgba(30, 30, 50, 0.85); backdrop-filter: blur(8px);
+  display: grid; place-items: center; cursor: pointer;
+  transition: transform 0.2s;
 }
+[data-theme='light'] .accent-toggle {
+  background: rgba(255, 255, 255, 0.85); border-color: rgba(0, 0, 0, 0.12);
+}
+.accent-toggle:active { transform: scale(0.85); }
+.accent-dot { width: 14px; height: 14px; border-radius: 50%; }
 
-@media (hover: hover) {
-  .theme-fab:hover {
-    transform: scale(1.1);
-  }
+/* Accent picker popover */
+.accent-picker {
+  display: flex; gap: 6px; padding: 8px 12px;
+  border-radius: 24px;
+  background: rgba(20, 20, 30, 0.92); border: 1px solid var(--glass-border);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
+[data-theme='light'] .accent-picker {
+  background: rgba(255, 255, 255, 0.92); border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+.accent-swatch {
+  width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent;
+  background: var(--sw); cursor: pointer;
+  transition: all 0.15s; box-shadow: 0 0 6px color-mix(in srgb, var(--sw) 40%, transparent);
+}
+.accent-swatch.active {
+  border-color: #fff; transform: scale(1.15);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--sw) 60%, transparent);
+}
+@media (hover: hover) { .accent-swatch:hover { transform: scale(1.15); } }
 
-.theme-fab-icon {
-  width: 22px;
-  height: 22px;
-}
+.accent-pop-enter-active, .accent-pop-leave-active { transition: all 0.2s ease; }
+.accent-pop-enter-from, .accent-pop-leave-to { opacity: 0; transform: scale(0.8); }
 </style>

@@ -21,6 +21,16 @@ const isScrolling = ref(false)
 let twoFingerStartTime = 0
 let twoFingerMoved = false
 
+// ─── Touch visualizer ───
+interface Ripple { id: number; x: number; y: number; type: 'left' | 'right' | 'double' }
+const ripples = ref<Ripple[]>([])
+let rippleId = 0
+const spawnRipple = (x: number, y: number, type: Ripple['type'] = 'left') => {
+  const id = ++rippleId
+  ripples.value.push({ id, x, y, type })
+  setTimeout(() => { ripples.value = ripples.value.filter(r => r.id !== id) }, 600)
+}
+
 // ─── Keyboard State ───
 const showKeyboard = ref(false)
 const keyboardText = ref('')
@@ -106,6 +116,8 @@ const handleTouchEnd = (e: TouchEvent) => {
     // Two-finger tap (no scroll movement, quick release) → right-click
     const elapsed = Date.now() - twoFingerStartTime
     if (!twoFingerMoved && elapsed < 300) {
+      const rect = trackpadRef.value?.getBoundingClientRect()
+      if (rect) spawnRipple(rect.width / 2, rect.height / 2, 'right')
       handleRightClick()
     }
     isScrolling.value = false
@@ -183,6 +195,8 @@ const handleTapEnd = (e: TouchEvent) => {
     const dy = Math.abs(e.changedTouches[0].clientY - tapStartPos.y)
     if (elapsed < 200 && dx < 10 && dy < 10) {
       lastTapTime = Date.now()
+      const rect = trackpadRef.value?.getBoundingClientRect()
+      if (rect) spawnRipple(e.changedTouches[0].clientX - rect.left, e.changedTouches[0].clientY - rect.top, 'left')
       handleLeftClick()
     }
   }
@@ -268,6 +282,15 @@ const adjustSensitivity = (delta: number) => {
 
         <!-- Drag indicator -->
         <div v-if="isDragging" class="drag-indicator">🔒 Arrastrando</div>
+
+        <!-- Touch ripples -->
+        <div
+          v-for="r in ripples"
+          :key="r.id"
+          class="touch-ripple"
+          :class="`ripple-${r.type}`"
+          :style="{ left: r.x + 'px', top: r.y + 'px' }"
+        />
       </div>
 
       <!-- Mouse Buttons -->
@@ -700,5 +723,27 @@ const adjustSensitivity = (delta: number) => {
   align-items: center;
   justify-content: center;
   font-size: 1rem;
+}
+
+/* ── Touch ripple visualizer ── */
+.touch-ripple {
+  position: absolute; pointer-events: none;
+  width: 40px; height: 40px; border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.3);
+  animation: ripple-expand 0.55s ease-out forwards;
+  border: 2px solid rgba(139, 92, 246, 0.7);
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, transparent 70%);
+}
+.ripple-right {
+  border-color: rgba(74, 222, 128, 0.7);
+  background: radial-gradient(circle, rgba(74, 222, 128, 0.25) 0%, transparent 70%);
+}
+.ripple-double {
+  border-color: rgba(251, 191, 36, 0.7);
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.25) 0%, transparent 70%);
+}
+@keyframes ripple-expand {
+  0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
 }
 </style>
