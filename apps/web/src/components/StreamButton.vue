@@ -74,20 +74,14 @@ const handleClick = () => {
   isLongPressing.value = false
 }
 
-const handleEdit = (e: MouseEvent | TouchEvent) => {
-  if ('touches' in e || 'changedTouches' in e) return
+const handleEdit = (e: MouseEvent) => {
+  if (matchMedia('(pointer: coarse)').matches) return
   e.stopPropagation()
   e.preventDefault()
   emit('edit', props.button)
 }
 
-// Touch: two-finger tap to edit, long-press reserved for drag (grid handles it)
-const handleTouchStart = (e: TouchEvent) => {
-  if (e.touches.length >= 2) {
-    e.preventDefault()
-    handleEdit(e)
-    return
-  }
+const handleTouchStart = () => {
   isLongPressing.value = false
 }
 

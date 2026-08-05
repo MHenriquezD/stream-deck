@@ -1,14 +1,8 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useSocket } from './useSocket'
 
-/**
- * Control de volumen del sistema.
- *
- * Encapsula el estado del panel, la sincronización con el servidor (con debounce
- * al arrastrar el slider) y la escucha del broadcast `volume:changed` que otros
- * clientes pueden emitir. Registra y limpia sus propios listeners de ciclo de
- * vida, así que el componente solo tiene que consumir lo que devuelve.
- */
+const AUTO_HIDE_MS = 3000
+
 export function useVolume() {
   const {
     getVolume,
@@ -22,6 +16,14 @@ export function useVolume() {
   const systemVolume = ref(50)
   const systemMuted = ref(false)
   let volumeDebounce: ReturnType<typeof setTimeout> | null = null
+  let autoHideTimer: ReturnType<typeof setTimeout> | null = null
+
+  const resetAutoHide = () => {
+    if (autoHideTimer) clearTimeout(autoHideTimer)
+    autoHideTimer = setTimeout(() => {
+      showVolumeSlider.value = false
+    }, AUTO_HIDE_MS)
+  }
 
   const fetchVolume = async () => {
     try {
@@ -38,20 +40,28 @@ export function useVolume() {
     systemVolume.value = val
     if (volumeDebounce) clearTimeout(volumeDebounce)
     volumeDebounce = setTimeout(() => setVolume(val), 80)
+    resetAutoHide()
   }
 
   const onMuteToggle = () => {
     toggleMute()
+    resetAutoHide()
   }
 
   const toggleVolumeSlider = () => {
     showVolumeSlider.value = !showVolumeSlider.value
-    if (showVolumeSlider.value) fetchVolume()
+    if (showVolumeSlider.value) {
+      fetchVolume()
+      resetAutoHide()
+    } else if (autoHideTimer) {
+      clearTimeout(autoHideTimer)
+    }
   }
 
   const onVolumeChanged = (data: { volume: number; muted: boolean }) => {
     systemVolume.value = data.volume
     systemMuted.value = data.muted
+    if (showVolumeSlider.value) resetAutoHide()
   }
 
   onMounted(() => {
@@ -62,6 +72,7 @@ export function useVolume() {
   onUnmounted(() => {
     off('volume:changed', onVolumeChanged as (...args: unknown[]) => void)
     if (volumeDebounce) clearTimeout(volumeDebounce)
+    if (autoHideTimer) clearTimeout(autoHideTimer)
   })
 
   return {
@@ -72,5 +83,7 @@ export function useVolume() {
     onMuteToggle,
     toggleVolumeSlider,
     fetchVolume,
+    setVolume,
+    resetAutoHide,
   }
 }

@@ -67,7 +67,21 @@ const {
   onVolumeInput,
   onMuteToggle,
   toggleVolumeSlider,
+  setVolume,
+  resetAutoHide,
 } = useVolume()
+
+let volDebounce: ReturnType<typeof setTimeout> | null = null
+const onVolumePillTouch = (e: TouchEvent) => {
+  const pill = (e.currentTarget as HTMLElement)
+  const rect = pill.getBoundingClientRect()
+  const touch = e.touches[0]
+  const pct = Math.round(Math.max(0, Math.min(100, ((rect.bottom - touch.clientY) / rect.height) * 100)))
+  systemVolume.value = pct
+  if (volDebounce) clearTimeout(volDebounce)
+  volDebounce = setTimeout(() => setVolume(pct), 60)
+  resetAutoHide()
+}
 
 const props = defineProps<{
   rows?: number
@@ -172,6 +186,7 @@ const {
   isDragging,
   isDragOver,
   handleTouchStart,
+  handleGridTouchStart,
   handleTouchMove,
   handleTouchEnd,
   handleTouchCancel,
@@ -187,6 +202,9 @@ const {
       detail: 'El botón se ha reubicado correctamente',
       life: 2000,
     })
+  },
+  onTwoFingerTap: (button, position) => {
+    handleButtonEdit(button, position)
   },
 })
 
@@ -763,17 +781,17 @@ async function handleServerUnreachableClean() {
       </div>
       <div class="actions">
         <button @click="openSettings" title="Configuración" class="action-btn action-settings">
-          <img src="/icons/config.svg" alt="Configuración" class="btn-svg" />
+          <img src="/icons/config-line.svg" alt="Configuración" class="btn-svg" />
           <span class="btn-text">Configuración</span>
         </button>
 
         <template v-if="pinConfigured || isMobile">
           <button @click="loadMultimediaPresets" title="Comandos multimedia" class="action-btn action-accent">
-            <img src="/icons/note-music.svg" alt="Multimedia" class="btn-svg" />
+            <img src="/icons/music-line.svg" alt="Multimedia" class="btn-svg" />
             <span class="btn-text">Multimedia</span>
           </button>
           <button @click="toggleVolumeSlider" title="Control de volumen" class="action-btn action-amber">
-            <span class="action-emoji">{{ systemMuted ? '🔇' : '🔊' }}</span>
+            <img :src="systemMuted ? '/icons/volume-mute.svg' : '/icons/volume-high.svg'" alt="Volumen" class="btn-svg" />
             <span class="btn-text">Volumen</span>
           </button>
           <button v-if="isMobile" @click="showMouseController = true" title="Mouse & Teclado" class="action-btn action-cyan">
@@ -786,51 +804,42 @@ async function handleServerUnreachableClean() {
             class="action-btn"
             :class="serverEnabled ? 'action-neutral' : 'action-danger'"
           >
-            <img src="/icons/reconect.svg" alt="Reconectar" class="btn-svg" />
+            <img src="/icons/reconnect-line.svg" alt="Reconectar" class="btn-svg" />
             <span class="btn-text">{{ isMobile ? 'Reconectar' : serverEnabled ? 'Desactivar' : 'Activar' }}</span>
           </button>
           <button @click="reloadButtonsWithAnimation" title="Recargar" class="action-btn action-neutral">
-            <img src="/icons/reload.svg" alt="Recargar" class="btn-svg" />
+            <img src="/icons/reload-line.svg" alt="Recargar" class="btn-svg" />
             <span class="btn-text">Recargar Botones</span>
           </button>
           <button v-if="!isMobile" @click="openClearAllDialog" title="Limpiar todo" class="action-btn action-danger">
-            <img src="/icons/delete-grid.svg" alt="Eliminar" class="btn-svg" />
+            <img src="/icons/trash-line.svg" alt="Eliminar" class="btn-svg" />
             <span class="btn-text">Limpiar Botones</span>
           </button>
         </template>
       </div>
 
-      <!-- Volume slider panel -->
-      <div v-if="showVolumeSlider" class="volume-panel">
-        <div class="volume-panel-inner">
-          <button
-            class="volume-mute-btn"
-            @click="onMuteToggle"
-            :title="systemMuted ? 'Activar sonido' : 'Silenciar'"
-          >
-            {{
-              systemMuted
-                ? '🔇'
-                : systemVolume > 50
-                  ? '🔊'
-                  : systemVolume > 0
-                    ? '🔉'
-                    : '🔈'
-            }}
+      <!-- Volume slider panel (floating overlay) -->
+      <Transition name="vol">
+      <div v-if="showVolumeSlider" class="volume-overlay" @click.self="showVolumeSlider = false">
+        <!-- Desktop: horizontal bar -->
+        <div class="volume-panel volume-desktop">
+          <button class="volume-mute-btn" @click="onMuteToggle" :title="systemMuted ? 'Activar sonido' : 'Silenciar'">
+            <img :src="systemMuted ? '/icons/volume-mute.svg' : systemVolume > 50 ? '/icons/volume-high.svg' : '/icons/volume-low.svg'" alt="" class="volume-icon" />
           </button>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            :value="systemVolume"
-            @input="onVolumeInput"
-            class="volume-slider"
-            :style="{ '--vol-pct': systemVolume + '%' }"
-          />
+          <input type="range" min="0" max="100" step="1" :value="systemVolume" @input="onVolumeInput" class="volume-slider" :style="{ '--vol-pct': systemVolume + '%' }" />
           <span class="volume-label">{{ systemVolume }}%</span>
         </div>
+        <!-- Mobile: vertical Android-style pill -->
+        <div
+          class="volume-panel volume-mobile"
+          @touchstart.prevent="onVolumePillTouch"
+          @touchmove.prevent="onVolumePillTouch"
+        >
+          <img :src="systemMuted ? '/icons/volume-mute.svg' : systemVolume > 50 ? '/icons/volume-high.svg' : '/icons/volume-low.svg'" alt="" class="volume-pill-icon" @click.stop="onMuteToggle" />
+          <div class="volume-pill-fill" :style="{ '--vol-pct': systemVolume + '%' }"></div>
+        </div>
       </div>
+      </Transition>
     </div>
 
     <!-- Floating theme toggle (draggable, snaps to corners) -->
@@ -895,6 +904,7 @@ async function handleServerUnreachableClean() {
           '--grid-cols': gridCols,
           '--grid-rows': gridRows,
         }"
+        @touchstart="handleGridTouchStart"
         @touchmove="handleTouchMove"
         @touchend="handleTouchEnd"
         @touchcancel="handleTouchCancel"
@@ -1298,191 +1308,156 @@ async function handleServerUnreachableClean() {
 .btn-svg {
   width: 22px; height: 22px; flex-shrink: 0;
   transition: all 0.2s;
+  filter: invert(1);
+}
+[data-theme='light'] .btn-svg {
+  filter: invert(0);
 }
 .btn-text { white-space: nowrap; }
 
-/* ── Volume panel ── */
+/* ── Volume overlay (floating, no layout shift) ── */
+.volume-overlay {
+  position: fixed; inset: 0; z-index: 1500;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 0 16px 120px;
+}
+
 .volume-panel {
-  width: 100%;
-  padding: 0 8px;
-  margin-bottom: 12px;
-  animation: volume-slide-in 0.25s ease-out;
-}
-
-@keyframes volume-slide-in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.volume-panel-inner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-}
-
-[data-theme='light'] .volume-panel-inner {
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 22px; width: 100%; max-width: 420px;
+  border-radius: 18px;
+  background: linear-gradient(170deg, rgba(22, 22, 32, 0.92) 0%, rgba(10, 10, 16, 0.95) 100%);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 20px 50px rgba(0, 0, 0, 0.6),
+    0 0 40px -8px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .volume-mute-btn {
-  flex-shrink: 0;
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  border: none;
-  background: rgba(255, 255, 255, 0.1);
-  font-size: 1.3rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    background 0.2s ease,
-    transform 0.15s ease;
+  flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer; display: grid; place-items: center;
+  transition: all 0.18s;
 }
-
-[data-theme='light'] .volume-mute-btn {
-  background: rgba(0, 0, 0, 0.06);
-}
-
 @media (hover: hover) {
   .volume-mute-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
     transform: scale(1.08);
   }
+}
+.volume-mute-btn:active { transform: scale(0.92); }
 
-  [data-theme='light'] .volume-mute-btn:hover {
-    background: rgba(0, 0, 0, 0.1);
-  }
+.volume-icon {
+  width: 22px; height: 22px;
+  filter: invert(1) drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
+}
+[data-theme='light'] .volume-icon {
+  filter: invert(0) drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
 }
 
-.volume-mute-btn:active {
-  transform: scale(0.92);
-}
-
-/* Range slider */
 .volume-slider {
-  -webkit-appearance: none;
-  appearance: none;
-  flex: 1;
-  height: 8px;
-  border-radius: 4px;
-  outline: none;
-  cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+  flex: 1; height: 6px; border-radius: 3px;
+  outline: none; cursor: pointer;
   background: linear-gradient(
     to right,
-    #f59e0b 0%,
-    #f59e0b var(--vol-pct, 50%),
-    rgba(255, 255, 255, 0.15) var(--vol-pct, 50%),
-    rgba(255, 255, 255, 0.15) 100%
+    var(--accent) 0%, var(--accent) var(--vol-pct, 50%),
+    rgba(255, 255, 255, 0.12) var(--vol-pct, 50%),
+    rgba(255, 255, 255, 0.12) 100%
   );
   transition: background 0.1s ease;
 }
 
-[data-theme='light'] .volume-slider {
-  background: linear-gradient(
-    to right,
-    #d97706 0%,
-    #d97706 var(--vol-pct, 50%),
-    rgba(0, 0, 0, 0.12) var(--vol-pct, 50%),
-    rgba(0, 0, 0, 0.12) 100%
-  );
-}
-
-/* Webkit thumb */
 .volume-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  -webkit-appearance: none; appearance: none;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent);
   border: 2px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  cursor: pointer;
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 50%, transparent);
+  cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
 }
-
 @media (hover: hover) {
   .volume-slider::-webkit-slider-thumb:hover {
-    transform: scale(1.15);
-    box-shadow: 0 3px 12px rgba(245, 158, 11, 0.4);
+    transform: scale(1.2);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 70%, transparent);
   }
 }
 
-/* Firefox thumb */
 .volume-slider::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent);
   border: 2px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 50%, transparent);
   cursor: pointer;
 }
-
-/* Firefox track */
 .volume-slider::-moz-range-track {
-  height: 8px;
-  border-radius: 4px;
-  background: transparent;
+  height: 6px; border-radius: 3px; background: transparent;
 }
 
 .volume-label {
-  flex-shrink: 0;
-  min-width: 48px;
-  text-align: right;
-  font-size: 0.95rem;
-  font-weight: 600;
+  flex-shrink: 0; min-width: 44px; text-align: right;
+  font-size: 0.95rem; font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-1);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
-[data-theme='light'] .volume-label {
-  color: rgba(0, 0, 0, 0.7);
-}
+/* Volume transitions */
+.vol-enter-active { transition: opacity 0.25s ease; }
+.vol-leave-active { transition: opacity 0.2s ease; }
+.vol-enter-from, .vol-leave-to { opacity: 0; }
+.vol-enter-active .volume-panel { transition: transform 0.35s cubic-bezier(0.22, 1.2, 0.36, 1); }
+.vol-leave-active .volume-panel { transition: transform 0.2s cubic-bezier(0.4, 0, 1, 1); }
+.vol-enter-from .volume-panel { transform: translateY(30px) scale(0.9); }
+.vol-leave-to .volume-panel { transform: translateY(20px) scale(0.95); }
 
+/* Show desktop panel on wide screens, mobile pill on narrow */
+.volume-mobile { display: none; }
 @media (max-width: 640px) {
-  .volume-panel-inner {
-    padding: 10px 14px;
-    gap: 8px;
+  .volume-desktop { display: none !important; }
+  .volume-mobile { display: flex; }
+  .volume-overlay {
+    align-items: center; justify-content: flex-end;
+    padding: 0 20px 0 0;
   }
-
-  .volume-mute-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 1.1rem;
+  .volume-mobile {
+    flex-direction: column; align-items: center;
+    width: 52px; height: min(280px, 50dvh);
+    border-radius: 26px; padding: 14px 0;
+    position: relative; overflow: hidden;
+    background: rgba(30, 30, 40, 0.7);
+    border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+    backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 20px 50px rgba(0, 0, 0, 0.6),
+      0 0 30px -6px color-mix(in srgb, var(--accent) 30%, transparent);
+    touch-action: none;
   }
-
-  .volume-slider::-webkit-slider-thumb {
-    width: 20px;
-    height: 20px;
+  .volume-pill-fill {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: var(--vol-pct, 50%);
+    background: linear-gradient(
+      to top,
+      color-mix(in srgb, var(--accent) 70%, transparent),
+      color-mix(in srgb, var(--accent) 35%, transparent)
+    );
+    border-radius: 26px;
+    transition: height 0.08s ease-out;
   }
-
-  .volume-slider::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
+  .volume-pill-icon {
+    position: relative; z-index: 2;
+    width: 24px; height: 24px;
+    margin-top: auto;
+    filter: invert(1) drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
+    cursor: pointer;
   }
-
-  .volume-label {
-    font-size: 0.85rem;
-    min-width: 40px;
+  [data-theme='light'] .volume-pill-icon {
+    filter: invert(0) drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
   }
 }
 
@@ -2114,7 +2089,7 @@ async function handleServerUnreachableClean() {
 /* Accent picker popover */
 .accent-picker {
   display: flex; gap: 6px; padding: 8px 12px;
-  border-radius: 24px;
+  border-radius: 24px; flex-direction: row;
   background: rgba(20, 20, 30, 0.92); border: 1px solid var(--glass-border);
   backdrop-filter: blur(16px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
@@ -2133,6 +2108,7 @@ async function handleServerUnreachableClean() {
   box-shadow: 0 0 14px color-mix(in srgb, var(--sw) 60%, transparent);
 }
 @media (hover: hover) { .accent-swatch:hover { transform: scale(1.15); } }
+@media (max-width: 640px) { .accent-picker { flex-direction: column; } }
 
 .accent-pop-enter-active, .accent-pop-leave-active { transition: all 0.2s ease; }
 .accent-pop-enter-from, .accent-pop-leave-to { opacity: 0; transform: scale(0.8); }

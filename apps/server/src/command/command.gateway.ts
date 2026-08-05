@@ -104,12 +104,23 @@ export class CommandGateway
   async handleExecute(@MessageBody() data: { id: string }) {
     try {
       const result = await this.commandService.execute(data.id);
+      this.syncVolumeIfNeeded(data.id);
       return { success: true, output: result?.output };
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : 'Error desconocido';
       return { success: false, message };
     }
+  }
+
+  private syncVolumeIfNeeded(id: string) {
+    if (!id.startsWith('preset-volume')) return;
+    setTimeout(async () => {
+      try {
+        const state = await this.commandService.getVolume();
+        this.server.emit('volume:changed', state);
+      } catch { /* ignore */ }
+    }, 300);
   }
 
   // ─── Obtener comandos ───

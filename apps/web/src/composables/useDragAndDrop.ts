@@ -11,6 +11,8 @@ interface UseDragAndDropOptions {
   swapButtons: (source: StreamButton, targetPos: GridPosition) => boolean
   /** Callback tras un drop de ratón con cambio (p. ej. mostrar un toast). */
   onMouseDrop?: () => void
+  /** Callback cuando se detecta two-finger tap (editar botón en móvil). */
+  onTwoFingerTap?: (button: StreamButton | null, position: GridPosition) => void
 }
 
 /**
@@ -22,6 +24,7 @@ interface UseDragAndDropOptions {
 export function useDragAndDrop({
   swapButtons,
   onMouseDrop,
+  onTwoFingerTap,
 }: UseDragAndDropOptions) {
   // ── Estado ratón ──
   const draggedButton = ref<StreamButton | null>(null)
@@ -73,11 +76,23 @@ export function useDragAndDrop({
     )
 
   // ── Táctil ──
+  let lastTouchButton: StreamButton | null = null
+  let lastTouchPosition: GridPosition | null = null
+
   const handleTouchStart = (
     button: StreamButton | null,
-    _position: GridPosition,
+    position: GridPosition,
     event: TouchEvent,
   ) => {
+    if (event.touches.length >= 2) {
+      if (touchTimer.value) { clearTimeout(touchTimer.value); touchTimer.value = null }
+      isPressing.value = null
+      event.preventDefault()
+      onTwoFingerTap?.(lastTouchButton ?? button, lastTouchPosition ?? position)
+      return
+    }
+    lastTouchButton = button
+    lastTouchPosition = position
     if (!button) return
     startY.value = event.touches[0].clientY
     isPressing.value = button.id
@@ -87,6 +102,17 @@ export function useDragAndDrop({
       touchDragButton.value = button
       isPressing.value = null
     }, 1000)
+  }
+
+  const handleGridTouchStart = (event: TouchEvent) => {
+    if (event.touches.length >= 2) {
+      if (touchTimer.value) { clearTimeout(touchTimer.value); touchTimer.value = null }
+      isPressing.value = null
+      event.preventDefault()
+      if (lastTouchButton || lastTouchPosition) {
+        onTwoFingerTap?.(lastTouchButton, lastTouchPosition!)
+      }
+    }
   }
 
   const handleTouchMove = (event: TouchEvent) => {
@@ -169,6 +195,7 @@ export function useDragAndDrop({
     isDragOver,
     // táctil
     handleTouchStart,
+    handleGridTouchStart,
     handleTouchMove,
     handleTouchEnd,
     handleTouchCancel,
