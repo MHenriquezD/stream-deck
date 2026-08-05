@@ -99,6 +99,7 @@ const selectCommand = (command: string) => {
 </script>
 
 <template>
+  <Transition name="picker">
   <div v-if="show" class="picker-backdrop" @click="emit('close')">
     <div class="picker-panel" @click.stop>
       <header class="picker-header">
@@ -141,6 +142,7 @@ const selectCommand = (command: string) => {
       </div>
     </div>
   </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -171,12 +173,6 @@ const selectCommand = (command: string) => {
     0 32px 80px rgba(0, 0, 0, 0.7),
     0 0 60px -10px color-mix(in srgb, var(--accent) 30%, transparent);
   overflow: hidden;
-  animation: picker-in 0.25s ease;
-}
-
-@keyframes picker-in {
-  from { opacity: 0; transform: translateY(16px) scale(0.97); }
-  to { opacity: 1; transform: none; }
 }
 
 .picker-header {
@@ -289,7 +285,7 @@ const selectCommand = (command: string) => {
   place-items: center;
   flex-shrink: 0;
   font-size: 1.1rem;
-  color: #a78bfa;
+  color: var(--accent);
 }
 
 .item-info { flex: 1; min-width: 0; }
@@ -298,7 +294,7 @@ const selectCommand = (command: string) => {
 .item-code {
   font-size: 0.72rem;
   font-family: 'Courier New', monospace;
-  color: #a78bfa;
+  color: var(--accent);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   padding: 3px 7px;
   border-radius: 4px;
@@ -326,5 +322,18 @@ const selectCommand = (command: string) => {
 @media (max-width: 640px) {
   .picker-backdrop { align-items: flex-end; padding: 0; }
   .picker-panel { max-width: 100%; border-radius: 24px 24px 0 0; max-height: 92dvh; }
+  .picker-enter-from .picker-panel { transform: translateY(100%); }
+  .picker-leave-to .picker-panel { transform: translateY(100%); }
 }
+
+/* ── Transitions ── */
+.picker-enter-active { transition: opacity 0.35s ease; }
+.picker-leave-active { transition: opacity 0.25s ease; }
+.picker-enter-from, .picker-leave-to { opacity: 0; }
+.picker-enter-active .picker-panel {
+  transition: transform 0.45s cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+.picker-leave-active .picker-panel { transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1); }
+.picker-enter-from .picker-panel { transform: translateY(80px) scale(0.85); }
+.picker-leave-to .picker-panel { transform: translateY(40px) scale(0.92); }
 </style>

@@ -314,12 +314,12 @@ const setConfirmRef = (el: any, index: number) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--confirm-bg-light, #23233a);
+  background: linear-gradient(170deg, rgba(22, 22, 32, 0.94) 0%, rgba(10, 10, 16, 0.97) 100%);
   z-index: 9000;
 }
 
 .login-card {
-  background: var(--edit-bg-color, rgba(41, 41, 41, 0.9));
+  background: linear-gradient(170deg, rgba(22, 22, 32, 0.94) 0%, rgba(10, 10, 16, 0.97) 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 24px;
   padding: 48px 40px;
@@ -338,13 +338,13 @@ const setConfirmRef = (el: any, index: number) => {
 .login-title {
   font-size: 1.6rem;
   font-weight: 700;
-  color: var(--confirm-text-light, #fff);
+  color: var(--text-1);
   margin: 0 0 8px;
 }
 
 .login-subtitle {
   font-size: 0.95rem;
-  color: var(--hint-color, rgba(255, 255, 255, 0.5));
+  color: var(--text-2);
   margin: 0 0 32px;
 }
 
@@ -360,8 +360,8 @@ const setConfirmRef = (el: any, index: number) => {
   height: 64px;
   border: 2px solid rgba(255, 255, 255, 0.15);
   border-radius: 14px;
-  background: var(--form-bg-color, rgba(255, 255, 255, 0.1));
-  color: var(--confirm-text-light, #fff);
+  background: var(--field-bg);
+  color: var(--text-1);
   font-size: 1.8rem;
   font-weight: 700;
   text-align: center;
@@ -394,7 +394,7 @@ const setConfirmRef = (el: any, index: number) => {
 .back-btn {
   background: none;
   border: none;
-  color: var(--hint-color, rgba(255, 255, 255, 0.5));
+  color: var(--text-2);
   font-size: 0.9rem;
   cursor: pointer;
   margin-bottom: 16px;
@@ -405,7 +405,7 @@ const setConfirmRef = (el: any, index: number) => {
 
 @media (hover: hover) {
   .back-btn:hover {
-    color: var(--confirm-text-light, #fff);
+    color: var(--text-1);
     background: rgba(255, 255, 255, 0.1);
   }
 }
@@ -444,7 +444,7 @@ const setConfirmRef = (el: any, index: number) => {
 .login-hint {
   margin: 24px 0 0;
   font-size: 0.8rem;
-  color: var(--hint-color, rgba(255, 255, 255, 0.4));
+  color: var(--text-2);
 }
 
 .spinner {

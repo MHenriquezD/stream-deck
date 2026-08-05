@@ -65,7 +65,11 @@ const buttonStyle = computed(() => {
 
 const handleClick = () => {
   if (!isLongPressing.value) {
-    emit('click', props.button)
+    if (!props.button) {
+      emit('edit', props.button)
+    } else {
+      emit('click', props.button)
+    }
   }
   isLongPressing.value = false
 }
@@ -263,7 +267,8 @@ const handleDrop = (e: DragEvent) => {
     0 16px 32px rgba(0, 0, 0, 0.5),
     0 6px 12px rgba(0, 0, 0, 0.3),
     inset 0 3px 6px rgba(255, 255, 255, 0.15),
-    inset 0 -3px 6px rgba(0, 0, 0, 0.4);
+    inset 0 -3px 6px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 3px color-mix(in srgb, var(--glow, transparent) 40%, transparent);
 
   transform: translateZ(30px);
 }
@@ -496,15 +501,14 @@ const handleDrop = (e: DragEvent) => {
     rgba(20, 20, 35, 0.25) 100%
   );
   backdrop-filter: blur(10px);
-  border: 2px dashed rgba(255, 255, 255, 0.12);
-  border-right-color: rgba(255, 255, 255, 0.08);
-  border-bottom-color: rgba(0, 0, 0, 0.2);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  border-right-color: rgba(255, 255, 255, 0.05);
+  border-bottom-color: rgba(0, 0, 0, 0.15);
   box-shadow:
     4px 0 8px rgba(0, 0, 0, 0.2),
     0 6px 12px rgba(0, 0, 0, 0.15),
     inset 0 1px 2px rgba(255, 255, 255, 0.05),
     inset -1px 0 2px rgba(0, 0, 0, 0.15);
-  transform: perspective(1000px) rotateY(-1deg) translateZ(10px);
 }
 
 .stream-button.empty::before {

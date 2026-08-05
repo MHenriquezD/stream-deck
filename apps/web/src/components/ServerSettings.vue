@@ -542,6 +542,7 @@ const close = () => {
     </div>
   </Teleport>
 
+  <Transition name="settings">
   <div v-if="show" class="settings-overlay" @click="close">
     <div class="settings-dialog" @click.stop>
       <div class="settings-header">
@@ -794,6 +795,7 @@ const close = () => {
       </div>
     </div>
   </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -1005,7 +1007,7 @@ const close = () => {
 
 /* IP display (conexión exitosa) */
 .ip-display {
-  background: var(--ip-bg-color);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   border: 2px solid rgba(34, 197, 94, 0.3);
   border-radius: 12px;
   padding: 16px;
@@ -1023,7 +1025,7 @@ const close = () => {
 .ip-box {
   display: flex;
   align-items: center;
-  background: var(--ip-box-bg-color);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   padding: 12px 16px;
   border-radius: 8px;
   margin-bottom: 8px;
@@ -1039,7 +1041,7 @@ const close = () => {
 
 .ip-display small {
   display: block;
-  color: var(--edit-text-color);
+  color: var(--text-2);
   font-size: 0.85rem;
   margin-top: 4px;
 }
@@ -1068,7 +1070,7 @@ const close = () => {
 
 /* IP selector */
 .ip-selector-section {
-  background: var(--ip-box-bg-color);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   border: 2px solid rgba(59, 130, 246, 0.3);
   border-radius: 12px;
   padding: 16px;
@@ -1136,8 +1138,8 @@ const close = () => {
 }
 
 .ip-select option {
-  background: var(--ip-box-bg-color);
-  color: var(--ip-text-color);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--text-1);
   padding: 10px;
   border-radius: 5px;
 }
@@ -1172,7 +1174,7 @@ const close = () => {
 }
 
 .no-ips-detected small {
-  color: var(--edit-color);
+  color: var(--text-1);
   font-size: 0.85rem;
 }
 
@@ -1213,7 +1215,7 @@ const close = () => {
 }
 
 .scan-hint {
-  color: var(--edit-color);
+  color: var(--text-1);
   font-size: 0.85rem;
   line-height: 1.4;
   text-align: center;
@@ -1550,5 +1552,17 @@ select#soundSelector option {
 @media (max-width: 640px) {
   .settings-overlay { align-items: flex-end; padding: 0; }
   .settings-dialog { max-width: 100%; border-radius: 24px 24px 0 0; }
+  .settings-enter-from .settings-dialog { transform: translateY(100%); }
+  .settings-leave-to .settings-dialog { transform: translateY(100%); }
 }
+
+.settings-enter-active { transition: opacity 0.35s ease; }
+.settings-leave-active { transition: opacity 0.25s ease; }
+.settings-enter-from, .settings-leave-to { opacity: 0; }
+.settings-enter-active .settings-dialog {
+  transition: transform 0.45s cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+.settings-leave-active .settings-dialog { transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1); }
+.settings-enter-from .settings-dialog { transform: translateY(80px) scale(0.85); }
+.settings-leave-to .settings-dialog { transform: translateY(40px) scale(0.92); }
 </style>

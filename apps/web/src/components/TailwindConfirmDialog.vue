@@ -106,9 +106,13 @@ defineEmits(['confirm', 'cancel', 'close'])
   font-weight: 600;
 }
 
-.confirm-enter-active, .confirm-leave-active { transition: opacity 0.2s; }
+.confirm-enter-active { transition: opacity 0.3s ease; }
+.confirm-leave-active { transition: opacity 0.2s ease; }
 .confirm-enter-from, .confirm-leave-to { opacity: 0; }
-.confirm-enter-active .confirm-panel, .confirm-leave-active .confirm-panel { transition: transform 0.2s; }
-.confirm-enter-from .confirm-panel { transform: scale(0.95); }
-.confirm-leave-to .confirm-panel { transform: scale(0.98); }
+.confirm-enter-active .confirm-panel {
+  transition: transform 0.4s cubic-bezier(0.34, 1.8, 0.64, 1);
+}
+.confirm-leave-active .confirm-panel { transition: transform 0.2s ease-in; }
+.confirm-enter-from .confirm-panel { transform: scale(0.5); }
+.confirm-leave-to .confirm-panel { transform: scale(0.85); }
 </style>

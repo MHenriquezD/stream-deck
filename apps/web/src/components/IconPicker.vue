@@ -445,6 +445,7 @@ const selectIcon = (icon: string) => { emit('select', icon) }
 </script>
 
 <template>
+  <Transition name="picker">
   <div v-if="show" class="picker-backdrop" @click="emit('close')">
     <div class="picker-panel" @click.stop>
       <header class="picker-header">
@@ -497,6 +498,7 @@ const selectIcon = (icon: string) => { emit('select', icon) }
       </div>
     </div>
   </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -527,12 +529,6 @@ const selectIcon = (icon: string) => { emit('select', icon) }
     0 32px 80px rgba(0, 0, 0, 0.7),
     0 0 60px -10px color-mix(in srgb, var(--accent) 30%, transparent);
   overflow: hidden;
-  animation: picker-in 0.25s ease;
-}
-
-@keyframes picker-in {
-  from { opacity: 0; transform: translateY(16px) scale(0.97); }
-  to { opacity: 1; transform: none; }
 }
 
 .picker-header {
@@ -649,5 +645,17 @@ const selectIcon = (icon: string) => { emit('select', icon) }
   .picker-backdrop { align-items: flex-end; padding: 0; }
   .picker-panel { max-width: 100%; border-radius: 24px 24px 0 0; max-height: 92dvh; }
   .icons-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+  .picker-enter-from .picker-panel { transform: translateY(100%); }
+  .picker-leave-to .picker-panel { transform: translateY(100%); }
 }
+
+.picker-enter-active { transition: opacity 0.35s ease; }
+.picker-leave-active { transition: opacity 0.25s ease; }
+.picker-enter-from, .picker-leave-to { opacity: 0; }
+.picker-enter-active .picker-panel {
+  transition: transform 0.45s cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+.picker-leave-active .picker-panel { transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1); }
+.picker-enter-from .picker-panel { transform: translateY(80px) scale(0.85); }
+.picker-leave-to .picker-panel { transform: translateY(40px) scale(0.92); }
 </style>

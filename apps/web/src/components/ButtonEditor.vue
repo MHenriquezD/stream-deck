@@ -822,11 +822,22 @@ const handleIconInputBlur = () => {
 .footer-spacer { flex: 1; }
 
 /* ── TRANSITIONS ── */
-.editor-enter-active, .editor-leave-active { transition: opacity 0.25s ease; }
+.editor-enter-active { transition: opacity 0.35s ease; }
+.editor-leave-active { transition: opacity 0.25s ease; }
 .editor-enter-from, .editor-leave-to { opacity: 0; }
-.editor-enter-active .editor-panel, .editor-leave-active .editor-panel { transition: transform 0.25s ease; }
-.editor-enter-from .editor-panel { transform: translateY(20px) scale(0.96); }
-.editor-leave-to .editor-panel { transform: translateY(10px) scale(0.98); }
+.editor-enter-active .editor-panel {
+  transition: transform 0.45s cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+.editor-leave-active .editor-panel {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1);
+}
+.editor-enter-from .editor-panel { transform: translateY(80px) scale(0.85); }
+.editor-leave-to .editor-panel { transform: translateY(40px) scale(0.92); }
+
+@media (max-width: 640px) {
+  .editor-enter-from .editor-panel { transform: translateY(100%); }
+  .editor-leave-to .editor-panel { transform: translateY(100%); }
+}
 
 /* ── SCROLLBAR ── */
 .editor-scroll::-webkit-scrollbar { width: 4px; }

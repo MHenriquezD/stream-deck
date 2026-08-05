@@ -97,6 +97,7 @@ const selectApp = (app: InstalledApp) => {
 </script>
 
 <template>
+  <Transition name="picker">
   <div v-if="show" class="picker-backdrop" @click="emit('close')">
     <div class="picker-panel" @click.stop>
       <header class="picker-header">
@@ -172,6 +173,7 @@ const selectApp = (app: InstalledApp) => {
       </template>
     </div>
   </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -185,11 +187,7 @@ const selectApp = (app: InstalledApp) => {
   background: linear-gradient(170deg, rgba(22, 22, 32, 0.94) 0%, rgba(10, 10, 16, 0.97) 100%);
   border: 1px solid var(--glass-border); backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 32px 80px rgba(0, 0, 0, 0.7), 0 0 60px -10px color-mix(in srgb, var(--accent) 30%, transparent);
-  overflow: hidden; animation: picker-in 0.25s ease;
-}
-@keyframes picker-in {
-  from { opacity: 0; transform: translateY(16px) scale(0.97); }
-  to { opacity: 1; transform: none; }
+  overflow: hidden;
 }
 
 .picker-header {
@@ -300,5 +298,17 @@ const selectApp = (app: InstalledApp) => {
 @media (max-width: 640px) {
   .picker-backdrop { align-items: flex-end; padding: 0; }
   .picker-panel { max-width: 100%; border-radius: 24px 24px 0 0; max-height: 92dvh; }
+  .picker-enter-from .picker-panel { transform: translateY(100%); }
+  .picker-leave-to .picker-panel { transform: translateY(100%); }
 }
+
+.picker-enter-active { transition: opacity 0.35s ease; }
+.picker-leave-active { transition: opacity 0.25s ease; }
+.picker-enter-from, .picker-leave-to { opacity: 0; }
+.picker-enter-active .picker-panel {
+  transition: transform 0.45s cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+.picker-leave-active .picker-panel { transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1); }
+.picker-enter-from .picker-panel { transform: translateY(80px) scale(0.85); }
+.picker-leave-to .picker-panel { transform: translateY(40px) scale(0.92); }
 </style>

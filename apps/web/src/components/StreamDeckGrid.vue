@@ -1033,6 +1033,7 @@ async function handleServerUnreachableClean() {
     />
 
     <!-- Diálogo de comandos multimedia -->
+    <Transition name="mm">
     <div
       v-if="showPresetsDialog"
       class="presets-dialog-overlay"
@@ -1041,8 +1042,8 @@ async function handleServerUnreachableClean() {
       <div class="presets-dialog" @click.stop>
         <div class="presets-header">
           <h2>Comandos Multimedia</h2>
-          <button @click="showPresetsDialog = false" class="close-btn">
-            ✕
+          <button @click="showPresetsDialog = false" class="header-close" aria-label="Cerrar">
+            <i class="pi pi-times"></i>
           </button>
         </div>
         <div class="presets-content">
@@ -1066,6 +1067,7 @@ async function handleServerUnreachableClean() {
         </div>
       </div>
     </div>
+    </Transition>
 
     <footer class="footer">
       <p class="credits">
@@ -1115,10 +1117,12 @@ async function handleServerUnreachableClean() {
     />
 
     <!-- Mouse Controller (full-screen overlay) -->
-    <MouseController
-      v-if="showMouseController"
-      @close="showMouseController = false"
-    />
+    <Transition name="mc-slide">
+      <MouseController
+        v-if="showMouseController"
+        @close="showMouseController = false"
+      />
+    </Transition>
   </div>
 </template>
 
@@ -1661,146 +1665,71 @@ async function handleServerUnreachableClean() {
 }
 
 .presets-dialog-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.2s;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  position: fixed; inset: 0; background: var(--scrim); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 16px;
 }
 
 .presets-dialog {
-  background: var(--edit-bg-color);
-  border-radius: 16px;
-  max-width: 600px;
-  width: 90%;
-  max-height: 80vh;
-  max-height: 80dvh;
+  width: 100%; max-width: 600px; max-height: 85dvh; display: flex; flex-direction: column;
+  border-radius: 24px;
+  background: linear-gradient(170deg, rgba(22, 22, 32, 0.94) 0%, rgba(10, 10, 16, 0.97) 100%);
+  border: 1px solid var(--glass-border); backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 32px 80px rgba(0, 0, 0, 0.7),
+    0 0 60px -10px color-mix(in srgb, var(--accent) 30%, transparent);
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  animation: slideUpDialog 0.3s;
-}
-
-@keyframes slideUpDialog {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
 }
 
 .presets-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 18px 22px; border-bottom: 1px solid var(--glass-border);
 }
-
-.presets-header h2 {
-  margin: 0;
-  font-size: 1.5rem;
-  color: var(--edit-text-color);
-}
-
-.close-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: none;
-  background: var(--edit-bg-color);
-  color: var(--edit-text-color);
-  cursor: pointer;
-  font-size: 1.2rem;
-  transition: all 0.2s;
-}
-
-@media (hover: hover) {
-  .close-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: rotate(90deg);
-  }
-}
+.presets-header h2 { margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--text-1); }
 
 .presets-content {
-  padding: 24px;
-  overflow-y: auto;
-  max-height: calc(80vh - 100px);
-  max-height: calc(80dvh - 100px);
+  padding: 16px 22px; overflow-y: auto; flex: 1;
 }
 
-.presets-description {
-  color: var(--edit-text-color);
-  margin-bottom: 20px;
-  font-size: 0.9rem;
-}
+.presets-description { color: var(--text-2); margin-bottom: 16px; font-size: 0.9rem; }
 
-.presets-grid {
-  display: grid;
-  gap: 12px;
-}
+.presets-grid { display: grid; gap: 6px; }
 
 .preset-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  background: var(--form-bg-color);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  cursor: pointer;
-  transition: all 0.2s;
+  display: flex; align-items: center; gap: 14px; padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px; cursor: pointer; transition: all 0.15s;
 }
-
 @media (hover: hover) {
   .preset-card:hover {
-    background: rgba(139, 92, 246, 0.2);
-    border-color: rgba(139, 92, 246, 0.5);
-    transform: translateX(4px);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    transform: translateX(3px);
   }
 }
 
 .preset-icon {
-  font-size: 2rem;
-  width: 60px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-  border-radius: 12px;
-  flex-shrink: 0;
+  font-size: 1.6rem; width: 48px; height: 48px;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-radius: 12px; flex-shrink: 0;
 }
 
-.preset-info {
-  flex: 1;
-}
+.preset-info { flex: 1; }
+.preset-label { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; color: var(--text-1); }
+.preset-description { font-size: 0.82rem; color: var(--text-2); margin-bottom: 0; }
 
-.preset-label {
-  font-weight: 600;
-  font-size: 1rem;
-  margin-bottom: 4px;
-  color: var(--edit-text-color);
-}
-
-.preset-description {
-  font-size: 0.85rem;
-  color: var(--edit-text-color);
+/* Multimedia dialog transitions */
+.mm-enter-active { transition: opacity 0.35s ease; }
+.mm-leave-active { transition: opacity 0.25s ease; }
+.mm-enter-from, .mm-leave-to { opacity: 0; }
+.mm-enter-active .presets-dialog { transition: transform 0.45s cubic-bezier(0.22, 1.2, 0.36, 1); }
+.mm-leave-active .presets-dialog { transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1); }
+.mm-enter-from .presets-dialog { transform: translateY(80px) scale(0.85); }
+.mm-leave-to .presets-dialog { transform: translateY(40px) scale(0.92); }
+@media (max-width: 640px) {
+  .presets-dialog-overlay { align-items: flex-end; padding: 0; }
+  .presets-dialog { max-width: 100%; border-radius: 24px 24px 0 0; max-height: 92dvh; }
+  .mm-enter-from .presets-dialog { transform: translateY(100%); }
+  .mm-leave-to .presets-dialog { transform: translateY(100%); }
 }
 
 /* ⭐ Forzar limpieza de estado touch en grid */
@@ -1822,16 +1751,18 @@ async function handleServerUnreachableClean() {
 .btn-reconnect,
 .btn-reload,
 .btn-clear {
-  background-color: var(--confirm-bg-light);
-  color: var(--confirm-text-light);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border);
+  color: var(--text-1);
 }
 
 @media (hover: hover) {
   .btn-reconnect:hover,
   .btn-reload:hover,
   .btn-clear:hover {
-    background-color: var(--confirm-bg-light-hover);
-    color: var(--confirm-text-light-hover);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    color: var(--text-1);
   }
 }
 
@@ -2177,6 +2108,7 @@ async function handleServerUnreachableClean() {
   background: rgba(255, 255, 255, 0.85); border-color: rgba(0, 0, 0, 0.12);
 }
 .accent-toggle:active { transform: scale(0.85); }
+@media (max-width: 640px) { .accent-toggle { display: none; } }
 .accent-dot { width: 14px; height: 14px; border-radius: 50%; }
 
 /* Accent picker popover */
@@ -2204,4 +2136,14 @@ async function handleServerUnreachableClean() {
 
 .accent-pop-enter-active, .accent-pop-leave-active { transition: all 0.2s ease; }
 .accent-pop-enter-from, .accent-pop-leave-to { opacity: 0; transform: scale(0.8); }
+
+/* ── MouseController slide transition ── */
+.mc-slide-enter-active {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.mc-slide-leave-active {
+  transition: transform 0.25s ease-in;
+}
+.mc-slide-enter-from { transform: translateX(100%); }
+.mc-slide-leave-to { transform: translateX(100%); }
 </style>
