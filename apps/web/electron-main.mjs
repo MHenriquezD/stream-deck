@@ -1,42 +1,36 @@
 import { spawn } from 'child_process'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, session } from 'electron'
 import { appendFileSync, existsSync, mkdirSync, readdirSync } from 'fs'
-import { networkInterfaces } from 'os' // ⭐ Importa networkInterfaces
+import { networkInterfaces } from 'os'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-console.log('========================================')
-console.log('ELECTRON-MAIN.MJS LOADED')
-console.log('app.isPackaged:', app.isPackaged)
-console.log('process.resourcesPath:', process.resourcesPath)
-console.log('========================================')
-
 const isDev = !app.isPackaged
-console.log('isDev:', isDev)
 
-// Logger
+// ── Single instance lock ──
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+}
+
+// ── Logger ──
 const logDir = path.join(app.getPath('userData'), 'logs')
-try {
-  mkdirSync(logDir, { recursive: true })
-} catch (e) {}
+try { mkdirSync(logDir, { recursive: true }) } catch {}
 
 const logFile = path.join(logDir, 'electron.log')
 const logQueue = []
 
+let mainWindow
+let backendProcess = null
+
 const log = (message) => {
   const timestamp = new Date().toISOString()
-  const line = `[${timestamp}] ${message}\n`
-
-  // SIEMPRE a console, sin importar qué
   console.log('[ELECTRON-MAIN]', message)
-
   logQueue.push(message)
 
-  if (mainWindow && mainWindow.webContents) {
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
     try {
-      // Escapar TODOS los caracteres problemáticos
       const escaped = message
         .replace(/\\/g, '\\\\')
         .replace(/"/g, '\\"')
@@ -45,24 +39,15 @@ const log = (message) => {
       mainWindow.webContents.executeJavaScript(
         `console.log("%c[Main Process] ${escaped}", "color: blue; font-weight: bold")`,
       )
-    } catch (e) {
-      console.error('[LOG ERROR]', e)
-    }
+    } catch {}
   }
 
-  // Intentar escribir al archivo
-  try {
-    appendFileSync(logFile, line)
-  } catch (e) {
-    console.error('[FILE LOG ERROR]', e.message)
-  }
+  try { appendFileSync(logFile, `[${timestamp}] ${message}\n`) } catch {}
 }
 
 const flushLogs = () => {
-  console.log('[FLUSH] Attempting to flush', logQueue.length, 'logs')
-
-  if (mainWindow && mainWindow.webContents && logQueue.length > 0) {
-    logQueue.forEach((msg, index) => {
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && logQueue.length > 0) {
+    logQueue.forEach((msg) => {
       try {
         const escaped = msg
           .replace(/\\/g, '\\\\')
@@ -72,68 +57,46 @@ const flushLogs = () => {
         mainWindow.webContents.executeJavaScript(
           `console.log("%c[Main Process QUEUED] ${escaped}", "color: purple; font-weight: bold")`,
         )
-      } catch (e) {
-        console.error(`[FLUSH ERROR ${index}]`, e)
-      }
+      } catch {}
     })
     logQueue.length = 0
-  } else {
-    console.log('[FLUSH] Cannot flush:', {
-      hasWindow: !!mainWindow,
-      hasContents: !!(mainWindow && mainWindow.webContents),
-      queueLength: logQueue.length,
-    })
   }
 }
 
-let mainWindow
-let backendProcess = null
-
-// ⭐ NUEVA FUNCIÓN: Obtener interfaces de red
+// ── Network interfaces ──
 const getNetworkInterfaces = () => {
   const nets = networkInterfaces()
   const results = []
-
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]) {
       if (net.family === 'IPv4' && !net.internal) {
-        results.push({
-          name,
-          address: net.address,
-          url: `http://${net.address}:7500`,
-        })
+        results.push({ name, address: net.address, url: `http://${net.address}:7500` })
       }
     }
   }
-
-  console.log('Network interfaces detected:', results)
-
-  return {
-    interfaces: results,
-    preferredUrl: results[0]?.url || 'http://localhost:7500',
-  }
+  return { interfaces: results, preferredUrl: results[0]?.url || 'http://localhost:7500' }
 }
 
+// ── Backend management ──
 const waitForBackend = async (maxAttempts = 20) => {
   log('Waiting for backend on port 7500...')
-
   for (let i = 0; i < maxAttempts; i++) {
     try {
       const res = await fetch('http://127.0.0.1:7500/health')
-
-      if (res.ok) {
-        log('✓ Backend is ready!')
-        return true
-      }
-    } catch (err) {
-      log(`Attempt ${i + 1}/${maxAttempts}: Backend not ready yet`)
-    }
-
+      if (res.ok) { log('Backend is ready'); return true }
+    } catch {}
     await new Promise((r) => setTimeout(r, 500))
   }
-
   log('Backend did not respond in time')
   return false
+}
+
+const killBackend = () => {
+  if (backendProcess && !backendProcess.killed) {
+    log('Killing backend process...')
+    backendProcess.kill()
+    backendProcess = null
+  }
 }
 
 const startBackend = async () => {
@@ -143,43 +106,27 @@ const startBackend = async () => {
     return
   }
 
-  log('=== Starting backend server ===')
-  log('App isPackaged: ' + app.isPackaged)
-  log('App path: ' + app.getAppPath())
-  log('Process resourcesPath: ' + process.resourcesPath)
-  log('Process execPath: ' + process.execPath)
+  log('Starting backend server...')
 
   const backendDir = path.join(process.resourcesPath, 'backend')
   const backendScript = path.join(backendDir, 'main.js')
 
   log('Backend dir: ' + backendDir)
-  log('Backend script: ' + backendScript)
-
-  // Debug: Listar contenido de resources
-  try {
-    if (existsSync(process.resourcesPath)) {
-      const resourcesContent = readdirSync(process.resourcesPath)
-      log('Resources directory contents: ' + resourcesContent.join(', '))
-    } else {
-      log('Resources directory does not exist!')
-    }
-
-    if (existsSync(backendDir)) {
-      const backendContent = readdirSync(backendDir)
-      log('Backend directory contents: ' + backendContent.join(', '))
-    } else {
-      log('Backend directory does not exist!')
-    }
-  } catch (e) {
-    log('Error listing directories: ' + e.message)
-  }
 
   if (!existsSync(backendScript)) {
-    log('✗ Backend script NOT found at: ' + backendScript)
+    log('Backend script NOT found at: ' + backendScript)
+
+    try {
+      if (existsSync(process.resourcesPath)) {
+        log('Resources contents: ' + readdirSync(process.resourcesPath).join(', '))
+      }
+      if (existsSync(backendDir)) {
+        log('Backend contents: ' + readdirSync(backendDir).join(', '))
+      }
+    } catch {}
+
     return
   }
-
-  log('✓ Backend script found')
 
   backendProcess = spawn(process.execPath, [backendScript], {
     cwd: backendDir,
@@ -193,52 +140,31 @@ const startBackend = async () => {
     windowsHide: true,
   })
 
-  if (backendProcess.stdout) {
-    backendProcess.stdout.setEncoding('utf8')
-    backendProcess.stdout.on('data', (data) => {
-      data
-        .toString()
-        .split('\n')
-        .forEach((line) => {
-          if (line.trim()) log('[Backend] ' + line)
-        })
+  backendProcess.stdout?.setEncoding('utf8')
+  backendProcess.stdout?.on('data', (data) => {
+    data.toString().split('\n').forEach((line) => {
+      if (line.trim()) log('[Backend] ' + line)
     })
-  }
-
-  if (backendProcess.stderr) {
-    backendProcess.stderr.setEncoding('utf8')
-    backendProcess.stderr.on('data', (data) => {
-      data
-        .toString()
-        .split('\n')
-        .forEach((line) => {
-          if (line.trim()) log('[Backend ERROR] ' + line)
-        })
-    })
-  }
-
-  backendProcess.on('exit', (code) => {
-    log(`Backend exited with code ${code}`) // ✅ CORREGIDO
   })
 
-  backendProcess.on('error', (err) => {
-    log(`Backend spawn error: ${err.message}`) // ✅ CORREGIDO
+  backendProcess.stderr?.setEncoding('utf8')
+  backendProcess.stderr?.on('data', (data) => {
+    data.toString().split('\n').forEach((line) => {
+      if (line.trim()) log('[Backend ERROR] ' + line)
+    })
   })
+
+  backendProcess.on('exit', (code) => { log(`Backend exited with code ${code}`) })
+  backendProcess.on('error', (err) => { log(`Backend spawn error: ${err.message}`) })
 
   await waitForBackend()
 }
 
-// ⭐ Registrar handlers IPC una sola vez (fuera de createWindow)
-ipcMain.handle('get-network-interfaces', () => {
-  return getNetworkInterfaces()
-})
+// ── IPC handlers (registered once, outside createWindow) ──
+ipcMain.handle('get-network-interfaces', () => getNetworkInterfaces())
 
 ipcMain.handle('open-external', (_event, url) => {
-  log('open-external called with: ' + url)
-  if (
-    typeof url === 'string' &&
-    (url.startsWith('http://') || url.startsWith('https://'))
-  ) {
+  if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
     return shell.openExternal(url)
   }
 })
@@ -246,24 +172,36 @@ ipcMain.handle('open-external', (_event, url) => {
 ipcMain.handle('spotify-auth', (_event, authUrl, redirectUri) => {
   return new Promise((resolve) => {
     let resolved = false
-    const done = (code) => {
-      if (resolved) return
-      resolved = true
-      resolve(code)
-      if (!authWin.isDestroyed()) authWin.close()
-    }
+
+    const authSession = session.fromPartition(`spotify-auth-${Date.now()}`)
 
     const authWin = new BrowserWindow({
       width: 500, height: 700,
       parent: mainWindow, modal: true,
-      webPreferences: { nodeIntegration: false, contextIsolation: true },
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        session: authSession,
+      },
     })
     authWin.setMenuBarVisibility(false)
 
+    const done = (code) => {
+      if (resolved) return
+      resolved = true
+      authSession.webRequest.onBeforeRequest(null)
+      resolve(code)
+      if (!authWin.isDestroyed()) authWin.close()
+    }
+
     const checkUrl = (url) => {
       if (url.startsWith(redirectUri)) {
-        const code = new URL(url).searchParams.get('code')
-        done(code)
+        try {
+          const code = new URL(url).searchParams.get('code')
+          done(code)
+        } catch {
+          done(null)
+        }
         return true
       }
       return false
@@ -277,7 +215,7 @@ ipcMain.handle('spotify-auth', (_event, authUrl, redirectUri) => {
       if (checkUrl(url)) e.preventDefault()
     })
 
-    authWin.webContents.session.webRequest.onBeforeRequest(
+    authSession.webRequest.onBeforeRequest(
       { urls: [redirectUri + '*'] },
       (details, callback) => {
         checkUrl(details.url)
@@ -290,6 +228,7 @@ ipcMain.handle('spotify-auth', (_event, authUrl, redirectUri) => {
   })
 })
 
+// ── Window creation ──
 const createWindow = async () => {
   log('Creating window...')
 
@@ -303,7 +242,6 @@ const createWindow = async () => {
     },
   })
 
-  // Interceptar navegación a URLs externas
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http://') || url.startsWith('https://')) {
       shell.openExternal(url)
@@ -313,12 +251,7 @@ const createWindow = async () => {
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
     const currentUrl = mainWindow.webContents.getURL()
-    // Si navega a una URL externa, abrir en navegador del sistema
-    if (
-      url !== currentUrl &&
-      (url.startsWith('http://') || url.startsWith('https://')) &&
-      !url.startsWith('http://localhost')
-    ) {
+    if (url !== currentUrl && !url.startsWith('http://localhost') && !url.startsWith('http://127.0.0.1')) {
       event.preventDefault()
       shell.openExternal(url)
     }
@@ -332,9 +265,9 @@ const createWindow = async () => {
 
   try {
     await mainWindow.loadURL(startUrl)
-    log('✓ URL loaded successfully')
+    log('URL loaded successfully')
   } catch (err) {
-    log('✗ Failed to load URL: ' + err.message)
+    log('Failed to load URL: ' + err.message)
   }
 
   mainWindow.webContents.on('did-finish-load', () => {
@@ -342,52 +275,51 @@ const createWindow = async () => {
     flushLogs()
   })
 
-  mainWindow.webContents.on(
-    'did-fail-load',
-    (event, errorCode, errorDescription) => {
-      log('Failed to load: ' + errorCode + ' - ' + errorDescription)
-    },
-  )
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+    log('Failed to load: ' + errorCode + ' - ' + errorDescription)
+  })
 
   if (isDev) {
     mainWindow.webContents.openDevTools()
   }
 
-  mainWindow.on('closed', () => {
-    mainWindow = null
-  })
+  mainWindow.on('closed', () => { mainWindow = null })
 }
 
-app.on('ready', async () => {
-  console.log('========================================')
-  console.log('APP READY EVENT FIRED!!!')
-  console.log('========================================')
-
-  log('=== App ready event fired ===')
-  try {
-    await startBackend()
-    log('Backend started, creating window...')
-    await createWindow()
-    log('=== Window created successfully ===')
-  } catch (err) {
-    console.error('STARTUP ERROR:', err)
-    log('!!! Error during startup: ' + err.message)
-    log('Stack trace: ' + err.stack)
+// ── App lifecycle ──
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
   }
 })
 
-app.on('window-all-closed', () => {
-  if (backendProcess) {
-    log('Killing backend process...')
-    backendProcess.kill()
+app.on('ready', async () => {
+  log('App ready')
+  try {
+    await startBackend()
+    await createWindow()
+    log('Window created successfully')
+  } catch (err) {
+    log('Startup error: ' + err.message)
   }
+})
+
+app.on('before-quit', () => {
+  killBackend()
+})
+
+app.on('window-all-closed', () => {
+  killBackend()
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
 
 app.on('activate', () => {
-  if (mainWindow === null) {
-    createWindow()
-  }
+  if (mainWindow === null) createWindow()
 })
+
+process.on('exit', () => { killBackend() })
+process.on('SIGTERM', () => { killBackend(); app.quit() })
+process.on('SIGINT', () => { killBackend(); app.quit() })
