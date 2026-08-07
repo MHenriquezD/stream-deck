@@ -857,4 +857,79 @@ const handleIconInputBlur = () => {
   .btn-foot span { display: none; }
   .preview-button { width: 100px; }
 }
+
+/* Light theme */
+[data-theme='light'] .editor-panel {
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.97) 0%, rgba(245, 245, 250, 0.98) 100%);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 32px 80px rgba(0, 0, 0, 0.15),
+    0 0 60px -10px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+[data-theme='light'] .editor-header {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .header-close {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='light'] .header-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .card {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+
+[data-theme='light'] .field:focus {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme='light'] .suggestions-dropdown {
+  background: linear-gradient(145deg, rgba(245, 245, 250, 0.98), rgba(255, 255, 255, 0.98));
+  border-color: color-mix(in srgb, var(--accent) 20%, rgba(0, 0, 0, 0.1));
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme='light'] .suggestion-item:not(:last-child) {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='light'] .emoji-chip {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme='light'] .emoji-chip:hover {
+  background: rgba(0, 0, 0, 0.07);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme='light'] .icon-inline-preview {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+
+[data-theme='light'] .segmented {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='light'] .seg-item:not(.active):hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='light'] .editor-footer {
+  background: rgba(245, 245, 250, 0.8);
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .editor-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+}
 </style>

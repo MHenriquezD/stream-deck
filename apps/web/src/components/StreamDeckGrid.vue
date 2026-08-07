@@ -2149,4 +2149,24 @@ async function handleServerUnreachableClean() {
 }
 .mc-slide-enter-from { transform: translateX(100%); }
 .mc-slide-leave-to { transform: translateX(100%); }
+
+/* Light theme — PIN gate */
+[data-theme='light'] .pin-gate-dialog {
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.97) 0%, rgba(245, 245, 250, 0.98) 100%);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme='light'] .pin-gate-input {
+  border-color: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme='light'] .pin-gate-btn-cancel {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme='light'] .pin-gate-btn-cancel:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
 </style>

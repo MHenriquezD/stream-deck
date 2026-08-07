@@ -473,6 +473,25 @@ const setConfirmRef = (el: any, index: number) => {
   }
 }
 
+/* Light theme */
+[data-theme='light'] .login-overlay {
+  background: linear-gradient(170deg, rgba(240, 242, 248, 0.97) 0%, rgba(225, 228, 240, 0.98) 100%);
+}
+
+[data-theme='light'] .login-card {
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.97) 0%, rgba(245, 245, 250, 0.98) 100%);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme='light'] .pin-input {
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme='light'] .back-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
 .shake {
   animation: shakeAnim 0.4s ease;
 }

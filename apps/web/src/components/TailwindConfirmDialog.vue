@@ -115,4 +115,13 @@ defineEmits(['confirm', 'cancel', 'close'])
 .confirm-leave-active .confirm-panel { transition: transform 0.2s ease-in; }
 .confirm-enter-from .confirm-panel { transform: scale(0.5); }
 .confirm-leave-to .confirm-panel { transform: scale(0.85); }
+
+/* Light theme */
+[data-theme='light'] .confirm-panel {
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.97) 0%, rgba(245, 245, 250, 0.98) 100%);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 24px 60px rgba(0, 0, 0, 0.15);
+}
 </style>
