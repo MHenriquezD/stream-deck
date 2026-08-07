@@ -7,6 +7,7 @@ import { useAuth } from '../composables/useAuth'
 import { useButtonSound } from '../composables/useButtonSound'
 import { useSocket } from '../composables/useSocket'
 import { useServerUrlStore } from '../store/serverUrl.store'
+import CustomSelect from './CustomSelect.vue'
 
 const {
   isEnabled: isSoundEnabled,
@@ -551,240 +552,175 @@ const close = () => {
       </div>
 
       <div class="settings-content">
-        <!-- Info box solo desktop -->
-        <div v-if="!isMobile" class="info-box">
-          <p>
-            <strong>Conecta desde otro dispositivo:</strong><br />
-            1. Selecciona tu IP local de la lista<br />
-            2. Si conecta, aparecerá el QR automáticamente<br />
-            3. Escanea el QR desde tu móvil/tablet<br />
-            4. ¡Listo!
-          </p>
-        </div>
+        <div class="settings-columns">
+          <!-- Columna izquierda: Conexión -->
+          <div class="settings-col">
+            <h3 class="col-title">Conexión</h3>
 
-        <!-- ⭐ Selector de IPs locales (solo desktop) -->
-        <div v-if="!isMobile" class="ip-selector-section">
-          <label>🔍 Selecciona tu IP local:</label>
+            <!-- Info box solo desktop -->
+            <div v-if="!isMobile" class="info-box">
+              <p>
+                <strong>Conecta desde otro dispositivo:</strong><br />
+                1. Selecciona tu IP local de la lista<br />
+                2. Si conecta, aparecerá el QR automáticamente<br />
+                3. Escanea el QR desde tu móvil/tablet<br />
+                4. ¡Listo!
+              </p>
+            </div>
 
-          <div v-if="isDetectingIPs" class="detecting-ips">
-            <i class="pi pi-spin pi-spinner"></i>
-            <span>Detectando IPs locales...</span>
-          </div>
+            <!-- Selector de IPs locales (solo desktop) -->
+            <div v-if="!isMobile" class="ip-selector-section">
+              <label>🔍 Selecciona tu IP local:</label>
 
-          <div v-else-if="localIPs.length > 0" class="ip-selector-container">
-            <select
-              v-model="selectedIP"
-              @change="handleIPSelection"
-              class="ip-select"
-              :disabled="isTestingConnection"
+              <div v-if="isDetectingIPs" class="detecting-ips">
+                <i class="pi pi-spin pi-spinner"></i>
+                <span>Detectando IPs locales...</span>
+              </div>
+
+              <div v-else-if="localIPs.length > 0" class="ip-selector-container">
+                <CustomSelect
+                  :options="localIPs.map(ip => ({ value: ip, label: `${ip} (http://${ip}:7500)` }))"
+                  :model-value="selectedIP"
+                  placeholder="-- Selecciona una IP --"
+                  :disabled="isTestingConnection"
+                  @update:model-value="selectedIP = String($event); handleIPSelection()"
+                />
+
+                <div v-if="isTestingConnection" class="testing-indicator">
+                  <i class="pi pi-spin pi-spinner"></i>
+                  <span>Probando conexión...</span>
+                </div>
+              </div>
+
+              <div v-else class="no-ips-detected">
+                <p>⚠️ No se detectaron IPs locales automáticamente.</p>
+                <small>Ingresa la IP manualmente abajo</small>
+              </div>
+            </div>
+
+            <!-- Mobile: botón escanear -->
+            <div v-if="isMobile" class="scan-section">
+              <div class="scan-idle">
+                <button @click="startScanner" class="btn-scan">
+                  📷 Escanear QR
+                </button>
+                <p class="scan-hint">Apunta al QR de la app en tu PC</p>
+              </div>
+
+              <div v-if="scanError" class="scan-error">⚠️ {{ scanError }}</div>
+            </div>
+
+            <div class="form-group">
+              <label for="serverUrl">URL del Servidor</label>
+              <input
+                id="serverUrl"
+                v-model="serverUrl"
+                type="text"
+                placeholder="http://192.168.1.100:7500"
+                class="server-input"
+              />
+              <small>O ingresa la IP manualmente: http://192.168.1.100:7500</small>
+            </div>
+
+            <button
+              @click="testConnection"
+              :disabled="isConnecting"
+              class="btn-test"
             >
-              <option value="">-- Selecciona una IP --</option>
-              <option v-for="ip in localIPs" :key="ip" :value="ip">
-                {{ ip }} (http://{{ ip }}:7500)
-              </option>
-            </select>
+              {{ isConnecting ? '🔄 Probando...' : '🔍 Probar Conexión' }}
+            </button>
 
-            <div v-if="isTestingConnection" class="testing-indicator">
-              <i class="pi pi-spin pi-spinner"></i>
-              <span>Probando conexión...</span>
+            <div v-if="connectionStatus" class="connection-result">
+              <div v-if="connectionStatus === 'success'" class="success">
+                ✅ Conexión exitosa
+              </div>
+              <div v-else class="error">
+                ❌ No se pudo conectar. Verifica la IP y que el servidor esté
+                corriendo.
+              </div>
+            </div>
+
+            <!-- Mobile PIN login -->
+            <div v-if="isMobile && showMobilePinLogin" class="form-group pin-login-section">
+              <label>🔐 El servidor requiere PIN</label>
+              <p class="pin-login-hint">Ingresa el PIN de 4 dígitos configurado en el escritorio</p>
+              <input v-model="mobilePinInput" type="tel" inputmode="numeric" maxlength="4" placeholder="PIN (4 dígitos)" class="server-input pin-input-small" @keyup.enter="handleMobilePinLogin" />
+              <div class="pin-change-actions">
+                <button @click="handleMobilePinLogin" :disabled="mobilePinLoading" class="btn-pin-save">
+                  {{ mobilePinLoading ? '🔄 Verificando...' : '🔓 Conectar' }}
+                </button>
+                <button @click="cancelMobilePinLogin" class="btn-pin-cancel">Cancelar</button>
+              </div>
+              <p v-if="mobilePinError" class="pin-error">{{ mobilePinError }}</p>
             </div>
           </div>
 
-          <div v-else class="no-ips-detected">
-            <p>⚠️ No se detectaron IPs locales automáticamente.</p>
-            <small>Ingresa la IP manualmente abajo</small>
-          </div>
-        </div>
+          <!-- Columna derecha: Preferencias -->
+          <div class="settings-col">
+            <h3 class="col-title">Preferencias</h3>
 
-        <!-- Desktop: QR para escanear -->
-        <div
-          v-if="!isMobile && qrCodeUrl && connectionStatus === 'success'"
-          class="ip-display"
-        >
-          <label>🌐 URL configurada:</label>
-          <div class="ip-box">
-            <code>{{ serverUrl }}</code>
-          </div>
-          <small>Escanea el QR desde tu móvil para conectarte</small>
-          <div class="qr-section">
-            <div class="qr-label">📱 Escanea para conectar:</div>
-            <img :src="qrCodeUrl" alt="QR Code" class="qr-code" />
-          </div>
-        </div>
-
-        <!-- ⭐ Mobile: botón escanear -->
-        <div v-if="isMobile" class="scan-section">
-          <div class="scan-idle">
-            <button @click="startScanner" class="btn-scan">
-              📷 Escanear QR
-            </button>
-            <p class="scan-hint">Apunta al QR de la app en tu PC</p>
-          </div>
-
-          <div v-if="scanError" class="scan-error">⚠️ {{ scanError }}</div>
-        </div>
-
-        <!-- 🔐 Mobile PIN login (shown after QR scan when server has PIN) -->
-        <div
-          v-if="isMobile && showMobilePinLogin"
-          class="form-group pin-login-section"
-        >
-          <label>🔐 El servidor requiere PIN</label>
-          <p class="pin-login-hint">
-            Ingresa el PIN de 4 dígitos configurado en el escritorio
-          </p>
-          <input
-            v-model="mobilePinInput"
-            type="tel"
-            inputmode="numeric"
-            maxlength="4"
-            placeholder="PIN (4 dígitos)"
-            class="server-input pin-input-small"
-            @keyup.enter="handleMobilePinLogin"
-          />
-          <div class="pin-change-actions">
-            <button
-              @click="handleMobilePinLogin"
-              :disabled="mobilePinLoading"
-              class="btn-pin-save"
-            >
-              {{ mobilePinLoading ? '🔄 Verificando...' : '🔓 Conectar' }}
-            </button>
-            <button @click="cancelMobilePinLogin" class="btn-pin-cancel">
-              Cancelar
-            </button>
-          </div>
-          <p v-if="mobilePinError" class="pin-error">{{ mobilePinError }}</p>
-        </div>
-
-        <div class="form-group">
-          <label for="serverUrl">URL del Servidor</label>
-          <input
-            id="serverUrl"
-            v-model="serverUrl"
-            type="text"
-            placeholder="http://192.168.1.100:7500"
-            class="server-input"
-          />
-          <small>O ingresa la IP manualmente: http://192.168.1.100:7500</small>
-        </div>
-
-        <div class="form-group">
-          <label for="gridSize">Tamaño de la Cuadrícula</label>
-          <select id="gridSize" v-model.number="gridSize" class="server-input">
-            <option
-              v-for="option in gridSizeOptions"
-              :key="option.value"
-              :value="option.value"
-            >
-              {{ option.label }}
-            </option>
-          </select>
-          <small>Cantidad de botones en la cuadrícula</small>
-        </div>
-
-        <div class="form-group">
-          <label>🔊 Sonido al presionar</label>
-          <div class="sound-toggle-row">
-            <button
-              class="sound-toggle-btn"
-              :class="{ active: buttonSoundEnabled }"
-              @click="toggleSound()"
-            >
-              <span class="toggle-track">
-                <span class="toggle-thumb"></span>
-              </span>
-              <span>{{ buttonSoundEnabled ? 'Activado' : 'Desactivado' }}</span>
-            </button>
-          </div>
-          <div v-if="buttonSoundEnabled" class="sound-selector">
-            <select
-              :value="selectedSound"
-              @change="
-                onSoundChange(($event.target as HTMLSelectElement).value)
-              "
-              class="server-input"
-              id="soundSelector"
-            >
-              <option
-                v-for="s in availableSounds"
-                :key="s.file"
-                :value="s.file"
-              >
-                {{ s.label }}
-              </option>
-            </select>
-            <button
-              class="sound-test-btn"
-              @click="playTestSound()"
-              title="Probar sonido"
-            >
-              <i class="pi pi-play"></i>
-            </button>
-          </div>
-          <small>Reproduce un sonido al presionar un botón</small>
-        </div>
-
-        <!-- Configurar PIN (primera vez) / Cambiar PIN (solo desktop autenticado) -->
-        <div
-          v-if="(!pinConfigured && !isMobile) || (isAuthenticated && !isMobile)"
-          class="form-group"
-        >
-          <label>🔑 Seguridad</label>
-          <button
-            v-if="!showPinChange"
-            @click="showPinChange = true"
-            class="btn-change-pin"
-          >
-            {{ pinConfigured ? '🔐 Cambiar PIN' : '🔐 Configurar PIN' }}
-          </button>
-          <div v-else class="pin-change-form">
-            <input
-              v-model="newPin"
-              type="tel"
-              inputmode="numeric"
-              maxlength="4"
-              placeholder="Nuevo PIN (4 dígitos)"
-              class="server-input pin-input-small"
-            />
-            <input
-              v-model="confirmNewPin"
-              type="tel"
-              inputmode="numeric"
-              maxlength="4"
-              placeholder="Confirmar PIN"
-              class="server-input pin-input-small"
-            />
-            <div class="pin-change-actions">
-              <button @click="handleChangePin" class="btn-pin-save">
-                ✅ Guardar PIN
-              </button>
-              <button @click="cancelPinChange" class="btn-pin-cancel">
-                Cancelar
-              </button>
+            <div class="form-group">
+              <label>Tamaño de la Cuadrícula</label>
+              <CustomSelect
+                :options="gridSizeOptions"
+                :model-value="gridSize"
+                @update:model-value="gridSize = Number($event)"
+              />
+              <small>Cantidad de botones en la cuadrícula</small>
             </div>
-            <p v-if="pinError" class="pin-error">{{ pinError }}</p>
-            <p v-if="pinSuccess" class="pin-success">
-              ✅ PIN cambiado correctamente
-            </p>
-          </div>
-        </div>
 
-        <button
-          @click="testConnection"
-          :disabled="isConnecting"
-          class="btn-test"
-        >
-          {{ isConnecting ? '🔄 Probando...' : '🔍 Probar Conexión' }}
-        </button>
+            <div class="form-group">
+              <label>🔊 Sonido al presionar</label>
+              <div class="sound-toggle-row">
+                <button class="sound-toggle-btn" :class="{ active: buttonSoundEnabled }" @click="toggleSound()">
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <span>{{ buttonSoundEnabled ? 'Activado' : 'Desactivado' }}</span>
+                </button>
+              </div>
+              <div v-if="buttonSoundEnabled" class="sound-selector">
+                <CustomSelect
+                  :options="availableSounds.map(s => ({ value: s.file, label: s.label }))"
+                  :model-value="selectedSound"
+                  @update:model-value="onSoundChange(String($event))"
+                />
+                <button class="sound-test-btn" @click="playTestSound()" title="Probar sonido">
+                  <i class="pi pi-play"></i>
+                </button>
+              </div>
+              <small>Reproduce un sonido al presionar un botón</small>
+            </div>
 
-        <div v-if="connectionStatus" class="connection-result">
-          <div v-if="connectionStatus === 'success'" class="success">
-            ✅ Conexión exitosa
-          </div>
-          <div v-else class="error">
-            ❌ No se pudo conectar. Verifica la IP y que el servidor esté
-            corriendo.
+            <div v-if="(!pinConfigured && !isMobile) || (isAuthenticated && !isMobile)" class="form-group">
+              <label>🔑 Seguridad</label>
+              <button v-if="!showPinChange" @click="showPinChange = true" class="btn-change-pin">
+                {{ pinConfigured ? '🔐 Cambiar PIN' : '🔐 Configurar PIN' }}
+              </button>
+              <div v-else class="pin-change-form">
+                <input v-model="newPin" type="tel" inputmode="numeric" maxlength="4" placeholder="Nuevo PIN (4 dígitos)" class="server-input pin-input-small" />
+                <input v-model="confirmNewPin" type="tel" inputmode="numeric" maxlength="4" placeholder="Confirmar PIN" class="server-input pin-input-small" />
+                <div class="pin-change-actions">
+                  <button @click="handleChangePin" class="btn-pin-save">✅ Guardar PIN</button>
+                  <button @click="cancelPinChange" class="btn-pin-cancel">Cancelar</button>
+                </div>
+                <p v-if="pinError" class="pin-error">{{ pinError }}</p>
+                <p v-if="pinSuccess" class="pin-success">✅ PIN cambiado correctamente</p>
+              </div>
+            </div>
+
+            <!-- Desktop: QR para escanear -->
+            <div
+              v-if="!isMobile && qrCodeUrl && connectionStatus === 'success'"
+              class="ip-display"
+            >
+              <label>🌐 URL configurada:</label>
+              <div class="ip-box">
+                <code>{{ serverUrl }}</code>
+              </div>
+              <div class="qr-section">
+                <div class="qr-label">📱 Escanea para conectar:</div>
+                <img :src="qrCodeUrl" alt="QR Code" class="qr-code" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -926,7 +862,7 @@ const close = () => {
 .settings-dialog {
   background: linear-gradient(170deg, rgba(22, 22, 32, 0.94) 0%, rgba(10, 10, 16, 0.97) 100%);
   border-radius: 24px;
-  max-width: 500px;
+  max-width: 900px;
   width: 100%;
   border: 1px solid var(--glass-border);
   backdrop-filter: blur(var(--glass-blur)) saturate(160%);
@@ -988,6 +924,31 @@ const close = () => {
   max-height: 70dvh;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+.settings-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.col-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='light'] .col-title {
+  border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 640px) {
+  .settings-columns {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
 }
 
 /* Info box */
@@ -1565,4 +1526,110 @@ select#soundSelector option {
 .settings-leave-active .settings-dialog { transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1); }
 .settings-enter-from .settings-dialog { transform: translateY(80px) scale(0.85); }
 .settings-leave-to .settings-dialog { transform: translateY(40px) scale(0.92); }
+
+/* ===========================
+   LIGHT THEME
+   =========================== */
+[data-theme='light'] .settings-dialog {
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.97) 0%, rgba(245, 245, 250, 0.98) 100%);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 32px 80px rgba(0, 0, 0, 0.15),
+    0 0 60px -10px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+[data-theme='light'] .settings-header {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .close-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='light'] .close-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .info-box {
+  background: rgba(139, 92, 246, 0.06);
+  border-color: rgba(139, 92, 246, 0.2);
+}
+
+[data-theme='light'] .ip-selector-section {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='light'] .ip-select {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: var(--text-1);
+}
+
+[data-theme='light'] .ip-select option,
+[data-theme='light'] select.server-input option,
+[data-theme='light'] select#gridSize option,
+[data-theme='light'] select#soundSelector option {
+  background: #fff;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+[data-theme='light'] .server-input {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme='light'] .server-input:focus {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: var(--accent);
+}
+
+[data-theme='light'] .sound-toggle-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='light'] .toggle-track {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme='light'] .settings-footer {
+  background: rgba(245, 245, 250, 0.8);
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .btn-cancel {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='light'] .btn-cancel:hover {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme='light'] .btn-test {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='light'] .btn-test:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .no-ips-detected {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+[data-theme='light'] .settings-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme='light'] .sound-test-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+}
 </style>
