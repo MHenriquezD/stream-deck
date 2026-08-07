@@ -14,6 +14,7 @@ declare global {
     electronAPI?: {
       getNetworkInterfaces: () => Promise<NetworkInfo>
       openExternal: (url: string) => Promise<void>
+      spotifyAuth: (authUrl: string, redirectUri: string) => Promise<string | null>
       isElectron: () => boolean
       platform: () => string
     }

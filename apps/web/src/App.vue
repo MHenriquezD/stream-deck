@@ -7,6 +7,7 @@ import ToastHost from './components/ToastHost.vue'
 import { useAuth } from './composables/useAuth'
 import { useExternalLinks } from './composables/useExternalLinks'
 import { useSettingsRequest } from './composables/useSettingsRequest'
+import { useSpotify } from './composables/useSpotify'
 
 const { isAuthenticated, checkAuth, checkPinStatus, logout, serverReachable } =
   useAuth()
@@ -16,7 +17,18 @@ const { requestSettings } = useSettingsRequest()
 // Interceptar links externos para abrir en el navegador del sistema
 useExternalLinks()
 
+const { handleCallback, startPolling } = useSpotify()
+
 onMounted(async () => {
+  const params = new URLSearchParams(window.location.search)
+  const code = params.get('code')
+  const state = params.get('state')
+  if (code) {
+    await handleCallback(code, state ?? undefined)
+    window.history.replaceState({}, '', window.location.pathname)
+    startPolling()
+  }
+
   const isMobile =
     Capacitor.getPlatform() === 'android' || Capacitor.getPlatform() === 'ios'
 

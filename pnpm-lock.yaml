@@ -157,6 +157,9 @@ importers:
       '@capacitor/android':
         specifier: ^8.5.0
         version: 8.5.0(@capacitor/core@8.5.0)
+      '@capacitor/app':
+        specifier: ^8.1.1
+        version: 8.1.1(@capacitor/core@8.5.0)
       '@capacitor/browser':
         specifier: ^8.0.1
         version: 8.0.1(@capacitor/core@8.5.0)
@@ -991,8 +994,8 @@ packages:
     peerDependencies:
       '@capacitor/core': ^8.5.0
 
-  '@capacitor/app@8.0.1':
-    resolution: {integrity: sha512-yeG3yyA0ETKqvgqexwHMBlmVOF13A1hRXzv/km0Ptv5TrNIZvZJK4MTI3uiqvnbHrzoJGP5DwWAjEXEfi90v3Q==}
+  '@capacitor/app@8.1.1':
+    resolution: {integrity: sha512-xM2ZTX5jK60tFtmjsmJv+Cdj1Qsb6NcavkqmdEnCPQBeya9oKhamZJxYOnQNj1ZvcJM7sWfG6BEtSLx42pisbA==}
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
 
@@ -7540,7 +7543,7 @@ snapshots:
   '@aparajita/capacitor-biometric-auth@10.0.0':
     dependencies:
       '@capacitor/android': 8.5.0(@capacitor/core@8.5.0)
-      '@capacitor/app': 8.0.1(@capacitor/core@8.5.0)
+      '@capacitor/app': 8.1.1(@capacitor/core@8.5.0)
       '@capacitor/core': 8.5.0
       '@capacitor/ios': 8.1.0(@capacitor/core@8.5.0)
 
@@ -8519,7 +8522,7 @@ snapshots:
     dependencies:
       '@capacitor/core': 8.5.0
 
-  '@capacitor/app@8.0.1(@capacitor/core@8.5.0)':
+  '@capacitor/app@8.1.1(@capacitor/core@8.5.0)':
     dependencies:
       '@capacitor/core': 8.5.0
 

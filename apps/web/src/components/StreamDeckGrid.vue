@@ -18,6 +18,7 @@ import { useVolume } from '../composables/useVolume'
 import { useServerUrlStore } from '../store/serverUrl.store'
 import ButtonEditor from './ButtonEditor.vue'
 import MouseController from './MouseController.vue'
+import SpotifyPlayer from './SpotifyPlayer.vue'
 import ServerSettings from './ServerSettings.vue'
 import StreamButton from './StreamButton.vue'
 import TailwindConfirmDialog from './TailwindConfirmDialog.vue'
@@ -44,7 +45,26 @@ const {
 
 // Tema claro/oscuro (estado + persistencia)
 const { isDark, toggleTheme, initTheme, currentAccent, accentPresets, setAccent } = useTheme()
+const actionColor = (i: number) => {
+  const idx = accentPresets.findIndex(p => p.accent === currentAccent.value.accent)
+  return accentPresets[(idx + i) % accentPresets.length].accent
+}
 const showAccentPicker = ref(false)
+let accentHideTimer: ReturnType<typeof setTimeout> | null = null
+const openAccentPicker = () => {
+  showAccentPicker.value = true
+  if (accentHideTimer) clearTimeout(accentHideTimer)
+  if (matchMedia('(max-width: 640px)').matches) {
+    accentHideTimer = setTimeout(() => { showAccentPicker.value = false }, 4000)
+  }
+}
+const closeAccentPicker = () => {
+  showAccentPicker.value = false
+  if (accentHideTimer) { clearTimeout(accentHideTimer); accentHideTimer = null }
+}
+const toggleAccentPicker = () => {
+  showAccentPicker.value ? closeAccentPicker() : openAccentPicker()
+}
 const serverUrlStore = useServerUrlStore()
 const {
   isConnected,
@@ -780,21 +800,21 @@ async function handleServerUnreachableClean() {
         </div>
       </div>
       <div class="actions">
-        <button @click="openSettings" title="Configuración" class="action-btn action-settings">
+        <button @click="openSettings" title="Configuración" class="action-btn" :style="{ '--_clr': actionColor(0) }">
           <img src="/icons/config-line.svg" alt="Configuración" class="btn-svg" />
           <span class="btn-text">Configuración</span>
         </button>
 
         <template v-if="pinConfigured || isMobile">
-          <button @click="loadMultimediaPresets" title="Comandos multimedia" class="action-btn action-accent">
+          <button @click="loadMultimediaPresets" title="Comandos multimedia" class="action-btn" :style="{ '--_clr': actionColor(1) }">
             <img src="/icons/music-line.svg" alt="Multimedia" class="btn-svg" />
             <span class="btn-text">Multimedia</span>
           </button>
-          <button @click="toggleVolumeSlider" title="Control de volumen" class="action-btn action-amber">
+          <button @click="toggleVolumeSlider" title="Control de volumen" class="action-btn" :style="{ '--_clr': actionColor(2) }">
             <img :src="systemMuted ? '/icons/volume-mute.svg' : '/icons/volume-high.svg'" alt="Volumen" class="btn-svg" />
             <span class="btn-text">Volumen</span>
           </button>
-          <button v-if="isMobile" @click="showMouseController = true" title="Mouse & Teclado" class="action-btn action-cyan">
+          <button v-if="isMobile" @click="showMouseController = true" title="Mouse & Teclado" class="action-btn" :style="{ '--_clr': actionColor(3) }">
             <span class="action-emoji">🖱️</span>
             <span class="btn-text">Mouse</span>
           </button>
@@ -802,12 +822,12 @@ async function handleServerUnreachableClean() {
             @click="handleReconnectButton"
             :title="isMobile ? 'Reconectar' : serverEnabled ? 'Desactivar servidor' : 'Activar servidor'"
             class="action-btn"
-            :class="serverEnabled ? 'action-neutral' : 'action-danger'"
+            :style="{ '--_clr': actionColor(4) }"
           >
             <img src="/icons/reconnect-line.svg" alt="Reconectar" class="btn-svg" />
             <span class="btn-text">{{ isMobile ? 'Reconectar' : serverEnabled ? 'Desactivar' : 'Activar' }}</span>
           </button>
-          <button @click="reloadButtonsWithAnimation" title="Recargar" class="action-btn action-neutral">
+          <button @click="reloadButtonsWithAnimation" title="Recargar" class="action-btn" :style="{ '--_clr': actionColor(5) }">
             <img src="/icons/reload-line.svg" alt="Recargar" class="btn-svg" />
             <span class="btn-text">Recargar Botones</span>
           </button>
@@ -847,7 +867,7 @@ async function handleServerUnreachableClean() {
       <button
         ref="themeFabRef"
         @click="!fabMoved && toggleTheme()"
-        @contextmenu.prevent="showAccentPicker = !showAccentPicker"
+        @contextmenu.prevent="toggleAccentPicker"
         :title="isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
         class="theme-fab"
         @touchstart.passive="handleFabTouchStart"
@@ -857,9 +877,10 @@ async function handleServerUnreachableClean() {
         <img v-if="isDark" src="/icons/sun.svg" alt="Claro" class="theme-fab-icon" />
         <img v-else src="/icons/moon.svg" alt="Oscuro" class="theme-fab-icon" />
       </button>
-      <button class="accent-toggle" @click="showAccentPicker = !showAccentPicker" title="Cambiar color">
+      <button class="accent-toggle" @click="toggleAccentPicker" title="Cambiar color">
         <span class="accent-dot" :style="{ background: currentAccent.accent }"></span>
       </button>
+      <div v-if="showAccentPicker" class="accent-overlay" @click="closeAccentPicker"></div>
       <Transition name="accent-pop">
         <div v-if="showAccentPicker" class="accent-picker">
           <button
@@ -869,7 +890,7 @@ async function handleServerUnreachableClean() {
             :class="{ active: currentAccent.accent === p.accent }"
             :style="{ '--sw': p.accent }"
             :title="p.name"
-            @click="setAccent(p)"
+            @click="setAccent(p); closeAccentPicker()"
           />
         </div>
       </Transition>
@@ -896,6 +917,10 @@ async function handleServerUnreachableClean() {
       <p class="hint" v-else>
         Toca para ejecutar • 2 dedos para editar • Mantén presionado 1s para reorganizar
       </p>
+
+      <div class="spotify-section">
+        <SpotifyPlayer />
+      </div>
 
       <div
         class="grid"
@@ -1295,12 +1320,6 @@ async function handleServerUnreachableClean() {
   }
 }
 
-.action-settings { --_clr: #10b981; }
-.action-accent   { --_clr: var(--accent); }
-.action-amber    { --_clr: #f59e0b; }
-.action-cyan     { --_clr: #06b6d4; }
-.action-neutral  { --_clr: rgba(255,255,255,0.5); }
-[data-theme='light'] .action-neutral { --_clr: rgba(0,0,0,0.45); }
 .action-danger   { --_clr: #ef4444; }
 
 .action-emoji { font-size: 1.2rem; line-height: 1; }
@@ -1469,6 +1488,11 @@ async function handleServerUnreachableClean() {
   .hint { font-size: 0.72rem; margin-bottom: 10px; }
 }
 
+.spotify-section {
+  display: flex; justify-content: center;
+  margin-bottom: 12px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(var(--grid-cols), 1fr);
@@ -1478,11 +1502,12 @@ async function handleServerUnreachableClean() {
   margin-bottom: 24px;
   padding: 30px;
   border-radius: 16px;
-  /* background eliminado para que el fondo dependa solo del tema */
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 35%, transparent);
   box-shadow:
     0 2px 8px rgba(120, 120, 130, 0.1),
-    0 8px 24px rgba(120, 120, 130, 0.13);
-  /* border eliminado para que el borde dependa solo del tema */
+    0 8px 24px rgba(120, 120, 130, 0.13),
+    0 0 40px -6px color-mix(in srgb, var(--accent) 25%, transparent);
   position: relative;
   touch-action: pan-y;
   user-select: none;
@@ -2083,13 +2108,16 @@ async function handleServerUnreachableClean() {
   background: rgba(255, 255, 255, 0.85); border-color: rgba(0, 0, 0, 0.12);
 }
 .accent-toggle:active { transform: scale(0.85); }
-@media (max-width: 640px) { .accent-toggle { display: none; } }
 .accent-dot { width: 14px; height: 14px; border-radius: 50%; }
 
+.accent-overlay {
+  position: fixed; inset: 0; z-index: 999;
+}
 /* Accent picker popover */
 .accent-picker {
-  display: flex; gap: 6px; padding: 8px 12px;
-  border-radius: 24px; flex-direction: row;
+  position: relative; z-index: 1000;
+  display: flex; gap: 6px; padding: 12px 8px;
+  border-radius: 24px; flex-direction: column;
   background: rgba(20, 20, 30, 0.92); border: 1px solid var(--glass-border);
   backdrop-filter: blur(16px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
@@ -2108,7 +2136,6 @@ async function handleServerUnreachableClean() {
   box-shadow: 0 0 14px color-mix(in srgb, var(--sw) 60%, transparent);
 }
 @media (hover: hover) { .accent-swatch:hover { transform: scale(1.15); } }
-@media (max-width: 640px) { .accent-picker { flex-direction: column; } }
 
 .accent-pop-enter-active, .accent-pop-leave-active { transition: all 0.2s ease; }
 .accent-pop-enter-from, .accent-pop-leave-to { opacity: 0; transform: scale(0.8); }

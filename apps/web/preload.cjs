@@ -18,6 +18,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('open-external', url)
   },
 
+  spotifyAuth: (authUrl, redirectUri) => {
+    return ipcRenderer.invoke('spotify-auth', authUrl, redirectUri)
+  },
+
   // Detectar si estamos en Electron
   isElectron: () => true,
 

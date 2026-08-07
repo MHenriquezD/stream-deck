@@ -243,6 +243,53 @@ ipcMain.handle('open-external', (_event, url) => {
   }
 })
 
+ipcMain.handle('spotify-auth', (_event, authUrl, redirectUri) => {
+  return new Promise((resolve) => {
+    let resolved = false
+    const done = (code) => {
+      if (resolved) return
+      resolved = true
+      resolve(code)
+      if (!authWin.isDestroyed()) authWin.close()
+    }
+
+    const authWin = new BrowserWindow({
+      width: 500, height: 700,
+      parent: mainWindow, modal: true,
+      webPreferences: { nodeIntegration: false, contextIsolation: true },
+    })
+    authWin.setMenuBarVisibility(false)
+
+    const checkUrl = (url) => {
+      if (url.startsWith(redirectUri)) {
+        const code = new URL(url).searchParams.get('code')
+        done(code)
+        return true
+      }
+      return false
+    }
+
+    authWin.webContents.on('will-redirect', (e, url) => {
+      if (checkUrl(url)) e.preventDefault()
+    })
+
+    authWin.webContents.on('will-navigate', (e, url) => {
+      if (checkUrl(url)) e.preventDefault()
+    })
+
+    authWin.webContents.session.webRequest.onBeforeRequest(
+      { urls: [redirectUri + '*'] },
+      (details, callback) => {
+        checkUrl(details.url)
+        callback({ cancel: true })
+      },
+    )
+
+    authWin.on('closed', () => done(null))
+    authWin.loadURL(authUrl)
+  })
+})
+
 const createWindow = async () => {
   log('Creating window...')
 

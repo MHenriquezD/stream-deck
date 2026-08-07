@@ -10,8 +10,12 @@ type Corner = 'tl' | 'tr' | 'bl' | 'br'
  */
 export function useDraggableFab() {
   const fabRef = ref<HTMLButtonElement | null>(null)
+  if (!localStorage.getItem('fab-corner-v2')) {
+    localStorage.removeItem('theme-fab-corner')
+    localStorage.setItem('fab-corner-v2', '1')
+  }
   const fabCorner = ref<Corner>(
-    (localStorage.getItem('theme-fab-corner') as Corner) || 'br',
+    (localStorage.getItem('theme-fab-corner') as Corner) || 'tr',
   )
   const fabMoved = ref(false)
 
