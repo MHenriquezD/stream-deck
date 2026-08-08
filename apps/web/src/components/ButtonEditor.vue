@@ -1104,12 +1104,12 @@ const handleIconInputBlur = () => {
 
 /* ── MOBILE ── */
 @media (max-width: 640px) {
-  .editor-backdrop { align-items: flex-end; padding: 0; }
+  .editor-backdrop { align-items: stretch; padding: 0; }
   .editor-panel {
     max-width: 100%;
-    height: auto;
-    max-height: 95dvh;
-    border-radius: 24px 24px 0 0;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
   }
   .editor-body { flex-direction: column; }
   .editor-sidebar {
@@ -1130,14 +1130,14 @@ const handleIconInputBlur = () => {
     align-items: center;
   }
   .sidebar-preview .preview-button {
-    width: 64px;
-    height: 64px;
-    border-radius: 14px;
-    padding: 6px;
+    width: 96px;
+    height: 96px;
+    border-radius: 18px;
+    padding: 8px;
   }
-  .sidebar-preview .preview-icon { font-size: 1.4rem; }
-  .sidebar-preview .preview-icon .preview-img { width: 28px; height: 28px; }
-  .sidebar-preview .preview-label { font-size: 0.6rem; }
+  .sidebar-preview .preview-icon { font-size: 2rem; }
+  .sidebar-preview .preview-icon .preview-img { width: 40px; height: 40px; }
+  .sidebar-preview .preview-label { font-size: 0.7rem; }
   .editor-sidebar .sidebar-tabs {
     display: flex;
     gap: 4px;
