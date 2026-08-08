@@ -625,9 +625,35 @@ try {
     if (($isPopular -or ($displayName -notlike 'ms-resource:*' -and $displayName -notlike '*Framework*')) -and $displayName) {
       # Usar AppUserModelId como Path para poder lanzar la app correctamente
       $launchPath = if ($appId) { "shell:AppsFolder\\$appId" } else { $_.InstallLocation }
+      # Intentar extraer el icono del logo del paquete
+      $storeIcon = ''
+      try {
+        $logoRelPath = $manifest.Package.Properties.Logo
+        if ($logoRelPath) {
+          $installDir = $_.InstallLocation
+          $logoBase = [System.IO.Path]::GetDirectoryName($logoRelPath)
+          $logoName = [System.IO.Path]::GetFileNameWithoutExtension($logoRelPath)
+          $logoExt = [System.IO.Path]::GetExtension($logoRelPath)
+
+          # Buscar variantes scale (scale-200, scale-100, etc.)
+          $logoDir = Join-Path $installDir $logoBase
+          if (Test-Path $logoDir) {
+            $candidates = Get-ChildItem -Path $logoDir -Filter "$logoName*$logoExt" -ErrorAction SilentlyContinue | Sort-Object Length -Descending
+            if ($candidates) {
+              $storeIcon = $candidates[0].FullName
+            }
+          }
+          # Fallback: ruta directa
+          if (-not $storeIcon) {
+            $directPath = Join-Path $installDir $logoRelPath
+            if (Test-Path $directPath) { $storeIcon = $directPath }
+          }
+        }
+      } catch {}
+
       $apps += [PSCustomObject]@{
         Name = $displayName
-        Icon = ''
+        Icon = $storeIcon
         Path = $launchPath
         Source = 'Store'
       }
@@ -679,9 +705,53 @@ try {
                 $browser = "Edge"
               }
               
+              # Intentar encontrar el icono real de la PWA
+              $pwaIcon = ''
+              try {
+                # Extraer app-id de los argumentos
+                if ($arguments -match '--app-id=([^\s"]+)') {
+                  $pwaAppId = $Matches[1]
+
+                  # Determinar el directorio de datos del navegador
+                  $browserDataDirs = @()
+                  if ($targetPath -like "*chrome.exe" -or $targetPath -like "*chrome_proxy.exe") {
+                    $browserDataDirs += "$env:LOCALAPPDATA\Google\Chrome\User Data"
+                  }
+                  if ($targetPath -like "*msedge.exe") {
+                    $browserDataDirs += "$env:LOCALAPPDATA\Microsoft\Edge\User Data"
+                  }
+                  if ($targetPath -like "*brave.exe") {
+                    $browserDataDirs += "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data"
+                  }
+
+                  foreach ($dataDir in $browserDataDirs) {
+                    if (-not (Test-Path $dataDir)) { continue }
+                    # Buscar en todos los perfiles (Default, Profile 1, etc.)
+                    $profiles = @('Default') + @(Get-ChildItem -Path $dataDir -Directory -Filter "Profile *" -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
+                    foreach ($profile in $profiles) {
+                      $iconsDir = Join-Path $dataDir "$profile\Web Applications\$pwaAppId\Icons"
+                      if (Test-Path $iconsDir) {
+                        # Buscar el icono más grande (mayor tamaño de archivo)
+                        $iconFiles = Get-ChildItem -Path $iconsDir -Include "*.png","*.ico" -Recurse -ErrorAction SilentlyContinue | Sort-Object Length -Descending
+                        if ($iconFiles) {
+                          $pwaIcon = $iconFiles[0].FullName
+                          break
+                        }
+                      }
+                    }
+                    if ($pwaIcon) { break }
+                  }
+                }
+              } catch {}
+
+              # Fallback: usar IconLocation del shortcut
+              if (-not $pwaIcon -and $shortcut.IconLocation -and $shortcut.IconLocation -ne ',0') {
+                $pwaIcon = $shortcut.IconLocation
+              }
+
               $apps += [PSCustomObject]@{
                 Name = "$appName ($browser)"
-                Icon = $shortcut.IconLocation
+                Icon = $pwaIcon
                 Path = """$targetPath"" $arguments"
                 Source = 'PWA'
               }
@@ -1034,22 +1104,11 @@ done
       iconFile: string;
     }[] = [];
 
+    const copyTasks: { index: number; srcPath: string; iconFile: string }[] =
+      [];
+
     for (let i = 0; i < apps.length; i++) {
       const app = apps[i];
-      // Get the exe path from Icon or Path field
-      let exePath = '';
-
-      if (app.Icon && app.Icon.toLowerCase().includes('.exe')) {
-        exePath = app.Icon.replace(/^["']|["']$/g, '').replace(/,\d+$/, '');
-      } else if (app.Path && app.Path.toLowerCase().includes('.exe')) {
-        exePath = app.Path.replace(/^["']|["']$/g, '')
-          .split('"')[0]
-          .trim();
-      }
-
-      if (!exePath) continue;
-
-      // Create a safe filename from the app name
       const safeName = app.Name.replace(/[^a-zA-Z0-9_-]/g, '_').substring(
         0,
         60,
@@ -1063,7 +1122,41 @@ done
         continue;
       }
 
+      // Check if Icon points to an image file (PNG/ICO) — just copy it
+      if (
+        app.Icon &&
+        /\.(png|ico|jpg|jpeg|bmp)$/i.test(app.Icon) &&
+        fs.existsSync(app.Icon)
+      ) {
+        copyTasks.push({ index: i, srcPath: app.Icon, iconFile });
+        continue;
+      }
+
+      // Get the exe path from Icon or Path field for extraction
+      let exePath = '';
+
+      if (app.Icon && app.Icon.toLowerCase().includes('.exe')) {
+        exePath = app.Icon.replace(/^["']|["']$/g, '').replace(/,\d+$/, '');
+      } else if (app.Path && app.Path.toLowerCase().includes('.exe')) {
+        exePath = app.Path.replace(/^["']|["']$/g, '')
+          .split('"')[0]
+          .trim();
+      }
+
+      if (!exePath) continue;
+
       extractionTasks.push({ index: i, exePath, iconFile });
+    }
+
+    // Copy image-based icons (PWAs and Store apps)
+    for (const task of copyTasks) {
+      try {
+        const destPath = path.join(this.iconsDir, task.iconFile);
+        fs.copyFileSync(task.srcPath, destPath);
+        apps[task.index].Icon = `/app-icons/${task.iconFile}`;
+      } catch {
+        // Skip failed copies
+      }
     }
 
     if (extractionTasks.length === 0) {

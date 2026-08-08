@@ -25,6 +25,7 @@ const emit = defineEmits<{
 }>()
 
 const searchQuery = ref('')
+const activeIconCategory = ref<string | null>(null)
 const serverUrlStore = useServerUrlStore()
 const { getAuthHeaders } = useAuth()
 const customUserIcons = ref<IconItem[]>([])
@@ -425,11 +426,16 @@ const iconCategories = computed<Record<string, IconItem[]>>(() => ({
   ],
 }))
 
+const iconCategoryNames = computed(() => Object.keys(iconCategories.value))
+
 const filteredIcons = computed(() => {
-  if (!searchQuery.value.trim()) return iconCategories.value
+  const source = activeIconCategory.value
+    ? { [activeIconCategory.value]: iconCategories.value[activeIconCategory.value] }
+    : iconCategories.value
+  if (!searchQuery.value.trim()) return source
   const query = searchQuery.value.toLowerCase()
   const filtered: Record<string, IconItem[]> = {}
-  Object.entries(iconCategories.value).forEach(([category, icons]) => {
+  Object.entries(source).forEach(([category, icons]) => {
     const matching = icons.filter(
       (item) =>
         item.label.toLowerCase().includes(query) ||
@@ -455,44 +461,66 @@ const selectIcon = (icon: string) => { emit('select', icon) }
         </button>
       </header>
 
-      <div class="picker-search">
-        <i class="pi pi-search search-icon"></i>
-        <input v-model="searchQuery" type="text" placeholder="Buscar icono..." class="field" />
-      </div>
+      <div class="picker-body">
+        <nav class="picker-sidebar">
+          <button type="button" class="sidebar-item" :class="{ active: activeIconCategory === null }" @click="activeIconCategory = null">
+            <i class="fas fa-layer-group"></i>
+            <span>Todos</span>
+          </button>
+          <button
+            v-for="cat in iconCategoryNames"
+            :key="cat"
+            type="button"
+            class="sidebar-item"
+            :class="{ active: activeIconCategory === cat }"
+            @click="activeIconCategory = cat"
+          >
+            <i :class="cat.startsWith('SD ') ? 'fas fa-gamepad' : cat === 'FontAwesome' ? 'fab fa-font-awesome' : cat === 'PrimeIcons' ? 'pi pi-prime' : cat === 'Custom SVG' ? 'fas fa-shapes' : cat === 'Mis Iconos' ? 'fas fa-user' : cat === 'Multimedia' ? 'fas fa-music' : cat === 'Aplicaciones' ? 'fas fa-grid' : cat === 'Acciones' ? 'fas fa-bolt' : cat === 'Símbolos' ? 'fas fa-icons' : 'fas fa-folder'"></i>
+            <span>{{ cat }}</span>
+          </button>
+        </nav>
 
-      <div class="upload-bar">
-        <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp" multiple style="display:none" @change="handleUpload" />
-        <button class="upload-btn" @click="fileInput?.click()" :disabled="isUploading">
-          <i class="pi" :class="isUploading ? 'pi-spin pi-spinner' : 'pi-upload'"></i>
-          {{ isUploading ? 'Subiendo...' : 'Subir Icono Personalizado' }}
-        </button>
-      </div>
+        <div class="picker-main">
+          <div class="picker-search">
+            <i class="pi pi-search search-icon"></i>
+            <input v-model="searchQuery" type="text" placeholder="Buscar icono..." class="field" />
+          </div>
 
-      <div class="picker-scroll">
-        <div v-if="Object.keys(filteredIcons).length === 0" class="empty-state">
-          <i class="pi pi-search" style="font-size: 2rem; opacity: 0.3"></i>
-          <p>No se encontraron iconos</p>
-        </div>
-        <div v-for="(icons, category) in filteredIcons" :key="category" class="category">
-          <h4 class="category-title">{{ category }} ({{ icons.length }})</h4>
-          <div class="icons-grid">
-            <button
-              v-for="item in icons"
-              :key="item.icon"
-              class="icon-cell"
-              :class="{ active: currentIcon === item.icon }"
-              @click.stop="selectIcon(item.icon)"
-              :title="item.label"
-              type="button"
-            >
-              <img v-if="item.isCustom" :src="'./icons/' + item.icon.replace('svg:', '')" class="cell-img" :alt="item.label" />
-              <img v-else-if="item.isUserCustom" :src="serverUrlStore.serverUrl + '/custom-icons/' + item.icon.replace('custom:', '')" class="cell-img" :alt="item.label" />
-              <img v-else-if="item.isStreamDeck" :src="'./streamdeck-icons/' + item.icon.replace('sd:', '')" class="cell-img" :alt="item.label" />
-              <i v-else-if="item.isPrime || item.isFontAwesome" :class="item.icon"></i>
-              <span v-else class="cell-emoji">{{ item.icon }}</span>
-              <span class="cell-label">{{ item.label }}</span>
-              <span v-if="item.isUserCustom" class="delete-badge" @click.stop="deleteCustomIcon(item)" title="Eliminar icono">✕</span>
+          <div class="upload-bar">
+            <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp" multiple style="display:none" @change="handleUpload" />
+            <button class="upload-btn" @click="fileInput?.click()" :disabled="isUploading">
+              <i class="pi" :class="isUploading ? 'pi-spin pi-spinner' : 'pi-upload'"></i>
+              {{ isUploading ? 'Subiendo...' : 'Subir Icono' }}
             </button>
+          </div>
+
+          <div class="picker-scroll">
+            <div v-if="Object.keys(filteredIcons).length === 0" class="empty-state">
+              <i class="pi pi-search" style="font-size: 2rem; opacity: 0.3"></i>
+              <p>No se encontraron iconos</p>
+            </div>
+            <div v-for="(icons, category) in filteredIcons" :key="category" class="category">
+              <h4 class="category-title">{{ category }} ({{ icons.length }})</h4>
+              <div class="icons-grid">
+                <button
+                  v-for="item in icons"
+                  :key="item.icon"
+                  class="icon-cell"
+                  :class="{ active: currentIcon === item.icon }"
+                  @click.stop="selectIcon(item.icon)"
+                  :title="item.label"
+                  type="button"
+                >
+                  <img v-if="item.isCustom" :src="'./icons/' + item.icon.replace('svg:', '')" class="cell-img" :alt="item.label" />
+                  <img v-else-if="item.isUserCustom" :src="serverUrlStore.serverUrl + '/custom-icons/' + item.icon.replace('custom:', '')" class="cell-img" :alt="item.label" />
+                  <img v-else-if="item.isStreamDeck" :src="'./streamdeck-icons/' + item.icon.replace('sd:', '')" class="cell-img" :alt="item.label" />
+                  <i v-else-if="item.isPrime || item.isFontAwesome" :class="item.icon"></i>
+                  <span v-else class="cell-emoji">{{ item.icon }}</span>
+                  <span class="cell-label">{{ item.label }}</span>
+                  <span v-if="item.isUserCustom" class="delete-badge" @click.stop="deleteCustomIcon(item)" title="Eliminar icono">✕</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -516,8 +544,8 @@ const selectIcon = (icon: string) => { emit('select', icon) }
 
 .picker-panel {
   width: 100%;
-  max-width: 680px;
-  max-height: 85dvh;
+  max-width: 900px;
+  height: 620px;
   display: flex;
   flex-direction: column;
   border-radius: 24px;
@@ -549,6 +577,62 @@ const selectIcon = (icon: string) => { emit('select', icon) }
   .header-close:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-1); transform: rotate(90deg); }
 }
 
+.picker-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+.picker-sidebar {
+  width: 180px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 10px;
+  border-right: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+}
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: all 0.18s;
+  text-align: left;
+  white-space: nowrap;
+}
+.sidebar-item i { font-size: 0.9rem; width: 18px; text-align: center; }
+.sidebar-item.active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text-1);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+@media (hover: hover) {
+  .sidebar-item:not(.active):hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-1);
+  }
+}
+.picker-sidebar::-webkit-scrollbar { width: 3px; }
+.picker-sidebar::-webkit-scrollbar-track { background: transparent; }
+.picker-sidebar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 3px; }
+
+.picker-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
 .picker-search {
   display: flex; align-items: center; gap: 10px;
   padding: 14px 22px; border-bottom: 1px solid var(--glass-border);
@@ -643,7 +727,16 @@ const selectIcon = (icon: string) => { emit('select', icon) }
 
 @media (max-width: 640px) {
   .picker-backdrop { align-items: flex-end; padding: 0; }
-  .picker-panel { max-width: 100%; border-radius: 24px 24px 0 0; max-height: 92dvh; }
+  .picker-panel { max-width: 100%; height: auto; max-height: 92dvh; border-radius: 24px 24px 0 0; }
+  .picker-body { flex-direction: column; }
+  .picker-sidebar {
+    width: 100%; flex-direction: row; border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+    padding: 8px 10px; overflow-x: auto; overflow-y: hidden; gap: 4px;
+  }
+  .sidebar-item { padding: 8px 10px; font-size: 0.78rem; gap: 6px; }
+  .sidebar-item span { display: none; }
+  .sidebar-item i { font-size: 1rem; }
   .icons-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
   .picker-enter-from .picker-panel { transform: translateY(100%); }
   .picker-leave-to .picker-panel { transform: translateY(100%); }
@@ -658,4 +751,23 @@ const selectIcon = (icon: string) => { emit('select', icon) }
 .picker-leave-active .picker-panel { transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1); }
 .picker-enter-from .picker-panel { transform: translateY(80px) scale(0.85); }
 .picker-leave-to .picker-panel { transform: translateY(40px) scale(0.92); }
+
+/* Light theme */
+[data-theme='light'] .picker-panel {
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.97) 0%, rgba(245, 245, 250, 0.98) 100%);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 32px 80px rgba(0, 0, 0, 0.15), 0 0 60px -10px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+[data-theme='light'] .picker-header { border-bottom-color: rgba(0, 0, 0, 0.08); }
+[data-theme='light'] .header-close { background: rgba(0, 0, 0, 0.04); border-color: rgba(0, 0, 0, 0.1); }
+[data-theme='light'] .header-close:hover { background: rgba(0, 0, 0, 0.08); }
+[data-theme='light'] .picker-search { border-bottom-color: rgba(0, 0, 0, 0.08); }
+[data-theme='light'] .field:focus { background: rgba(0, 0, 0, 0.02); }
+[data-theme='light'] .icon-cell { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.07); }
+[data-theme='light'] .icon-cell:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+[data-theme='light'] .upload-bar { border-bottom-color: rgba(0, 0, 0, 0.06); }
+[data-theme='light'] .picker-sidebar { background: rgba(0, 0, 0, 0.04); border-right-color: rgba(0, 0, 0, 0.08); }
+[data-theme='light'] .sidebar-item.active { background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: color-mix(in srgb, var(--accent) 20%, transparent); }
+[data-theme='light'] .sidebar-item:not(.active):hover { background: rgba(0, 0, 0, 0.05); }
+[data-theme='light'] .picker-scroll::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); }
 </style>

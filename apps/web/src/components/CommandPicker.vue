@@ -20,6 +20,8 @@ const emit = defineEmits<{
 }>()
 
 const searchQuery = ref('')
+const activeCategory = ref<string | null>(null)
+const viewMode = ref<'list' | 'grid'>('list')
 
 const commandCategories: Record<string, CommandItem[]> = {
   Navegadores: [
@@ -77,11 +79,24 @@ const commandCategories: Record<string, CommandItem[]> = {
   ],
 }
 
+const categoryNames = Object.keys(commandCategories)
+const categoryIcons: Record<string, string> = {
+  Navegadores: 'pi pi-globe',
+  'Microsoft Office': 'pi pi-microsoft',
+  Aplicaciones: 'pi pi-th-large',
+  Sistema: 'pi pi-cog',
+  Multimedia: 'pi pi-volume-up',
+  'Carpetas Comunes': 'pi pi-folder-open',
+}
+
 const filteredCommands = computed(() => {
-  if (!searchQuery.value.trim()) return commandCategories
+  const source = activeCategory.value
+    ? { [activeCategory.value]: commandCategories[activeCategory.value] }
+    : commandCategories
+  if (!searchQuery.value.trim()) return source
   const query = searchQuery.value.toLowerCase()
   const filtered: Record<string, CommandItem[]> = {}
-  Object.entries(commandCategories).forEach(([category, commands]) => {
+  Object.entries(source).forEach(([category, commands]) => {
     const matching = commands.filter(
       (item) =>
         item.label.toLowerCase().includes(query) ||
@@ -109,34 +124,68 @@ const selectCommand = (command: string) => {
         </button>
       </header>
 
-      <div class="picker-search">
-        <i class="pi pi-search search-icon"></i>
-        <input v-model="searchQuery" type="text" placeholder="Buscar comando..." class="field" />
-      </div>
+      <div class="picker-body">
+        <nav class="picker-sidebar">
+          <button
+            type="button"
+            class="sidebar-item"
+            :class="{ active: activeCategory === null }"
+            @click="activeCategory = null"
+          >
+            <i class="pi pi-objects-column"></i>
+            <span>Todos</span>
+          </button>
+          <button
+            v-for="cat in categoryNames"
+            :key="cat"
+            type="button"
+            class="sidebar-item"
+            :class="{ active: activeCategory === cat }"
+            @click="activeCategory = cat"
+          >
+            <i :class="categoryIcons[cat] || 'pi pi-folder'"></i>
+            <span>{{ cat }}</span>
+          </button>
+        </nav>
 
-      <div class="picker-scroll">
-        <div v-if="Object.keys(filteredCommands).length === 0" class="empty-state">
-          <i class="pi pi-search" style="font-size: 2rem; opacity: 0.3"></i>
-          <p>No se encontraron comandos</p>
-        </div>
-        <div v-for="(commands, category) in filteredCommands" :key="category" class="category">
-          <h4 class="category-title">{{ category }} ({{ commands.length }})</h4>
-          <div class="items-list">
-            <button
-              v-for="item in commands"
-              :key="item.command"
-              class="list-item"
-              :class="{ active: currentCommand === item.command }"
-              @click.stop="selectCommand(item.command)"
-              type="button"
-            >
-              <div v-if="item.icon" class="item-icon"><i :class="item.icon"></i></div>
-              <div class="item-info">
-                <div class="item-label">{{ item.label }}</div>
-                <div class="item-desc">{{ item.description }}</div>
-                <code class="item-code">{{ item.command }}</code>
+        <div class="picker-main">
+          <div class="picker-search">
+            <i class="pi pi-search search-icon"></i>
+            <input v-model="searchQuery" type="text" placeholder="Buscar comando..." class="field" />
+            <div class="view-toggle">
+              <button type="button" class="view-btn" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="Vista lista">
+                <i class="pi pi-list"></i>
+              </button>
+              <button type="button" class="view-btn" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="Vista cuadrícula">
+                <i class="pi pi-th-large"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="picker-scroll">
+            <div v-if="Object.keys(filteredCommands).length === 0" class="empty-state">
+              <i class="pi pi-search" style="font-size: 2rem; opacity: 0.3"></i>
+              <p>No se encontraron comandos</p>
+            </div>
+            <div v-for="(commands, category) in filteredCommands" :key="category" class="category">
+              <h4 class="category-title">{{ category }} ({{ commands.length }})</h4>
+              <div :class="viewMode === 'grid' ? 'items-grid' : 'items-list'">
+                <button
+                  v-for="item in commands"
+                  :key="item.command"
+                  :class="[viewMode === 'grid' ? 'grid-item' : 'list-item', { active: currentCommand === item.command }]"
+                  @click.stop="selectCommand(item.command)"
+                  type="button"
+                >
+                  <div v-if="item.icon" :class="viewMode === 'grid' ? 'grid-icon' : 'item-icon'"><i :class="item.icon"></i></div>
+                  <div class="item-info">
+                    <div class="item-label">{{ item.label }}</div>
+                    <div v-if="viewMode === 'list'" class="item-desc">{{ item.description }}</div>
+                    <code v-if="viewMode === 'list'" class="item-code">{{ item.command }}</code>
+                  </div>
+                </button>
               </div>
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -160,8 +209,8 @@ const selectCommand = (command: string) => {
 
 .picker-panel {
   width: 100%;
-  max-width: 720px;
-  max-height: 85dvh;
+  max-width: 820px;
+  height: 580px;
   display: flex;
   flex-direction: column;
   border-radius: 24px;
@@ -203,6 +252,62 @@ const selectCommand = (command: string) => {
 }
 @media (hover: hover) {
   .header-close:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-1); transform: rotate(90deg); }
+}
+
+.picker-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.picker-sidebar {
+  width: 190px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 10px;
+  border-right: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: all 0.18s;
+  text-align: left;
+  white-space: nowrap;
+}
+.sidebar-item i { font-size: 1rem; width: 20px; text-align: center; }
+.sidebar-item.active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text-1);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+@media (hover: hover) {
+  .sidebar-item:not(.active):hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-1);
+  }
+}
+
+.picker-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .picker-search {
@@ -305,6 +410,69 @@ const selectCommand = (command: string) => {
   white-space: nowrap;
 }
 
+/* Grid view */
+.items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+}
+.grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: center;
+  color: var(--text-1);
+  transition: all 0.15s;
+}
+@media (hover: hover) {
+  .grid-item:hover {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+}
+.grid-item.active {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.grid-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  display: grid; place-items: center;
+  font-size: 1.3rem; color: var(--accent);
+}
+.grid-item .item-info { min-width: 0; width: 100%; }
+.grid-item .item-label {
+  font-size: 0.78rem; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* View toggle */
+.view-toggle {
+  display: flex; gap: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px; padding: 2px;
+  flex-shrink: 0;
+}
+.view-btn {
+  width: 34px; height: 34px; border: none; border-radius: 6px;
+  background: transparent; color: var(--text-2); cursor: pointer;
+  display: grid; place-items: center; font-size: 0.9rem; transition: all 0.18s;
+}
+.view-btn.active {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  color: var(--accent);
+}
+@media (hover: hover) {
+  .view-btn:not(.active):hover { background: rgba(255, 255, 255, 0.08); color: var(--text-1); }
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -321,7 +489,21 @@ const selectCommand = (command: string) => {
 
 @media (max-width: 640px) {
   .picker-backdrop { align-items: flex-end; padding: 0; }
-  .picker-panel { max-width: 100%; border-radius: 24px 24px 0 0; max-height: 92dvh; }
+  .picker-panel { max-width: 100%; height: auto; max-height: 92dvh; border-radius: 24px 24px 0 0; }
+  .picker-body { flex-direction: column; }
+  .picker-sidebar {
+    width: 100%;
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+    padding: 8px 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 4px;
+  }
+  .sidebar-item { padding: 8px 12px; font-size: 0.8rem; gap: 6px; }
+  .sidebar-item span { display: none; }
+  .sidebar-item i { font-size: 1.1rem; }
   .picker-enter-from .picker-panel { transform: translateY(100%); }
   .picker-leave-to .picker-panel { transform: translateY(100%); }
 }
@@ -336,4 +518,23 @@ const selectCommand = (command: string) => {
 .picker-leave-active .picker-panel { transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1); }
 .picker-enter-from .picker-panel { transform: translateY(80px) scale(0.85); }
 .picker-leave-to .picker-panel { transform: translateY(40px) scale(0.92); }
+
+/* Light theme */
+[data-theme='light'] .picker-panel {
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.97) 0%, rgba(245, 245, 250, 0.98) 100%);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 32px 80px rgba(0, 0, 0, 0.15), 0 0 60px -10px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+[data-theme='light'] .picker-header { border-bottom-color: rgba(0, 0, 0, 0.08); }
+[data-theme='light'] .header-close { background: rgba(0, 0, 0, 0.04); border-color: rgba(0, 0, 0, 0.1); }
+[data-theme='light'] .header-close:hover { background: rgba(0, 0, 0, 0.08); }
+[data-theme='light'] .picker-search { border-bottom-color: rgba(0, 0, 0, 0.08); }
+[data-theme='light'] .field:focus { background: rgba(0, 0, 0, 0.02); }
+[data-theme='light'] .list-item, [data-theme='light'] .grid-item { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.07); }
+[data-theme='light'] .list-item:hover, [data-theme='light'] .grid-item:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+[data-theme='light'] .view-toggle { background: rgba(0, 0, 0, 0.06); }
+[data-theme='light'] .picker-sidebar { background: rgba(0, 0, 0, 0.04); border-right-color: rgba(0, 0, 0, 0.08); }
+[data-theme='light'] .sidebar-item.active { background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: color-mix(in srgb, var(--accent) 20%, transparent); }
+[data-theme='light'] .sidebar-item:not(.active):hover { background: rgba(0, 0, 0, 0.05); }
+[data-theme='light'] .picker-scroll::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); }
 </style>

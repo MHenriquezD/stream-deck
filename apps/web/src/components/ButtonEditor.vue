@@ -28,6 +28,12 @@ const showAppPicker = ref(false)
 const showIconSuggestions = ref(false)
 const iconInputFocused = ref(false)
 const showDeleteDialog = ref(false)
+const activeTab = ref<'general' | 'icon' | 'action'>('general')
+const editorTabs = [
+  { key: 'general' as const, label: 'General', icon: 'pi pi-pencil' },
+  { key: 'icon' as const, label: 'Icono', icon: 'pi pi-image' },
+  { key: 'action' as const, label: 'Acción', icon: 'pi pi-bolt' },
+]
 
 const formData = reactive({
   label: '',
@@ -39,10 +45,48 @@ const formData = reactive({
 })
 
 const actionTypes = [
+  { value: 'OPEN_APP', label: 'App', icon: 'pi pi-desktop' },
   { value: 'COMMAND', label: 'Comando', icon: 'pi pi-code' },
   { value: 'HOTKEY', label: 'Atajo', icon: 'pi pi-bolt' },
-  { value: 'OPEN_APP', label: 'App', icon: 'pi pi-desktop' },
   { value: 'URL', label: 'URL', icon: 'pi pi-globe' },
+]
+
+const hotkeyPresets = [
+  { label: 'Copiar', keys: 'Ctrl+C' },
+  { label: 'Pegar', keys: 'Ctrl+V' },
+  { label: 'Cortar', keys: 'Ctrl+X' },
+  { label: 'Deshacer', keys: 'Ctrl+Z' },
+  { label: 'Rehacer', keys: 'Ctrl+Y' },
+  { label: 'Guardar', keys: 'Ctrl+S' },
+  { label: 'Seleccionar todo', keys: 'Ctrl+A' },
+  { label: 'Buscar', keys: 'Ctrl+F' },
+  { label: 'Cerrar ventana', keys: 'Alt+F4' },
+  { label: 'Cambiar ventana', keys: 'Alt+Tab' },
+  { label: 'Escritorio', keys: 'Win+D' },
+  { label: 'Explorador', keys: 'Win+E' },
+  { label: 'Bloquear PC', keys: 'Win+L' },
+  { label: 'Captura pantalla', keys: 'Win+Shift+S' },
+  { label: 'Admin. tareas', keys: 'Ctrl+Shift+Esc' },
+  { label: 'Silenciar mic', keys: 'Win+Alt+K' },
+  { label: 'Play/Pause', keys: 'MediaPlayPause' },
+  { label: 'Siguiente', keys: 'MediaNextTrack' },
+  { label: 'Anterior', keys: 'MediaPrevTrack' },
+  { label: 'Subir volumen', keys: 'VolumeUp' },
+  { label: 'Bajar volumen', keys: 'VolumeDown' },
+  { label: 'Silenciar', keys: 'VolumeMute' },
+]
+
+const urlPresets = [
+  { label: 'Google', url: 'https://google.com' },
+  { label: 'YouTube', url: 'https://youtube.com' },
+  { label: 'GitHub', url: 'https://github.com' },
+  { label: 'ChatGPT', url: 'https://chat.openai.com' },
+  { label: 'Gmail', url: 'https://mail.google.com' },
+  { label: 'WhatsApp Web', url: 'https://web.whatsapp.com' },
+  { label: 'Twitter/X', url: 'https://x.com' },
+  { label: 'Reddit', url: 'https://reddit.com' },
+  { label: 'Netflix', url: 'https://netflix.com' },
+  { label: 'Spotify Web', url: 'https://open.spotify.com' },
 ]
 
 const colorSwatches = [
@@ -51,39 +95,64 @@ const colorSwatches = [
   '#ec4899', '#a855f7', '#2c3e50', '#000000',
 ]
 
-const emojiPresets = [
-  '🎮', '🎵', '🎬', '💻', '🔊', '🎨',
-  '📁', '🌐', '⚙️', '🚀', '💡', '📊',
-  '🔧', '🎯', '⭐',
+const quickIcons = [
+  { icon: 'svg:spotify.svg', label: 'Spotify' },
+  { icon: 'svg:discord.svg', label: 'Discord' },
+  { icon: 'svg:chrome.svg', label: 'Chrome' },
+  { icon: 'svg:edge.svg', label: 'Edge' },
+  { icon: 'svg:firefox.svg', label: 'Firefox' },
+  { icon: 'svg:brave.svg', label: 'Brave' },
+  { icon: 'svg:youtube.svg', label: 'YouTube' },
+  { icon: 'svg:netflix.svg', label: 'Netflix' },
+  { icon: 'svg:whatsapp.svg', label: 'WhatsApp' },
+  { icon: 'svg:vscode.svg', label: 'VS Code' },
+  { icon: 'svg:minecraft.svg', label: 'Minecraft' },
+  { icon: 'svg:xbox.svg', label: 'Xbox' },
+  { icon: 'svg:word.svg', label: 'Word' },
+  { icon: 'svg:excel.svg', label: 'Excel' },
+  { icon: 'svg:powerpoint.svg', label: 'PowerPoint' },
+  { icon: 'svg:outlook.svg', label: 'Outlook' },
+  { icon: 'svg:volume-high.svg', label: 'Volumen' },
+  { icon: 'svg:volume-mute.svg', label: 'Silenciar' },
+  { icon: 'svg:note-music.svg', label: 'Música' },
+  { icon: 'svg:gear.svg', label: 'Config' },
+  { icon: 'pi pi-home', label: 'Inicio' },
+  { icon: 'pi pi-folder', label: 'Carpeta' },
+  { icon: 'pi pi-play', label: 'Play' },
+  { icon: 'pi pi-pause', label: 'Pausa' },
+  { icon: 'pi pi-forward', label: 'Siguiente' },
+  { icon: 'pi pi-backward', label: 'Anterior' },
+  { icon: 'pi pi-power-off', label: 'Apagar' },
+  { icon: 'pi pi-desktop', label: 'Escritorio' },
+  { icon: 'pi pi-camera', label: 'Captura' },
+  { icon: 'pi pi-lock', label: 'Bloquear' },
 ]
 
 const iconCatalog = [
-  { icon: '🎵', label: 'Música', keywords: ['musica', 'music', 'nota'] },
-  { icon: '🔊', label: 'Volumen Alto', keywords: ['volumen', 'volume', 'alto', 'sonido'] },
-  { icon: '🔇', label: 'Silencio', keywords: ['silencio', 'mute', 'mudo'] },
-  { icon: '⏯️', label: 'Play/Pausa', keywords: ['play', 'pausa', 'pause', 'reproducir'] },
-  { icon: '⏭️', label: 'Siguiente', keywords: ['siguiente', 'next', 'adelante'] },
-  { icon: '⏮️', label: 'Anterior', keywords: ['anterior', 'prev', 'atras'] },
-  { icon: '🌐', label: 'Navegador', keywords: ['navegador', 'browser', 'web', 'internet'] },
-  { icon: '💻', label: 'Computadora', keywords: ['computadora', 'pc', 'ordenador', 'computer'] },
-  { icon: '📁', label: 'Carpeta', keywords: ['carpeta', 'folder', 'directorio'] },
-  { icon: '🎮', label: 'Juego', keywords: ['juego', 'game', 'gaming'] },
-  { icon: '⚙️', label: 'Configuración', keywords: ['config', 'configuracion', 'settings'] },
-  { icon: 'fas fa-music', label: 'Música (FA)', keywords: ['musica', 'music', 'fontawesome'] },
-  { icon: 'fas fa-volume-high', label: 'Volumen (FA)', keywords: ['volumen', 'volume', 'fontawesome'] },
-  { icon: 'fas fa-play', label: 'Play (FA)', keywords: ['play', 'reproducir', 'fontawesome'] },
-  { icon: 'fas fa-pause', label: 'Pausa (FA)', keywords: ['pausa', 'pause', 'fontawesome'] },
-  { icon: 'fas fa-home', label: 'Casa (FA)', keywords: ['casa', 'home', 'inicio', 'fontawesome'] },
-  { icon: 'fas fa-folder', label: 'Carpeta (FA)', keywords: ['carpeta', 'folder', 'fontawesome'] },
-  { icon: 'fas fa-gamepad', label: 'Juego (FA)', keywords: ['juego', 'game', 'gaming', 'fontawesome'] },
-  { icon: 'fab fa-chrome', label: 'Chrome', keywords: ['chrome', 'navegador', 'google'] },
-  { icon: 'fab fa-firefox-browser', label: 'Firefox', keywords: ['firefox', 'navegador', 'mozilla'] },
-  { icon: 'fab fa-discord', label: 'Discord', keywords: ['discord', 'chat'] },
-  { icon: 'fab fa-spotify', label: 'Spotify', keywords: ['spotify', 'musica', 'music'] },
-  { icon: 'fab fa-steam', label: 'Steam', keywords: ['steam', 'juego', 'game'] },
-  { icon: 'pi pi-home', label: 'Casa (PI)', keywords: ['casa', 'home', 'inicio', 'primeicons'] },
-  { icon: 'pi pi-cog', label: 'Config (PI)', keywords: ['config', 'configuracion', 'primeicons'] },
-  { icon: 'pi pi-folder', label: 'Carpeta (PI)', keywords: ['carpeta', 'folder', 'primeicons'] },
+  { icon: 'svg:spotify.svg', label: 'Spotify', keywords: ['spotify', 'musica', 'music'] },
+  { icon: 'svg:discord.svg', label: 'Discord', keywords: ['discord', 'chat'] },
+  { icon: 'svg:chrome.svg', label: 'Chrome', keywords: ['chrome', 'navegador', 'google'] },
+  { icon: 'svg:edge.svg', label: 'Edge', keywords: ['edge', 'navegador', 'microsoft'] },
+  { icon: 'svg:firefox.svg', label: 'Firefox', keywords: ['firefox', 'navegador', 'mozilla'] },
+  { icon: 'svg:brave.svg', label: 'Brave', keywords: ['brave', 'navegador'] },
+  { icon: 'svg:youtube.svg', label: 'YouTube', keywords: ['youtube', 'video'] },
+  { icon: 'svg:netflix.svg', label: 'Netflix', keywords: ['netflix', 'streaming'] },
+  { icon: 'svg:whatsapp.svg', label: 'WhatsApp', keywords: ['whatsapp', 'chat', 'mensaje'] },
+  { icon: 'svg:vscode.svg', label: 'VS Code', keywords: ['vscode', 'code', 'editor'] },
+  { icon: 'svg:volume-high.svg', label: 'Volumen Alto', keywords: ['volumen', 'volume', 'alto', 'sonido'] },
+  { icon: 'svg:volume-mute.svg', label: 'Silencio', keywords: ['silencio', 'mute', 'mudo'] },
+  { icon: 'svg:note-music.svg', label: 'Música', keywords: ['musica', 'music', 'nota'] },
+  { icon: 'svg:gear.svg', label: 'Configuración', keywords: ['config', 'configuracion', 'settings'] },
+  { icon: 'pi pi-home', label: 'Inicio', keywords: ['casa', 'home', 'inicio'] },
+  { icon: 'pi pi-folder', label: 'Carpeta', keywords: ['carpeta', 'folder', 'directorio'] },
+  { icon: 'pi pi-play', label: 'Play', keywords: ['play', 'reproducir'] },
+  { icon: 'pi pi-pause', label: 'Pausa', keywords: ['pausa', 'pause'] },
+  { icon: 'pi pi-forward', label: 'Siguiente', keywords: ['siguiente', 'next'] },
+  { icon: 'pi pi-backward', label: 'Anterior', keywords: ['anterior', 'prev'] },
+  { icon: 'pi pi-cog', label: 'Config', keywords: ['config', 'configuracion'] },
+  { icon: 'pi pi-desktop', label: 'Escritorio', keywords: ['escritorio', 'desktop', 'pc'] },
+  { icon: 'pi pi-globe', label: 'Web', keywords: ['web', 'internet', 'navegador'] },
+  { icon: 'pi pi-power-off', label: 'Apagar', keywords: ['apagar', 'power', 'off'] },
 ]
 
 const iconSuggestions = computed(() => {
@@ -170,9 +239,6 @@ const handleDeleteCancel = () => {
 }
 
 const handleClose = () => emit('close')
-const setEmoji = (emoji: string) => {
-  formData.icon = emoji
-}
 
 const handleIconSelect = (icon: string) => {
   formData.icon = icon
@@ -235,170 +301,233 @@ const handleIconInputBlur = () => {
           </button>
         </header>
 
-        <div class="editor-scroll">
-          <!-- ─── LIVE PREVIEW ─── -->
-          <section class="preview-stage">
-            <div
-              class="preview-button"
-              :style="{ color: formData.color, '--glow': formData.backgroundColor }"
-            >
-              <div v-if="formData.icon" class="preview-icon">
-                <img v-if="formData.icon.startsWith('svg:')" :src="'./icons/' + formData.icon.replace('svg:', '')" class="preview-img" alt="icon" />
-                <img v-else-if="formData.icon.startsWith('appicon:')" :src="serverUrlStore.serverUrl + formData.icon.replace('appicon:', '')" class="preview-img" alt="app icon" />
-                <img v-else-if="formData.icon.startsWith('sd:')" :src="'./streamdeck-icons/' + formData.icon.replace('sd:', '')" class="preview-img" alt="icon" />
-                <img v-else-if="formData.icon.startsWith('custom:')" :src="serverUrlStore.serverUrl + '/custom-icons/' + formData.icon.replace('custom:', '')" class="preview-img" alt="icon" />
-                <i v-else-if="formData.icon.startsWith('pi ') || formData.icon.startsWith('fa')" :class="formData.icon"></i>
-                <span v-else>{{ formData.icon }}</span>
+        <div class="editor-body">
+          <!-- ─── SIDEBAR ─── -->
+          <nav class="editor-sidebar">
+            <div class="sidebar-preview">
+              <div
+                class="preview-button"
+                :style="{ color: formData.color, '--glow': formData.backgroundColor }"
+              >
+                <div v-if="formData.icon" class="preview-icon">
+                  <img v-if="formData.icon.startsWith('svg:')" :src="'./icons/' + formData.icon.replace('svg:', '')" class="preview-img" alt="icon" />
+                  <img v-else-if="formData.icon.startsWith('appicon:')" :src="serverUrlStore.serverUrl + formData.icon.replace('appicon:', '')" class="preview-img" alt="app icon" />
+                  <img v-else-if="formData.icon.startsWith('sd:')" :src="'./streamdeck-icons/' + formData.icon.replace('sd:', '')" class="preview-img" alt="icon" />
+                  <img v-else-if="formData.icon.startsWith('custom:')" :src="serverUrlStore.serverUrl + '/custom-icons/' + formData.icon.replace('custom:', '')" class="preview-img" alt="icon" />
+                  <i v-else-if="formData.icon.startsWith('pi ') || formData.icon.startsWith('fa')" :class="formData.icon"></i>
+                  <span v-else>{{ formData.icon }}</span>
+                </div>
+                <div class="preview-label">{{ formData.label || 'Sin nombre' }}</div>
               </div>
-              <div class="preview-label">{{ formData.label || 'Sin nombre' }}</div>
             </div>
-          </section>
+            <div class="sidebar-tabs">
+              <button
+                v-for="tab in editorTabs"
+                :key="tab.key"
+                type="button"
+                class="sidebar-item"
+                :class="{ active: activeTab === tab.key }"
+                @click="activeTab = tab.key"
+              >
+                <i :class="tab.icon"></i>
+                <span>{{ tab.label }}</span>
+              </button>
+            </div>
+          </nav>
 
-          <!-- ─── CARD: ETIQUETA ─── -->
-          <section class="card">
-            <label class="card-label">Etiqueta</label>
-            <input
-              v-model="formData.label"
-              type="text"
-              placeholder="Ej: Abrir Discord"
-              class="field"
-            />
-          </section>
-
-          <!-- ─── CARD: ICONO ─── -->
-          <section class="card">
-            <label class="card-label">Icono</label>
-            <div class="icon-row">
-              <div class="icon-search-wrap">
+          <!-- ─── CONTENT ─── -->
+          <div class="editor-content">
+            <!-- TAB: GENERAL -->
+            <div v-if="activeTab === 'general'" class="tab-content">
+              <h3 class="tab-title">General</h3>
+              <section class="card">
+                <label class="card-label">Etiqueta</label>
                 <input
-                  v-model="formData.icon"
+                  v-model="formData.label"
                   type="text"
-                  placeholder="Buscar: música, home, juego..."
+                  placeholder="Ej: Abrir Discord"
                   class="field"
-                  @focus="handleIconInputFocus"
-                  @blur="handleIconInputBlur"
                 />
-                <div v-if="showIconSuggestions" class="suggestions-dropdown">
+              </section>
+
+              <section class="card">
+                <label class="card-label">Color de acento</label>
+                <div class="swatch-row">
                   <button
-                    v-for="item in iconSuggestions"
-                    :key="item.icon"
+                    v-for="c in colorSwatches"
+                    :key="c"
                     type="button"
-                    class="suggestion-item"
-                    @click="selectSuggestion(item.icon)"
-                  >
-                    <span v-if="item.icon.startsWith('pi ') || item.icon.startsWith('fa')" class="sug-icon"><i :class="item.icon"></i></span>
-                    <span v-else class="sug-icon sug-emoji">{{ item.icon }}</span>
-                    <span class="sug-label">{{ item.label }}</span>
+                    class="swatch"
+                    :class="{ active: formData.backgroundColor === c }"
+                    :style="{ '--sw': c }"
+                    @click="formData.backgroundColor = c"
+                  ></button>
+                  <label class="swatch swatch-custom" title="Color personalizado">
+                    <input type="color" v-model="formData.backgroundColor" class="sr-only" />
+                    <i class="pi pi-palette"></i>
+                  </label>
+                </div>
+
+                <label class="card-label" style="margin-top: 14px;">Color de texto</label>
+                <div class="swatch-row">
+                  <button
+                    v-for="c in ['#ffffff', '#e2e8f0', '#94a3b8', '#000000']"
+                    :key="c"
+                    type="button"
+                    class="swatch"
+                    :class="{ active: formData.color === c }"
+                    :style="{ '--sw': c }"
+                    @click="formData.color = c"
+                  ></button>
+                  <label class="swatch swatch-custom" title="Color personalizado">
+                    <input type="color" v-model="formData.color" class="sr-only" />
+                    <i class="pi pi-palette"></i>
+                  </label>
+                </div>
+              </section>
+            </div>
+
+            <!-- TAB: ICONO -->
+            <div v-if="activeTab === 'icon'" class="tab-content">
+              <h3 class="tab-title">Icono</h3>
+              <section class="card">
+                <label class="card-label">Buscar icono</label>
+                <div class="icon-row">
+                  <div class="icon-search-wrap">
+                    <input
+                      v-model="formData.icon"
+                      type="text"
+                      placeholder="Buscar: música, home, juego..."
+                      class="field"
+                      @focus="handleIconInputFocus"
+                      @blur="handleIconInputBlur"
+                    />
+                    <div v-if="showIconSuggestions" class="suggestions-dropdown">
+                      <button
+                        v-for="item in iconSuggestions"
+                        :key="item.icon"
+                        type="button"
+                        class="suggestion-item"
+                        @click="selectSuggestion(item.icon)"
+                      >
+                        <span v-if="item.icon.startsWith('svg:')" class="sug-icon"><img :src="'./icons/' + item.icon.replace('svg:', '')" class="sug-img" /></span>
+                        <span v-else-if="item.icon.startsWith('pi ') || item.icon.startsWith('fa')" class="sug-icon"><i :class="item.icon"></i></span>
+                        <span v-else class="sug-icon sug-emoji">{{ item.icon }}</span>
+                        <span class="sug-label">{{ item.label }}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <button type="button" @click="showIconPicker = true" class="btn-neon btn-sm" title="Buscar icono">
+                    <i class="pi pi-search"></i>
                   </button>
                 </div>
-              </div>
-              <button type="button" @click="showIconPicker = true" class="btn-neon btn-sm" title="Buscar icono">
-                <i class="pi pi-search"></i>
-              </button>
+
+                <div v-if="formData.icon" class="icon-inline-preview">
+                  <img v-if="formData.icon.startsWith('svg:')" :src="'./icons/' + formData.icon.replace('svg:', '')" class="icon-thumb" alt="icon" />
+                  <img v-else-if="formData.icon.startsWith('appicon:')" :src="serverUrlStore.serverUrl + formData.icon.replace('appicon:', '')" class="icon-thumb" alt="app icon" />
+                  <img v-else-if="formData.icon.startsWith('sd:')" :src="'./streamdeck-icons/' + formData.icon.replace('sd:', '')" class="icon-thumb" alt="icon" />
+                  <img v-else-if="formData.icon.startsWith('custom:')" :src="serverUrlStore.serverUrl + '/custom-icons/' + formData.icon.replace('custom:', '')" class="icon-thumb" alt="icon" />
+                  <span v-else-if="formData.icon.startsWith('pi ') || formData.icon.startsWith('fa')" class="icon-thumb-fa"><i :class="formData.icon"></i></span>
+                  <span v-else class="icon-thumb-emoji">{{ formData.icon }}</span>
+                </div>
+              </section>
+
+              <section class="card">
+                <label class="card-label">Iconos rápidos</label>
+                <div class="quick-icons-grid">
+                  <button
+                    v-for="qi in quickIcons"
+                    :key="qi.icon"
+                    type="button"
+                    class="quick-icon-chip"
+                    :class="{ active: formData.icon === qi.icon }"
+                    :title="qi.label"
+                    @click="formData.icon = qi.icon"
+                  >
+                    <img v-if="qi.icon.startsWith('svg:')" :src="'./icons/' + qi.icon.replace('svg:', '')" class="qi-img" :alt="qi.label" />
+                    <i v-else :class="qi.icon" class="qi-pi"></i>
+                  </button>
+                </div>
+              </section>
             </div>
 
-            <!-- icon preview inline -->
-            <div v-if="formData.icon" class="icon-inline-preview">
-              <img v-if="formData.icon.startsWith('svg:')" :src="'./icons/' + formData.icon.replace('svg:', '')" class="icon-thumb" alt="icon" />
-              <img v-else-if="formData.icon.startsWith('appicon:')" :src="serverUrlStore.serverUrl + formData.icon.replace('appicon:', '')" class="icon-thumb" alt="app icon" />
-              <img v-else-if="formData.icon.startsWith('sd:')" :src="'./streamdeck-icons/' + formData.icon.replace('sd:', '')" class="icon-thumb" alt="icon" />
-              <img v-else-if="formData.icon.startsWith('custom:')" :src="serverUrlStore.serverUrl + '/custom-icons/' + formData.icon.replace('custom:', '')" class="icon-thumb" alt="icon" />
-              <span v-else-if="formData.icon.startsWith('pi ') || formData.icon.startsWith('fa')" class="icon-thumb-fa"><i :class="formData.icon"></i></span>
-              <span v-else class="icon-thumb-emoji">{{ formData.icon }}</span>
-            </div>
+            <!-- TAB: ACCIÓN -->
+            <div v-if="activeTab === 'action'" class="tab-content">
+              <h3 class="tab-title">Acción</h3>
+              <section class="card">
+                <label class="card-label">Tipo de acción</label>
+                <div class="segmented">
+                  <button
+                    v-for="t in actionTypes"
+                    :key="t.value"
+                    type="button"
+                    class="seg-item"
+                    :class="{ active: formData.actionType === t.value }"
+                    @click="formData.actionType = t.value as ActionType"
+                  >
+                    <i :class="t.icon"></i>
+                    <span>{{ t.label }}</span>
+                  </button>
+                </div>
 
-            <div class="emoji-grid">
-              <button
-                v-for="emoji in emojiPresets"
-                :key="emoji"
-                type="button"
-                class="emoji-chip"
-                @click="setEmoji(emoji)"
-              >{{ emoji }}</button>
-            </div>
-          </section>
+                <label class="card-label" style="margin-top: 14px;">
+                  {{ formData.actionType === 'COMMAND' ? 'Comando' : formData.actionType === 'HOTKEY' ? 'Atajo (Ej: Ctrl+C)' : formData.actionType === 'OPEN_APP' ? 'Ruta de la App' : 'URL' }}
+                </label>
 
-          <!-- ─── CARD: COLORES ─── -->
-          <section class="card">
-            <label class="card-label">Color de acento</label>
-            <div class="swatch-row">
-              <button
-                v-for="c in colorSwatches"
-                :key="c"
-                type="button"
-                class="swatch"
-                :class="{ active: formData.backgroundColor === c }"
-                :style="{ '--sw': c }"
-                @click="formData.backgroundColor = c"
-              ></button>
-              <label class="swatch swatch-custom" title="Color personalizado">
-                <input type="color" v-model="formData.backgroundColor" class="sr-only" />
-                <i class="pi pi-palette"></i>
-              </label>
-            </div>
+                <textarea
+                  v-model="formData.payload"
+                  :placeholder="
+                    formData.actionType === 'COMMAND' ? 'Ej: notepad.exe' :
+                    formData.actionType === 'HOTKEY' ? 'Ej: Ctrl+Alt+T' :
+                    formData.actionType === 'OPEN_APP' ? 'Ej: C:\\Program Files\\App\\app.exe' :
+                    'Ej: https://google.com'
+                  "
+                  class="field field-textarea"
+                  rows="3"
+                ></textarea>
 
-            <label class="card-label" style="margin-top: 14px;">Color de texto</label>
-            <div class="swatch-row">
-              <button
-                v-for="c in ['#ffffff', '#e2e8f0', '#94a3b8', '#000000']"
-                :key="c"
-                type="button"
-                class="swatch"
-                :class="{ active: formData.color === c }"
-                :style="{ '--sw': c }"
-                @click="formData.color = c"
-              ></button>
-              <label class="swatch swatch-custom" title="Color personalizado">
-                <input type="color" v-model="formData.color" class="sr-only" />
-                <i class="pi pi-palette"></i>
-              </label>
+                <div class="action-helpers" v-if="formData.actionType === 'OPEN_APP'">
+                  <button type="button" @click="showAppPicker = true" class="btn-neon btn-sm">
+                    <i class="pi pi-desktop"></i> Aplicaciones
+                  </button>
+                </div>
+                <div class="action-helpers" v-else-if="formData.actionType === 'COMMAND'">
+                  <button type="button" @click="showCommandPicker = true" class="btn-neon btn-sm">
+                    <i class="pi pi-list"></i> Comandos
+                  </button>
+                </div>
+                <div class="action-helpers" v-else-if="formData.actionType === 'HOTKEY'">
+                  <div class="preset-grid">
+                    <button
+                      v-for="h in hotkeyPresets"
+                      :key="h.keys"
+                      type="button"
+                      class="preset-chip"
+                      :class="{ active: formData.payload === h.keys }"
+                      @click="formData.payload = h.keys"
+                    >
+                      <span class="preset-label">{{ h.label }}</span>
+                      <kbd class="preset-kbd">{{ h.keys }}</kbd>
+                    </button>
+                  </div>
+                </div>
+                <div class="action-helpers" v-else-if="formData.actionType === 'URL'">
+                  <div class="preset-grid">
+                    <button
+                      v-for="u in urlPresets"
+                      :key="u.url"
+                      type="button"
+                      class="preset-chip"
+                      :class="{ active: formData.payload === u.url }"
+                      @click="formData.payload = u.url"
+                    >
+                      <span class="preset-label">{{ u.label }}</span>
+                    </button>
+                  </div>
+                </div>
+              </section>
             </div>
-          </section>
-
-          <!-- ─── CARD: ACCIÓN ─── -->
-          <section class="card">
-            <label class="card-label">Tipo de acción</label>
-            <div class="segmented">
-              <button
-                v-for="t in actionTypes"
-                :key="t.value"
-                type="button"
-                class="seg-item"
-                :class="{ active: formData.actionType === t.value }"
-                @click="formData.actionType = t.value as ActionType"
-              >
-                <i :class="t.icon"></i>
-                <span>{{ t.label }}</span>
-              </button>
-            </div>
-
-            <label class="card-label" style="margin-top: 14px;">
-              {{ formData.actionType === 'COMMAND' ? 'Comando' : formData.actionType === 'HOTKEY' ? 'Atajo (Ej: Ctrl+C)' : formData.actionType === 'OPEN_APP' ? 'Ruta de la App' : 'URL' }}
-            </label>
-
-            <textarea
-              v-model="formData.payload"
-              :placeholder="
-                formData.actionType === 'COMMAND' ? 'Ej: notepad.exe' :
-                formData.actionType === 'HOTKEY' ? 'Ej: Ctrl+Alt+T' :
-                formData.actionType === 'OPEN_APP' ? 'Ej: C:\\Program Files\\App\\app.exe' :
-                'Ej: https://google.com'
-              "
-              class="field field-textarea"
-              rows="3"
-            ></textarea>
-
-            <div class="action-helpers" v-if="formData.actionType === 'COMMAND'">
-              <button type="button" @click="showCommandPicker = true" class="btn-neon btn-sm">
-                <i class="pi pi-list"></i> Comandos
-              </button>
-            </div>
-            <div class="action-helpers" v-else-if="formData.actionType === 'OPEN_APP'">
-              <button type="button" @click="showAppPicker = true" class="btn-neon btn-sm">
-                <i class="pi pi-desktop"></i> Aplicaciones
-              </button>
-            </div>
-          </section>
+          </div>
         </div>
 
         <!-- ─── FOOTER ─── -->
@@ -409,7 +538,7 @@ const handleIconInputBlur = () => {
           <div class="footer-spacer"></div>
           <button class="btn-neon btn-foot" @click="handleClose">Cancelar</button>
           <button
-            class="btn-neon btn-neon-primary btn-foot"
+            class="btn-neon btn-neon-primary btn-foot btn-save-always-purple"
             @click="handleSave"
             :disabled="!formData.label || !formData.payload"
           >
@@ -465,9 +594,8 @@ const handleIconInputBlur = () => {
 /* ── PANEL ── */
 .editor-panel {
   width: 100%;
-  max-width: 480px;
-  max-height: 92vh;
-  max-height: 92dvh;
+  max-width: 720px;
+  height: 620px;
   display: flex;
   flex-direction: column;
   border-radius: 24px;
@@ -519,22 +647,83 @@ const handleIconInputBlur = () => {
   }
 }
 
-/* ── SCROLL AREA ── */
-.editor-scroll {
+/* ── BODY: SIDEBAR + CONTENT ── */
+.editor-body {
   flex: 1;
-  overflow-y: auto;
-  padding: 6px 18px 18px;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
 }
 
-/* ── LIVE PREVIEW ── */
-.preview-stage {
+.editor-sidebar {
+  width: 190px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 10px;
+  border-right: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+}
+
+.sidebar-preview {
   display: flex;
   justify-content: center;
-  padding: 28px 0 20px;
+  padding: 20px 0 16px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.sidebar-tabs {
+  display: contents;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: all 0.18s;
+  text-align: left;
+  white-space: nowrap;
+}
+.sidebar-item i { font-size: 1rem; width: 20px; text-align: center; }
+.sidebar-item.active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text-1);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+@media (hover: hover) {
+  .sidebar-item:not(.active):hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-1);
+  }
+}
+
+.editor-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 22px;
+  min-width: 0;
+}
+
+.tab-title {
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-1);
 }
 
 .preview-button {
-  width: 120px;
+  width: 130px;
   aspect-ratio: 1;
   border-radius: 22px;
   display: flex;
@@ -675,32 +864,40 @@ const handleIconInputBlur = () => {
 .sug-emoji { font-size: 1.6rem; }
 .sug-label { font-size: 0.88rem; }
 
-/* ── EMOJI GRID ── */
-.emoji-grid {
+/* ── QUICK ICONS GRID ── */
+.quick-icons-grid {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
   margin-top: 10px;
 }
-.emoji-chip {
-  width: 38px;
-  height: 38px;
+.quick-icon-chip {
+  width: 42px;
+  height: 42px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
-  font-size: 1.15rem;
   cursor: pointer;
   transition: all 0.15s;
   display: grid;
   place-items: center;
+  padding: 0;
+}
+.quick-icon-chip.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 @media (hover: hover) {
-  .emoji-chip:hover {
+  .quick-icon-chip:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.2);
     transform: scale(1.12);
   }
 }
+.qi-img { width: 24px; height: 24px; object-fit: contain; }
+.qi-pi { font-size: 1.15rem; color: var(--text-1); }
+.sug-img { width: 20px; height: 20px; object-fit: contain; }
 
 /* ── COLOR SWATCHES ── */
 .swatch-row {
@@ -789,6 +986,67 @@ const handleIconInputBlur = () => {
   margin-top: 10px;
 }
 
+.preset-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.preset-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 0.78rem;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .preset-chip:hover {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    color: var(--text-1);
+  }
+}
+
+.preset-chip.active {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.preset-label { font-weight: 600; }
+
+.preset-kbd {
+  font-family: 'Courier New', monospace;
+  font-size: 0.7rem;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-2);
+}
+
+[data-theme='light'] .preset-chip {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+[data-theme='light'] .preset-kbd {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.preset-grid::-webkit-scrollbar { width: 3px; }
+.preset-grid::-webkit-scrollbar-track { background: transparent; }
+.preset-grid::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
+
 /* ── BTN UTILS ── */
 .btn-sm {
   padding: 10px 14px;
@@ -831,7 +1089,7 @@ const handleIconInputBlur = () => {
 .editor-leave-active .editor-panel {
   transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1);
 }
-.editor-enter-from .editor-panel { transform: translateY(80px) scale(0.85); }
+.editor-enter-from .editor-panel { transform: translateY(60px) scale(0.9); }
 .editor-leave-to .editor-panel { transform: translateY(40px) scale(0.92); }
 
 @media (max-width: 640px) {
@@ -840,20 +1098,61 @@ const handleIconInputBlur = () => {
 }
 
 /* ── SCROLLBAR ── */
-.editor-scroll::-webkit-scrollbar { width: 4px; }
-.editor-scroll::-webkit-scrollbar-track { background: transparent; }
-.editor-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+.editor-content::-webkit-scrollbar { width: 4px; }
+.editor-content::-webkit-scrollbar-track { background: transparent; }
+.editor-content::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
 
 /* ── MOBILE ── */
 @media (max-width: 640px) {
   .editor-backdrop { align-items: flex-end; padding: 0; }
   .editor-panel {
     max-width: 100%;
+    height: auto;
     max-height: 95dvh;
     border-radius: 24px 24px 0 0;
   }
+  .editor-body { flex-direction: column; }
+  .editor-sidebar {
+    width: 100%;
+    flex-direction: column;
+    border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+    padding: 10px 14px 8px;
+    overflow: hidden;
+    gap: 8px;
+    background: transparent;
+  }
+  .sidebar-preview {
+    padding: 0;
+    margin: 0;
+    border-bottom: none;
+    justify-content: center;
+    align-items: center;
+  }
+  .sidebar-preview .preview-button {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    padding: 6px;
+  }
+  .sidebar-preview .preview-icon { font-size: 1.4rem; }
+  .sidebar-preview .preview-icon .preview-img { width: 28px; height: 28px; }
+  .sidebar-preview .preview-label { font-size: 0.6rem; }
+  .editor-sidebar .sidebar-tabs {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+  }
+  .sidebar-item {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    gap: 6px;
+  }
+  .sidebar-item span { display: none; }
+  .sidebar-item i { font-size: 1.1rem; }
   .segmented { grid-template-columns: repeat(4, 1fr); }
-  .seg-item span { font-size: 0.65rem; }
+  .seg-item { padding: 8px 4px; gap: 3px; }
+  .seg-item span { font-size: 0.6rem; }
   .btn-foot span { display: none; }
   .preview-button { width: 100px; }
 }
@@ -900,12 +1199,12 @@ const handleIconInputBlur = () => {
   border-bottom-color: rgba(0, 0, 0, 0.06);
 }
 
-[data-theme='light'] .emoji-chip {
+[data-theme='light'] .quick-icon-chip {
   border-color: rgba(0, 0, 0, 0.08);
   background: rgba(0, 0, 0, 0.03);
 }
 
-[data-theme='light'] .emoji-chip:hover {
+[data-theme='light'] .quick-icon-chip:hover {
   background: rgba(0, 0, 0, 0.07);
   border-color: rgba(0, 0, 0, 0.15);
 }
@@ -929,7 +1228,18 @@ const handleIconInputBlur = () => {
   border-top-color: rgba(0, 0, 0, 0.08);
 }
 
-[data-theme='light'] .editor-scroll::-webkit-scrollbar-thumb {
+[data-theme='light'] .editor-sidebar {
+  background: rgba(0, 0, 0, 0.04);
+  border-right-color: rgba(0, 0, 0, 0.08);
+}
+[data-theme='light'] .sidebar-item.active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+[data-theme='light'] .sidebar-item:not(.active):hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+[data-theme='light'] .editor-content::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.12);
 }
 </style>

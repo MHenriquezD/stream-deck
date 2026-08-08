@@ -50,20 +50,31 @@ const actionColor = (i: number) => {
   return accentPresets[(idx + i) % accentPresets.length].accent
 }
 const showAccentPicker = ref(false)
+const showAccentToggle = ref(false)
 let accentHideTimer: ReturnType<typeof setTimeout> | null = null
+let longPressTimer: ReturnType<typeof setTimeout> | null = null
 const openAccentPicker = () => {
   showAccentPicker.value = true
   if (accentHideTimer) clearTimeout(accentHideTimer)
-  if (matchMedia('(max-width: 640px)').matches) {
-    accentHideTimer = setTimeout(() => { showAccentPicker.value = false }, 4000)
-  }
+  accentHideTimer = setTimeout(() => { showAccentPicker.value = false; showAccentToggle.value = false }, 4000)
 }
 const closeAccentPicker = () => {
   showAccentPicker.value = false
+  showAccentToggle.value = false
   if (accentHideTimer) { clearTimeout(accentHideTimer); accentHideTimer = null }
 }
 const toggleAccentPicker = () => {
   showAccentPicker.value ? closeAccentPicker() : openAccentPicker()
+}
+const handleFabLongPressStart = () => {
+  longPressTimer = setTimeout(() => {
+    showAccentToggle.value = true
+    openAccentPicker()
+    longPressTimer = null
+  }, 500)
+}
+const handleFabLongPressEnd = () => {
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null }
 }
 const serverUrlStore = useServerUrlStore()
 const {
@@ -870,14 +881,14 @@ async function handleServerUnreachableClean() {
         @contextmenu.prevent="toggleAccentPicker"
         :title="isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
         class="theme-fab"
-        @touchstart.passive="handleFabTouchStart"
-        @touchmove="handleFabTouchMove"
-        @touchend="handleFabTouchEnd"
+        @touchstart.passive="(e) => { handleFabTouchStart(e); handleFabLongPressStart() }"
+        @touchmove="(e) => { handleFabTouchMove(e); handleFabLongPressEnd() }"
+        @touchend="(e) => { handleFabTouchEnd(e); handleFabLongPressEnd() }"
       >
         <img v-if="isDark" src="/icons/sun.svg" alt="Claro" class="theme-fab-icon" />
         <img v-else src="/icons/moon.svg" alt="Oscuro" class="theme-fab-icon" />
       </button>
-      <button class="accent-toggle" @click="toggleAccentPicker" title="Cambiar color">
+      <button class="accent-toggle" :class="{ 'mobile-hidden': isMobile && !showAccentToggle }" @click="toggleAccentPicker" title="Cambiar color">
         <span class="accent-dot" :style="{ background: currentAccent.accent }"></span>
       </button>
       <div v-if="showAccentPicker" class="accent-overlay" @click="closeAccentPicker"></div>
@@ -2108,6 +2119,7 @@ async function handleServerUnreachableClean() {
   background: rgba(255, 255, 255, 0.85); border-color: rgba(0, 0, 0, 0.12);
 }
 .accent-toggle:active { transform: scale(0.85); }
+.accent-toggle.mobile-hidden { display: none; }
 .accent-dot { width: 14px; height: 14px; border-radius: 50%; }
 
 .accent-overlay {

@@ -20,6 +20,7 @@ const emit = defineEmits<{
 }>()
 
 const searchQuery = ref('')
+const viewMode = ref<'list' | 'grid'>('list')
 const apps = ref<InstalledApp[]>([])
 const loading = ref(false)
 const showScanWarning = ref(false)
@@ -102,9 +103,19 @@ const selectApp = (app: InstalledApp) => {
     <div class="picker-panel" @click.stop>
       <header class="picker-header">
         <h3>Aplicaciones Instaladas</h3>
-        <button @click="emit('close')" class="header-close" aria-label="Cerrar">
-          <i class="pi pi-times"></i>
-        </button>
+        <div class="header-actions">
+          <div class="view-toggle">
+            <button type="button" class="view-btn" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="Vista lista">
+              <i class="pi pi-list"></i>
+            </button>
+            <button type="button" class="view-btn" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="Vista cuadrícula">
+              <i class="pi pi-th-large"></i>
+            </button>
+          </div>
+          <button @click="emit('close')" class="header-close" aria-label="Cerrar">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
       </header>
 
       <!-- Scan warning -->
@@ -138,26 +149,25 @@ const selectApp = (app: InstalledApp) => {
             <p v-else>No se detectaron aplicaciones instaladas</p>
           </div>
 
-          <div v-else class="items-list">
+          <div v-else :class="viewMode === 'grid' ? 'items-grid' : 'items-list'">
             <button
               v-for="app in filteredApps"
               :key="app.Name"
-              class="list-item"
-              :class="{ active: currentApp === app.Path || currentApp === app.Name }"
+              :class="[viewMode === 'grid' ? 'grid-item' : 'list-item', { active: currentApp === app.Path || currentApp === app.Name }]"
               @click.stop="selectApp(app)"
               type="button"
             >
               <img
                 v-if="app.Icon && app.Icon.startsWith('/app-icons/')"
                 :src="API_URL + app.Icon"
-                class="app-icon-img"
+                :class="viewMode === 'grid' ? 'grid-icon-img' : 'app-icon-img'"
                 alt=""
                 @error="($event.target as HTMLImageElement).style.display = 'none'"
               />
-              <div v-else class="app-icon-placeholder"><i class="pi pi-box"></i></div>
+              <div v-else :class="viewMode === 'grid' ? 'grid-icon-placeholder' : 'app-icon-placeholder'"><i class="pi pi-box"></i></div>
               <div class="app-info">
                 <div class="app-name">{{ app.Name }}</div>
-                <code v-if="app.Path" class="app-path">{{ app.Path }}</code>
+                <code v-if="app.Path && viewMode === 'list'" class="app-path">{{ app.Path }}</code>
               </div>
             </button>
           </div>
@@ -182,7 +192,7 @@ const selectApp = (app: InstalledApp) => {
   display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 16px;
 }
 .picker-panel {
-  width: 100%; max-width: 720px; max-height: 85dvh; display: flex; flex-direction: column;
+  width: 100%; max-width: 720px; height: 580px; display: flex; flex-direction: column;
   border-radius: 24px;
   background: linear-gradient(170deg, rgba(22, 22, 32, 0.94) 0%, rgba(10, 10, 16, 0.97) 100%);
   border: 1px solid var(--glass-border); backdrop-filter: blur(var(--glass-blur)) saturate(160%);
@@ -195,6 +205,22 @@ const selectApp = (app: InstalledApp) => {
   border-bottom: 1px solid var(--glass-border);
 }
 .picker-header h3 { margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--text-1); }
+.header-actions { display: flex; align-items: center; gap: 10px; }
+.view-toggle {
+  display: flex; border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--glass-border); background: rgba(255, 255, 255, 0.03);
+}
+.view-btn {
+  padding: 7px 10px; background: transparent; border: none;
+  color: var(--text-2); cursor: pointer; font-size: 0.85rem; transition: all 0.18s;
+}
+.view-btn.active {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--text-1);
+}
+@media (hover: hover) {
+  .view-btn:not(.active):hover { background: rgba(255, 255, 255, 0.08); color: var(--text-1); }
+}
 .header-close {
   width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.04); color: var(--text-2); cursor: pointer;
@@ -258,6 +284,44 @@ const selectApp = (app: InstalledApp) => {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
+.items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+}
+.grid-item {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 14px 8px; text-align: center;
+  background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px; cursor: pointer; color: var(--text-1); transition: all 0.15s;
+}
+@media (hover: hover) {
+  .grid-item:hover {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    transform: translateY(-2px);
+  }
+}
+.grid-item.active {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.grid-icon-img {
+  width: 42px; height: 42px; border-radius: 10px; object-fit: contain;
+  background: rgba(255, 255, 255, 0.05);
+}
+.grid-icon-placeholder {
+  width: 42px; height: 42px; border-radius: 10px;
+  display: grid; place-items: center; background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.3); font-size: 1.2rem;
+}
+.grid-item .app-info { min-width: 0; width: 100%; }
+.grid-item .app-name {
+  font-size: 0.78rem; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 .empty-state {
   display: flex; flex-direction: column; align-items: center;
   padding: 50px 20px; color: var(--text-2); text-align: center;
@@ -297,7 +361,7 @@ const selectApp = (app: InstalledApp) => {
 
 @media (max-width: 640px) {
   .picker-backdrop { align-items: flex-end; padding: 0; }
-  .picker-panel { max-width: 100%; border-radius: 24px 24px 0 0; max-height: 92dvh; }
+  .picker-panel { max-width: 100%; height: auto; max-height: 92dvh; border-radius: 24px 24px 0 0; }
   .picker-enter-from .picker-panel { transform: translateY(100%); }
   .picker-leave-to .picker-panel { transform: translateY(100%); }
 }
@@ -311,4 +375,30 @@ const selectApp = (app: InstalledApp) => {
 .picker-leave-active .picker-panel { transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1); }
 .picker-enter-from .picker-panel { transform: translateY(80px) scale(0.85); }
 .picker-leave-to .picker-panel { transform: translateY(40px) scale(0.92); }
+
+/* Light theme */
+[data-theme='light'] .picker-panel {
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.97) 0%, rgba(245, 245, 250, 0.98) 100%);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 32px 80px rgba(0, 0, 0, 0.15), 0 0 60px -10px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+[data-theme='light'] .picker-header { border-bottom-color: rgba(0, 0, 0, 0.08); }
+[data-theme='light'] .header-close { background: rgba(0, 0, 0, 0.04); border-color: rgba(0, 0, 0, 0.1); }
+[data-theme='light'] .header-close:hover { background: rgba(0, 0, 0, 0.08); }
+[data-theme='light'] .picker-search { border-bottom-color: rgba(0, 0, 0, 0.08); }
+[data-theme='light'] .field:focus { background: rgba(0, 0, 0, 0.02); }
+[data-theme='light'] .list-item { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.07); }
+[data-theme='light'] .list-item:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+[data-theme='light'] .app-icon-img { background: rgba(0, 0, 0, 0.04); }
+[data-theme='light'] .app-icon-placeholder { background: rgba(0, 0, 0, 0.04); color: rgba(0, 0, 0, 0.25); }
+[data-theme='light'] .picker-footer { background: rgba(245, 245, 250, 0.8); border-top-color: rgba(0, 0, 0, 0.08); }
+[data-theme='light'] .rescan-chip { background: rgba(0, 0, 0, 0.04); border-color: rgba(0, 0, 0, 0.1); }
+[data-theme='light'] .rescan-chip:hover { background: rgba(0, 0, 0, 0.08); }
+[data-theme='light'] .view-toggle { border-color: rgba(0, 0, 0, 0.1); background: rgba(0, 0, 0, 0.03); }
+[data-theme='light'] .view-btn.active { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+[data-theme='light'] .grid-item { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.07); }
+[data-theme='light'] .grid-item:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+[data-theme='light'] .grid-icon-img { background: rgba(0, 0, 0, 0.04); }
+[data-theme='light'] .grid-icon-placeholder { background: rgba(0, 0, 0, 0.04); color: rgba(0, 0, 0, 0.25); }
+[data-theme='light'] .picker-scroll::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); }
 </style>

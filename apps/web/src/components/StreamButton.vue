@@ -270,27 +270,36 @@ const handleDrop = (e: DragEvent) => {
 /* Recuadro oscuro con marco de acento (estilo tablet): el color va en el
    borde y el glow, no en el relleno; el icono queda dentro. */
 .stream-button:not(.empty) {
-  /* Relleno un poco más claro que el panel: la tecla se despega sola aunque
-     no tenga glow de color. */
   background: linear-gradient(
     160deg,
     color-mix(in srgb, var(--glow, transparent) 14%, #22222c) 0%,
     #15151c 100%
   );
   backdrop-filter: none;
-  /* El acento se mezcla sobre una base neutra visible: un botón con color
-     negro/oscuro conserva un marco claro en vez de desaparecer. */
   border: 1.5px solid
     color-mix(in srgb, var(--glow, transparent) 55%, rgba(255, 255, 255, 0.45));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--glow, transparent) 70%, transparent),
+    0 0 14px 1px color-mix(in srgb, var(--glow, transparent) 55%, transparent),
+    0 0 28px 4px color-mix(in srgb, var(--glow, transparent) 35%, transparent),
+    0 16px 32px rgba(0, 0, 0, 0.5),
+    0 6px 12px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 3px color-mix(in srgb, var(--glow, transparent) 40%, transparent);
 }
 
 /* Halo más intenso al pasar el cursor / pulsar */
 .stream-button:not(.empty)::before {
-  background: linear-gradient(
-    160deg,
-    rgba(255, 255, 255, 0.08) 0%,
-    transparent 45%
-  );
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.35) 0%,
+      rgba(255, 255, 255, 0.12) 15%,
+      rgba(255, 255, 255, 0.03) 40%,
+      transparent 55%,
+      rgba(0, 0, 0, 0.15) 100%
+    );
 }
 
 .stream-button:not(.empty):hover {
@@ -736,4 +745,5 @@ const handleDrop = (e: DragEvent) => {
     animation: none;
   }
 }
+
 </style>

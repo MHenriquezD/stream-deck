@@ -519,10 +519,26 @@ const loadSettingsFromServer = async () => {
   }
 }
 
+const contentEl = ref<HTMLElement | null>(null)
+
 const close = () => {
   if (isScanning.value) stopScanner()
   show.value = false
 }
+
+const activeSection = ref('connection')
+const showAllSections = ref(
+  localStorage.getItem('settingsShowAll') === 'true',
+)
+const toggleShowAll = () => {
+  showAllSections.value = !showAllSections.value
+  localStorage.setItem('settingsShowAll', String(showAllSections.value))
+}
+const settingsSections = [
+  { key: 'connection', label: 'Conexión', icon: 'pi pi-wifi' },
+  { key: 'preferences', label: 'Preferencias', icon: 'pi pi-sliders-h' },
+  { key: 'security', label: 'Seguridad', icon: 'pi pi-lock' },
+]
 </script>
 
 <template>
@@ -547,17 +563,37 @@ const close = () => {
   <div v-if="show" class="settings-overlay" @click="close">
     <div class="settings-dialog" @click.stop>
       <div class="settings-header">
-        <h2>Configuración del Servidor</h2>
+        <h2>Configuración</h2>
         <button @click="close" class="close-btn">✕</button>
       </div>
 
-      <div class="settings-content">
-        <div class="settings-columns">
-          <!-- Columna izquierda: Conexión -->
-          <div class="settings-col">
-            <h3 class="col-title">Conexión</h3>
+      <div class="settings-body" :class="{ 'show-all': showAllSections }">
+        <!-- ─── SIDEBAR ─── -->
+        <nav class="settings-sidebar">
+          <button
+            v-for="s in settingsSections"
+            :key="s.key"
+            type="button"
+            class="sidebar-item"
+            :class="{ active: !showAllSections && activeSection === s.key }"
+            @click="activeSection = s.key; if (showAllSections) { contentEl?.querySelector(`[data-section='${s.key}']`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }"
+          >
+            <i :class="s.icon"></i>
+            <span>{{ s.label }}</span>
+          </button>
+          <div class="sidebar-spacer"></div>
+          <button type="button" class="sidebar-item view-toggle" @click="toggleShowAll" :title="showAllSections ? 'Ver por secciones' : 'Ver todo'">
+            <i :class="showAllSections ? 'pi pi-list' : 'pi pi-align-justify'"></i>
+            <span>{{ showAllSections ? 'Secciones' : 'Ver todo' }}</span>
+          </button>
+        </nav>
 
-            <!-- Info box solo desktop -->
+        <!-- ─── CONTENT (scrollable) ─── -->
+        <div class="settings-content" ref="contentEl">
+          <!-- ── Conexión ── -->
+          <div v-if="showAllSections || activeSection === 'connection'" class="section-panel" data-section="connection">
+            <h3 class="section-title">Conexión</h3>
+
             <div v-if="!isMobile" class="info-box">
               <p>
                 <strong>Conecta desde otro dispositivo:</strong><br />
@@ -568,9 +604,8 @@ const close = () => {
               </p>
             </div>
 
-            <!-- Selector de IPs locales (solo desktop) -->
             <div v-if="!isMobile" class="ip-selector-section">
-              <label>🔍 Selecciona tu IP local:</label>
+              <label>Selecciona tu IP local:</label>
 
               <div v-if="isDetectingIPs" class="detecting-ips">
                 <i class="pi pi-spin pi-spinner"></i>
@@ -593,21 +628,19 @@ const close = () => {
               </div>
 
               <div v-else class="no-ips-detected">
-                <p>⚠️ No se detectaron IPs locales automáticamente.</p>
+                <p>No se detectaron IPs locales automáticamente.</p>
                 <small>Ingresa la IP manualmente abajo</small>
               </div>
             </div>
 
-            <!-- Mobile: botón escanear -->
             <div v-if="isMobile" class="scan-section">
               <div class="scan-idle">
                 <button @click="startScanner" class="btn-scan">
-                  📷 Escanear QR
+                  <i class="pi pi-camera"></i> Escanear QR
                 </button>
                 <p class="scan-hint">Apunta al QR de la app en tu PC</p>
               </div>
-
-              <div v-if="scanError" class="scan-error">⚠️ {{ scanError }}</div>
+              <div v-if="scanError" class="scan-error">{{ scanError }}</div>
             </div>
 
             <div class="form-group">
@@ -627,37 +660,49 @@ const close = () => {
               :disabled="isConnecting"
               class="btn-test"
             >
-              {{ isConnecting ? '🔄 Probando...' : '🔍 Probar Conexión' }}
+              {{ isConnecting ? 'Probando...' : 'Probar Conexión' }}
             </button>
 
             <div v-if="connectionStatus" class="connection-result">
               <div v-if="connectionStatus === 'success'" class="success">
-                ✅ Conexión exitosa
+                Conexión exitosa
               </div>
               <div v-else class="error">
-                ❌ No se pudo conectar. Verifica la IP y que el servidor esté
-                corriendo.
+                No se pudo conectar. Verifica la IP y que el servidor esté corriendo.
               </div>
             </div>
 
-            <!-- Mobile PIN login -->
             <div v-if="isMobile && showMobilePinLogin" class="form-group pin-login-section">
-              <label>🔐 El servidor requiere PIN</label>
+              <label>El servidor requiere PIN</label>
               <p class="pin-login-hint">Ingresa el PIN de 4 dígitos configurado en el escritorio</p>
               <input v-model="mobilePinInput" type="tel" inputmode="numeric" maxlength="4" placeholder="PIN (4 dígitos)" class="server-input pin-input-small" @keyup.enter="handleMobilePinLogin" />
               <div class="pin-change-actions">
                 <button @click="handleMobilePinLogin" :disabled="mobilePinLoading" class="btn-pin-save">
-                  {{ mobilePinLoading ? '🔄 Verificando...' : '🔓 Conectar' }}
+                  {{ mobilePinLoading ? 'Verificando...' : 'Conectar' }}
                 </button>
                 <button @click="cancelMobilePinLogin" class="btn-pin-cancel">Cancelar</button>
               </div>
               <p v-if="mobilePinError" class="pin-error">{{ mobilePinError }}</p>
             </div>
+
+            <div
+              v-if="!isMobile && qrCodeUrl && connectionStatus === 'success'"
+              class="ip-display"
+            >
+              <label>URL configurada:</label>
+              <div class="ip-box">
+                <code>{{ serverUrl }}</code>
+              </div>
+              <div class="qr-section">
+                <div class="qr-label">Escanea para conectar:</div>
+                <img :src="qrCodeUrl" alt="QR Code" class="qr-code" />
+              </div>
+            </div>
           </div>
 
-          <!-- Columna derecha: Preferencias -->
-          <div class="settings-col">
-            <h3 class="col-title">Preferencias</h3>
+          <!-- ── Preferencias (Cuadrícula + Sonido) ── -->
+          <div v-if="showAllSections || activeSection === 'preferences'" class="section-panel" data-section="preferences">
+            <h3 class="section-title">Preferencias</h3>
 
             <div class="form-group">
               <label>Tamaño de la Cuadrícula</label>
@@ -670,7 +715,7 @@ const close = () => {
             </div>
 
             <div class="form-group">
-              <label>🔊 Sonido al presionar</label>
+              <label>Sonido al presionar</label>
               <div class="sound-toggle-row">
                 <button class="sound-toggle-btn" :class="{ active: buttonSoundEnabled }" @click="toggleSound()">
                   <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -689,45 +734,39 @@ const close = () => {
               </div>
               <small>Reproduce un sonido al presionar un botón</small>
             </div>
+          </div>
+
+          <!-- ── Seguridad ── -->
+          <div v-if="showAllSections || activeSection === 'security'" class="section-panel" data-section="security">
+            <h3 class="section-title">Seguridad</h3>
 
             <div v-if="(!pinConfigured && !isMobile) || (isAuthenticated && !isMobile)" class="form-group">
-              <label>🔑 Seguridad</label>
+              <label>PIN de acceso</label>
               <button v-if="!showPinChange" @click="showPinChange = true" class="btn-change-pin">
-                {{ pinConfigured ? '🔐 Cambiar PIN' : '🔐 Configurar PIN' }}
+                {{ pinConfigured ? 'Cambiar PIN' : 'Configurar PIN' }}
               </button>
               <div v-else class="pin-change-form">
                 <input v-model="newPin" type="tel" inputmode="numeric" maxlength="4" placeholder="Nuevo PIN (4 dígitos)" class="server-input pin-input-small" />
                 <input v-model="confirmNewPin" type="tel" inputmode="numeric" maxlength="4" placeholder="Confirmar PIN" class="server-input pin-input-small" />
                 <div class="pin-change-actions">
-                  <button @click="handleChangePin" class="btn-pin-save">✅ Guardar PIN</button>
+                  <button @click="handleChangePin" class="btn-pin-save">Guardar PIN</button>
                   <button @click="cancelPinChange" class="btn-pin-cancel">Cancelar</button>
                 </div>
                 <p v-if="pinError" class="pin-error">{{ pinError }}</p>
-                <p v-if="pinSuccess" class="pin-success">✅ PIN cambiado correctamente</p>
+                <p v-if="pinSuccess" class="pin-success">PIN cambiado correctamente</p>
               </div>
             </div>
 
-            <!-- Desktop: QR para escanear -->
-            <div
-              v-if="!isMobile && qrCodeUrl && connectionStatus === 'success'"
-              class="ip-display"
-            >
-              <label>🌐 URL configurada:</label>
-              <div class="ip-box">
-                <code>{{ serverUrl }}</code>
-              </div>
-              <div class="qr-section">
-                <div class="qr-label">📱 Escanea para conectar:</div>
-                <img :src="qrCodeUrl" alt="QR Code" class="qr-code" />
-              </div>
+            <div v-if="isMobile" class="form-group">
+              <p class="section-hint">La configuración de PIN solo está disponible desde el escritorio.</p>
             </div>
           </div>
         </div>
       </div>
 
       <div class="settings-footer">
-        <button @click="close" class="btn-cancel">Cancelar</button>
-        <button @click="save" class="btn-save">💾 Guardar configuración</button>
+        <button @click="close" class="btn-neon btn-cancel">Cancelar</button>
+        <button @click="save" class="btn-neon btn-save-always-purple btn-neon-primary btn-save">Guardar</button>
       </div>
     </div>
   </div>
@@ -916,39 +955,105 @@ const close = () => {
 }
 
 /* ===========================
-   CONTENT
+   BODY (sidebar + content)
    =========================== */
+.settings-body {
+  display: flex;
+  height: 460px;
+}
+
+.settings-sidebar {
+  width: 180px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 8px;
+  border-right: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: all 0.15s;
+  text-align: left;
+}
+
+.sidebar-item i { font-size: 1rem; width: 20px; text-align: center; }
+
+@media (hover: hover) {
+  .sidebar-item:hover { background: rgba(255, 255, 255, 0.06); color: var(--text-1); }
+}
+
+.sidebar-item.active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .settings-content {
-  padding: 18px 22px;
-  max-height: 70vh;
-  max-height: 70dvh;
+  flex: 1;
+  padding: 20px 24px;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
-.settings-columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-}
-
-.col-title {
-  font-size: 1rem;
+.section-title {
+  font-size: 1.05rem;
   font-weight: 600;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0 0 18px;
+  color: var(--text-1);
 }
 
-[data-theme='light'] .col-title {
-  border-bottom-color: rgba(0, 0, 0, 0.1);
+.section-hint {
+  color: var(--text-2);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.sidebar-spacer { flex: 1; }
+
+.view-toggle {
+  opacity: 0.6;
+  font-size: 0.8rem !important;
+}
+
+.show-all .section-panel + .section-panel {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--glass-border);
 }
 
 @media (max-width: 640px) {
-  .settings-columns {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
+  .settings-body { flex-direction: column; height: auto; max-height: 75dvh; }
+  .settings-sidebar {
+    width: 100%;
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+    padding: 8px 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 4px;
+    background: transparent;
   }
+  .sidebar-item {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .settings-content { padding: 16px; }
 }
 
 /* Info box */
@@ -1397,27 +1502,33 @@ select#soundSelector option {
 
 .btn-cancel {
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--glass-border);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   color: var(--text-1);
+  box-shadow: 0 0 12px -4px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 @media (hover: hover) {
   .btn-cancel:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+    box-shadow: 0 0 20px -4px color-mix(in srgb, var(--accent) 35%, transparent);
   }
 }
 
 .btn-save {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  border: none;
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  border: 1px solid rgba(139, 92, 246, 0.6);
   color: #fff;
-  box-shadow: 0 0 22px -6px var(--accent);
+  box-shadow:
+    0 0 22px -6px #8b5cf6,
+    0 0 40px -8px rgba(139, 92, 246, 0.3);
 }
 
 @media (hover: hover) {
   .btn-save:hover {
-    box-shadow: 0 0 30px -4px var(--accent);
+    box-shadow:
+      0 0 30px -4px #8b5cf6,
+      0 0 50px -6px rgba(139, 92, 246, 0.45);
     filter: brightness(1.08);
   }
 }
@@ -1425,7 +1536,7 @@ select#soundSelector option {
 .btn-change-pin {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: #fff;
-  border: none;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
   padding: 10px 20px;
   border-radius: 10px;
   cursor: pointer;
@@ -1433,7 +1544,9 @@ select#soundSelector option {
   font-weight: 600;
   transition: all 0.18s;
   width: 100%;
-  box-shadow: 0 0 16px -4px var(--accent);
+  box-shadow:
+    0 0 16px -4px var(--accent),
+    0 0 40px -8px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 @media (hover: hover) {
@@ -1541,6 +1654,19 @@ select#soundSelector option {
 
 [data-theme='light'] .settings-header {
   border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .settings-sidebar {
+  background: rgba(0, 0, 0, 0.03);
+  border-right-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .sidebar-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='light'] .sidebar-item.active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 [data-theme='light'] .close-btn {
