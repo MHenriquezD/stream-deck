@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { Capacitor } from '@capacitor/core'
 import { ActionType, type StreamButton as ButtonType } from '@shared/core'
 import { useToast } from '../composables/useToast'
@@ -826,7 +827,7 @@ async function handleServerUnreachableClean() {
             <span class="btn-text">Volumen</span>
           </button>
           <button v-if="isMobile" @click="showMouseController = true" title="Mouse & Teclado" class="action-btn" :style="{ '--_clr': actionColor(3) }">
-            <span class="action-emoji">🖱️</span>
+            <Icon icon="mdi:mouse" class="action-emoji" />
             <span class="btn-text">Mouse</span>
           </button>
           <button
@@ -909,14 +910,14 @@ async function handleServerUnreachableClean() {
 
     <!-- Mensaje cuando no hay PIN configurado (solo desktop) -->
     <div v-if="!pinConfigured && !isMobile" class="no-pin-message">
-      <div class="no-pin-icon">🔐</div>
+      <Icon icon="mdi:lock" class="no-pin-icon" />
       <h2 class="no-pin-title">Configura un PIN para comenzar</h2>
       <p class="no-pin-desc">
         Necesitas configurar un PIN de 4 dígitos desde
         <strong>Configuración</strong> para poder usar los botones.
       </p>
       <button @click="openSettings" class="no-pin-btn">
-        ⚙️ Ir a Configuración
+        <Icon icon="mdi:cog" style="vertical-align: -2px" /> Ir a Configuración
       </button>
     </div>
 
@@ -995,7 +996,7 @@ async function handleServerUnreachableClean() {
     <!-- PIN Gate Dialog -->
     <div v-if="showPinGate" class="confirm-overlay" @click.self="cancelPinGate">
       <div class="pin-gate-dialog">
-        <h3 class="pin-gate-title">🔐 Ingresa el PIN</h3>
+        <h3 class="pin-gate-title"><Icon icon="mdi:lock" style="vertical-align: -3px" /> Ingresa el PIN</h3>
         <p class="pin-gate-hint">
           Ingresa el PIN de 4 dígitos para acceder a la configuración
         </p>
@@ -1016,7 +1017,8 @@ async function handleServerUnreachableClean() {
             :disabled="pinGateLoading"
             class="pin-gate-btn-ok"
           >
-            {{ pinGateLoading ? '🔄...' : '🔓 Acceder' }}
+            <template v-if="pinGateLoading"><Icon icon="mdi:loading" class="mdi-spin" /> ...</template>
+            <template v-else><Icon icon="mdi:lock-open" style="vertical-align: -2px" /> Acceder</template>
           </button>
           <button @click="cancelPinGate" class="pin-gate-btn-cancel">
             Cancelar
@@ -1054,7 +1056,8 @@ async function handleServerUnreachableClean() {
           :disabled="mobileLockLoading"
           class="mobile-pin-lock-btn"
         >
-          {{ mobileLockLoading ? '🔄...' : '🔓 Desbloquear' }}
+          <template v-if="mobileLockLoading"><Icon icon="mdi:loading" class="mdi-spin" /> ...</template>
+          <template v-else><Icon icon="mdi:lock-open" style="vertical-align: -2px" /> Desbloquear</template>
         </button>
         <!-- Biometric retry button -->
         <button
@@ -1063,7 +1066,7 @@ async function handleServerUnreachableClean() {
           :disabled="mobileLockLoading"
           class="mobile-pin-lock-btn biometric-btn"
         >
-          <i class="fas fa-fingerprint fa-3x"></i>
+          <Icon icon="mdi:fingerprint" style="font-size: 3rem" />
         </button>
       </div>
     </div>
@@ -1089,7 +1092,7 @@ async function handleServerUnreachableClean() {
         <div class="presets-header">
           <h2>Comandos Multimedia</h2>
           <button @click="showPresetsDialog = false" class="header-close" aria-label="Cerrar">
-            <i class="pi pi-times"></i>
+            <Icon icon="mdi:close" />
           </button>
         </div>
         <div class="presets-content">

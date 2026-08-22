@@ -205,3 +205,7 @@ body {
 
 }
 
+/* Iconify spin animation */
+.mdi-spin { animation: mdi-spin 0.7s linear infinite; }
+@keyframes mdi-spin { to { transform: rotate(360deg); } }
+

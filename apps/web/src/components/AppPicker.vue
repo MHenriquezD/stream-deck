@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { computed, ref, watch } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useServerUrlStore } from '../store/serverUrl.store'
@@ -106,45 +107,48 @@ const selectApp = (app: InstalledApp) => {
         <div class="header-actions">
           <div class="view-toggle">
             <button type="button" class="view-btn" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="Vista lista">
-              <i class="pi pi-list"></i>
+              <Icon icon="mdi:format-list-bulleted" />
             </button>
             <button type="button" class="view-btn" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="Vista cuadrícula">
-              <i class="pi pi-th-large"></i>
+              <Icon icon="mdi:view-grid" />
             </button>
           </div>
           <button @click="emit('close')" class="header-close" aria-label="Cerrar">
-            <i class="pi pi-times"></i>
+            <Icon icon="mdi:close" />
           </button>
         </div>
       </header>
 
       <!-- Scan warning -->
       <div v-if="showScanWarning" class="scan-warning">
-        <div class="scan-emoji">🔍</div>
+        <Icon icon="mdi:magnify" class="scan-emoji" />
         <h4>{{ isRescan ? 'Volver a analizar' : 'Análisis de aplicaciones' }}</h4>
         <p v-if="isRescan">Se volverá a analizar tu PC para detectar aplicaciones instaladas. Esto puede tardar unos segundos.</p>
         <p v-else>Se analizará tu PC para detectar las aplicaciones instaladas. Esto incluye el registro de Windows, apps de Microsoft Store y PWAs.<br /><br /><strong>Este proceso puede tardar unos segundos</strong> y los resultados se guardarán para no repetir el análisis cada vez.</p>
         <div class="scan-actions">
           <button @click="cancelScan" class="btn-neon">Cancelar</button>
-          <button @click="confirmScan" class="btn-neon btn-neon-primary">{{ isRescan ? '🔄 Re-analizar' : '🔍 Analizar' }}</button>
+          <button @click="confirmScan" class="btn-neon btn-neon-primary">
+            <template v-if="isRescan"><Icon icon="mdi:refresh" style="vertical-align: -2px" /> Re-analizar</template>
+            <template v-else><Icon icon="mdi:magnify" style="vertical-align: -2px" /> Analizar</template>
+          </button>
         </div>
       </div>
 
       <template v-else>
         <div class="picker-search">
-          <i class="pi pi-search search-icon"></i>
+          <Icon icon="mdi:magnify" class="search-icon" />
           <input v-model="searchQuery" type="text" placeholder="Buscar aplicación..." class="field" />
         </div>
 
         <div class="picker-scroll">
           <div v-if="loading" class="empty-state">
-            <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+            <Icon icon="mdi:loading" class="mdi-spin" style="font-size: 2rem" />
             <p>Analizando aplicaciones instaladas...</p>
             <p class="hint-text">Esto puede tardar unos segundos</p>
           </div>
 
           <div v-else-if="filteredApps.length === 0" class="empty-state">
-            <i class="pi pi-search" style="font-size: 2rem; opacity: 0.3"></i>
+            <Icon icon="mdi:magnify" style="font-size: 2rem; opacity: 0.3" />
             <p v-if="searchQuery">No se encontraron aplicaciones</p>
             <p v-else>No se detectaron aplicaciones instaladas</p>
           </div>
@@ -164,7 +168,7 @@ const selectApp = (app: InstalledApp) => {
                 alt=""
                 @error="($event.target as HTMLImageElement).style.display = 'none'"
               />
-              <div v-else :class="viewMode === 'grid' ? 'grid-icon-placeholder' : 'app-icon-placeholder'"><i class="pi pi-box"></i></div>
+              <div v-else :class="viewMode === 'grid' ? 'grid-icon-placeholder' : 'app-icon-placeholder'"><Icon icon="mdi:package-variant" /></div>
               <div class="app-info">
                 <div class="app-name">{{ app.Name }}</div>
                 <code v-if="app.Path && viewMode === 'list'" class="app-path">{{ app.Path }}</code>
@@ -175,8 +179,8 @@ const selectApp = (app: InstalledApp) => {
 
         <footer class="picker-footer">
           <div class="footer-row">
-            <span class="hint-text">💡 Selecciona una aplicación para configurar su ruta</span>
-            <button @click="requestRescan" :disabled="loading" class="rescan-chip" title="Volver a analizar">🔄</button>
+            <span class="hint-text"><Icon icon="mdi:lightbulb-on" style="vertical-align: -2px" /> Selecciona una aplicación para configurar su ruta</span>
+            <button @click="requestRescan" :disabled="loading" class="rescan-chip" title="Volver a analizar"><Icon icon="mdi:refresh" /></button>
           </div>
           <p v-if="formattedScannedAt" class="scanned-at">Último análisis: {{ formattedScannedAt }}</p>
         </footer>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { ActionType, type StreamButton } from '@shared/core'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, reactive, ref, watch } from 'vue'
@@ -30,9 +31,9 @@ const iconInputFocused = ref(false)
 const showDeleteDialog = ref(false)
 const activeTab = ref<'general' | 'icon' | 'action'>('general')
 const editorTabs = [
-  { key: 'general' as const, label: 'General', icon: 'pi pi-pencil' },
-  { key: 'icon' as const, label: 'Icono', icon: 'pi pi-image' },
-  { key: 'action' as const, label: 'Acción', icon: 'pi pi-bolt' },
+  { key: 'general' as const, label: 'General', icon: 'mdi:pencil' },
+  { key: 'icon' as const, label: 'Icono', icon: 'mdi:image' },
+  { key: 'action' as const, label: 'Acción', icon: 'mdi:lightning-bolt' },
 ]
 
 const formData = reactive({
@@ -45,10 +46,10 @@ const formData = reactive({
 })
 
 const actionTypes = [
-  { value: 'OPEN_APP', label: 'App', icon: 'pi pi-desktop' },
-  { value: 'COMMAND', label: 'Comando', icon: 'pi pi-code' },
-  { value: 'HOTKEY', label: 'Atajo', icon: 'pi pi-bolt' },
-  { value: 'URL', label: 'URL', icon: 'pi pi-globe' },
+  { value: 'OPEN_APP', label: 'App', icon: 'mdi:monitor' },
+  { value: 'COMMAND', label: 'Comando', icon: 'mdi:code-tags' },
+  { value: 'HOTKEY', label: 'Atajo', icon: 'mdi:lightning-bolt' },
+  { value: 'URL', label: 'URL', icon: 'mdi:web' },
 ]
 
 const hotkeyPresets = [
@@ -116,16 +117,16 @@ const quickIcons = [
   { icon: 'svg:volume-mute.svg', label: 'Silenciar' },
   { icon: 'svg:note-music.svg', label: 'Música' },
   { icon: 'svg:gear.svg', label: 'Config' },
-  { icon: 'pi pi-home', label: 'Inicio' },
-  { icon: 'pi pi-folder', label: 'Carpeta' },
-  { icon: 'pi pi-play', label: 'Play' },
-  { icon: 'pi pi-pause', label: 'Pausa' },
-  { icon: 'pi pi-forward', label: 'Siguiente' },
-  { icon: 'pi pi-backward', label: 'Anterior' },
-  { icon: 'pi pi-power-off', label: 'Apagar' },
-  { icon: 'pi pi-desktop', label: 'Escritorio' },
-  { icon: 'pi pi-camera', label: 'Captura' },
-  { icon: 'pi pi-lock', label: 'Bloquear' },
+  { icon: 'mdi:home', label: 'Inicio' },
+  { icon: 'mdi:folder', label: 'Carpeta' },
+  { icon: 'mdi:play', label: 'Play' },
+  { icon: 'mdi:pause', label: 'Pausa' },
+  { icon: 'mdi:fast-forward', label: 'Siguiente' },
+  { icon: 'mdi:fast-rewind', label: 'Anterior' },
+  { icon: 'mdi:power', label: 'Apagar' },
+  { icon: 'mdi:monitor', label: 'Escritorio' },
+  { icon: 'mdi:camera', label: 'Captura' },
+  { icon: 'mdi:lock', label: 'Bloquear' },
 ]
 
 const iconCatalog = [
@@ -143,16 +144,16 @@ const iconCatalog = [
   { icon: 'svg:volume-mute.svg', label: 'Silencio', keywords: ['silencio', 'mute', 'mudo'] },
   { icon: 'svg:note-music.svg', label: 'Música', keywords: ['musica', 'music', 'nota'] },
   { icon: 'svg:gear.svg', label: 'Configuración', keywords: ['config', 'configuracion', 'settings'] },
-  { icon: 'pi pi-home', label: 'Inicio', keywords: ['casa', 'home', 'inicio'] },
-  { icon: 'pi pi-folder', label: 'Carpeta', keywords: ['carpeta', 'folder', 'directorio'] },
-  { icon: 'pi pi-play', label: 'Play', keywords: ['play', 'reproducir'] },
-  { icon: 'pi pi-pause', label: 'Pausa', keywords: ['pausa', 'pause'] },
-  { icon: 'pi pi-forward', label: 'Siguiente', keywords: ['siguiente', 'next'] },
-  { icon: 'pi pi-backward', label: 'Anterior', keywords: ['anterior', 'prev'] },
-  { icon: 'pi pi-cog', label: 'Config', keywords: ['config', 'configuracion'] },
-  { icon: 'pi pi-desktop', label: 'Escritorio', keywords: ['escritorio', 'desktop', 'pc'] },
-  { icon: 'pi pi-globe', label: 'Web', keywords: ['web', 'internet', 'navegador'] },
-  { icon: 'pi pi-power-off', label: 'Apagar', keywords: ['apagar', 'power', 'off'] },
+  { icon: 'mdi:home', label: 'Inicio', keywords: ['casa', 'home', 'inicio'] },
+  { icon: 'mdi:folder', label: 'Carpeta', keywords: ['carpeta', 'folder', 'directorio'] },
+  { icon: 'mdi:play', label: 'Play', keywords: ['play', 'reproducir'] },
+  { icon: 'mdi:pause', label: 'Pausa', keywords: ['pausa', 'pause'] },
+  { icon: 'mdi:fast-forward', label: 'Siguiente', keywords: ['siguiente', 'next'] },
+  { icon: 'mdi:fast-rewind', label: 'Anterior', keywords: ['anterior', 'prev'] },
+  { icon: 'mdi:cog', label: 'Config', keywords: ['config', 'configuracion'] },
+  { icon: 'mdi:monitor', label: 'Escritorio', keywords: ['escritorio', 'desktop', 'pc'] },
+  { icon: 'mdi:web', label: 'Web', keywords: ['web', 'internet', 'navegador'] },
+  { icon: 'mdi:power', label: 'Apagar', keywords: ['apagar', 'power', 'off'] },
 ]
 
 const iconSuggestions = computed(() => {
@@ -297,7 +298,7 @@ const handleIconInputBlur = () => {
         <header class="editor-header">
           <h2>{{ button ? 'Editar' : 'Nuevo' }} Botón</h2>
           <button class="header-close" @click="handleClose" aria-label="Cerrar">
-            <i class="pi pi-times"></i>
+            <Icon icon="mdi:close" />
           </button>
         </header>
 
@@ -314,6 +315,7 @@ const handleIconInputBlur = () => {
                   <img v-else-if="formData.icon.startsWith('appicon:')" :src="serverUrlStore.serverUrl + formData.icon.replace('appicon:', '')" class="preview-img" alt="app icon" />
                   <img v-else-if="formData.icon.startsWith('sd:')" :src="'./streamdeck-icons/' + formData.icon.replace('sd:', '')" class="preview-img" alt="icon" />
                   <img v-else-if="formData.icon.startsWith('custom:')" :src="serverUrlStore.serverUrl + '/custom-icons/' + formData.icon.replace('custom:', '')" class="preview-img" alt="icon" />
+                  <Icon v-else-if="formData.icon.startsWith('mdi:')" :icon="formData.icon" />
                   <i v-else-if="formData.icon.startsWith('pi ') || formData.icon.startsWith('fa')" :class="formData.icon"></i>
                   <span v-else>{{ formData.icon }}</span>
                 </div>
@@ -329,7 +331,7 @@ const handleIconInputBlur = () => {
                 :class="{ active: activeTab === tab.key }"
                 @click="activeTab = tab.key"
               >
-                <i :class="tab.icon"></i>
+                <Icon :icon="tab.icon" />
                 <span>{{ tab.label }}</span>
               </button>
             </div>
@@ -364,7 +366,7 @@ const handleIconInputBlur = () => {
                   ></button>
                   <label class="swatch swatch-custom" title="Color personalizado">
                     <input type="color" v-model="formData.backgroundColor" class="sr-only" />
-                    <i class="pi pi-palette"></i>
+                    <Icon icon="mdi:palette" />
                   </label>
                 </div>
 
@@ -381,7 +383,7 @@ const handleIconInputBlur = () => {
                   ></button>
                   <label class="swatch swatch-custom" title="Color personalizado">
                     <input type="color" v-model="formData.color" class="sr-only" />
-                    <i class="pi pi-palette"></i>
+                    <Icon icon="mdi:palette" />
                   </label>
                 </div>
               </section>
@@ -411,6 +413,7 @@ const handleIconInputBlur = () => {
                         @click="selectSuggestion(item.icon)"
                       >
                         <span v-if="item.icon.startsWith('svg:')" class="sug-icon"><img :src="'./icons/' + item.icon.replace('svg:', '')" class="sug-img" /></span>
+                        <span v-else-if="item.icon.startsWith('mdi:')" class="sug-icon"><Icon :icon="item.icon" /></span>
                         <span v-else-if="item.icon.startsWith('pi ') || item.icon.startsWith('fa')" class="sug-icon"><i :class="item.icon"></i></span>
                         <span v-else class="sug-icon sug-emoji">{{ item.icon }}</span>
                         <span class="sug-label">{{ item.label }}</span>
@@ -418,7 +421,7 @@ const handleIconInputBlur = () => {
                     </div>
                   </div>
                   <button type="button" @click="showIconPicker = true" class="btn-neon btn-sm" title="Buscar icono">
-                    <i class="pi pi-search"></i>
+                    <Icon icon="mdi:magnify" />
                   </button>
                 </div>
 
@@ -427,6 +430,7 @@ const handleIconInputBlur = () => {
                   <img v-else-if="formData.icon.startsWith('appicon:')" :src="serverUrlStore.serverUrl + formData.icon.replace('appicon:', '')" class="icon-thumb" alt="app icon" />
                   <img v-else-if="formData.icon.startsWith('sd:')" :src="'./streamdeck-icons/' + formData.icon.replace('sd:', '')" class="icon-thumb" alt="icon" />
                   <img v-else-if="formData.icon.startsWith('custom:')" :src="serverUrlStore.serverUrl + '/custom-icons/' + formData.icon.replace('custom:', '')" class="icon-thumb" alt="icon" />
+                  <span v-else-if="formData.icon.startsWith('mdi:')" class="icon-thumb-fa"><Icon :icon="formData.icon" /></span>
                   <span v-else-if="formData.icon.startsWith('pi ') || formData.icon.startsWith('fa')" class="icon-thumb-fa"><i :class="formData.icon"></i></span>
                   <span v-else class="icon-thumb-emoji">{{ formData.icon }}</span>
                 </div>
@@ -445,7 +449,7 @@ const handleIconInputBlur = () => {
                     @click="formData.icon = qi.icon"
                   >
                     <img v-if="qi.icon.startsWith('svg:')" :src="'./icons/' + qi.icon.replace('svg:', '')" class="qi-img" :alt="qi.label" />
-                    <i v-else :class="qi.icon" class="qi-pi"></i>
+                    <Icon v-else :icon="qi.icon" class="qi-pi" />
                   </button>
                 </div>
               </section>
@@ -465,7 +469,7 @@ const handleIconInputBlur = () => {
                     :class="{ active: formData.actionType === t.value }"
                     @click="formData.actionType = t.value as ActionType"
                   >
-                    <i :class="t.icon"></i>
+                    <Icon :icon="t.icon" />
                     <span>{{ t.label }}</span>
                   </button>
                 </div>
@@ -488,12 +492,12 @@ const handleIconInputBlur = () => {
 
                 <div class="action-helpers" v-if="formData.actionType === 'OPEN_APP'">
                   <button type="button" @click="showAppPicker = true" class="btn-neon btn-sm">
-                    <i class="pi pi-desktop"></i> Aplicaciones
+                    <Icon icon="mdi:monitor" /> Aplicaciones
                   </button>
                 </div>
                 <div class="action-helpers" v-else-if="formData.actionType === 'COMMAND'">
                   <button type="button" @click="showCommandPicker = true" class="btn-neon btn-sm">
-                    <i class="pi pi-list"></i> Comandos
+                    <Icon icon="mdi:format-list-bulleted" /> Comandos
                   </button>
                 </div>
                 <div class="action-helpers" v-else-if="formData.actionType === 'HOTKEY'">
@@ -533,7 +537,7 @@ const handleIconInputBlur = () => {
         <!-- ─── FOOTER ─── -->
         <footer class="editor-footer">
           <button v-if="button" class="btn-neon btn-neon-danger btn-foot" @click="handleDelete">
-            <i class="pi pi-trash"></i>
+            <Icon icon="mdi:trash-can" />
           </button>
           <div class="footer-spacer"></div>
           <button class="btn-neon btn-foot" @click="handleClose">Cancelar</button>
@@ -542,7 +546,7 @@ const handleIconInputBlur = () => {
             @click="handleSave"
             :disabled="!formData.label || !formData.payload"
           >
-            <i class="pi pi-check"></i> Guardar
+            <Icon icon="mdi:check" /> Guardar
           </button>
         </footer>
       </div>
@@ -909,7 +913,7 @@ const handleIconInputBlur = () => {
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  border: 2px solid transparent;
+  border: 2px solid rgba(255, 255, 255, 0.15);
   background: var(--sw);
   cursor: pointer;
   transition: all 0.15s;
@@ -917,7 +921,7 @@ const handleIconInputBlur = () => {
 }
 .swatch.active {
   border-color: #fff;
-  box-shadow: 0 0 0 2px var(--sw), 0 0 12px color-mix(in srgb, var(--sw) 60%, transparent);
+  box-shadow: 0 0 0 2px var(--sw), 0 0 12px color-mix(in srgb, var(--sw) 60%, transparent), 0 0 0 1px rgba(255, 255, 255, 0.4);
 }
 @media (hover: hover) {
   .swatch:hover:not(.active) {

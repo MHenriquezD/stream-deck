@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { onMounted, ref } from 'vue'
 import { useSocket } from '../composables/useSocket'
 
@@ -228,7 +229,7 @@ const adjustSensitivity = (delta: number) => {
     <!-- Header -->
     <div class="mc-header">
       <button @click="emit('close')" class="mc-back-btn">
-        <i class="pi pi-arrow-left"></i>
+        <Icon icon="mdi:arrow-left" />
       </button>
       <h3>Mouse & Teclado</h3>
       <div class="mc-header-actions">
@@ -237,13 +238,13 @@ const adjustSensitivity = (delta: number) => {
           class="mc-toggle-btn"
           :class="{ active: showKeyboard }"
         >
-          <i class="fas fa-keyboard" style="font-size: 1.2rem"></i>
+          <Icon icon="mdi:keyboard" style="font-size: 1.2rem" />
         </button>
       </div>
     </div>
 
     <div v-if="!mouseAvailable" class="mc-unavailable">
-      <i class="pi pi-exclamation-triangle" style="font-size: 2rem"></i>
+      <Icon icon="mdi:alert" style="font-size: 2rem" />
       <p>Mouse controller no disponible en el servidor</p>
     </div>
 
@@ -258,10 +259,7 @@ const adjustSensitivity = (delta: number) => {
         @touchcancel="handleTouchEnd"
       >
         <div class="trackpad-hint">
-          <i
-            class="pi pi-arrows-alt"
-            style="font-size: 1.5rem; opacity: 0.2"
-          ></i>
+          <Icon icon="mdi:arrow-all" style="font-size: 1.5rem; opacity: 0.2" />
           <span>Desliza para mover el cursor</span>
           <span class="trackpad-sub-hint"
             >Toca = click · 2 dedos: toca = derecho, desliza = scroll · Doble
@@ -281,7 +279,7 @@ const adjustSensitivity = (delta: number) => {
         </div>
 
         <!-- Drag indicator -->
-        <div v-if="isDragging" class="drag-indicator">🔒 Arrastrando</div>
+        <div v-if="isDragging" class="drag-indicator"><Icon icon="mdi:lock" style="vertical-align: -2px" /> Arrastrando</div>
 
         <!-- Touch ripples -->
         <div
@@ -317,7 +315,7 @@ const adjustSensitivity = (delta: number) => {
             @keyup.enter="handleSendText"
           />
           <button @click="handleSendText" class="keyboard-send-btn">
-            <i class="pi pi-send"></i>
+            <Icon icon="mdi:send" />
           </button>
         </div>
 

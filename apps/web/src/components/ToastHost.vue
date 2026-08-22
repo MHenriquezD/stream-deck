@@ -1,13 +1,14 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { useToast, type ToastSeverity } from '../composables/useToast'
 
 const { toasts, remove } = useToast()
 
-const icon: Record<ToastSeverity, string> = {
-  success: '✅',
-  error: '⛔',
-  warn: '⚠️',
-  info: 'ℹ️',
+const toastIcon: Record<ToastSeverity, string> = {
+  success: 'mdi:check-circle',
+  error: 'mdi:close-circle',
+  warn: 'mdi:alert',
+  info: 'mdi:information',
 }
 </script>
 
@@ -22,7 +23,7 @@ const icon: Record<ToastSeverity, string> = {
         role="status"
         @click="remove(t.id)"
       >
-        <span class="toast-icon" aria-hidden="true">{{ icon[t.severity] }}</span>
+        <Icon :icon="toastIcon[t.severity]" class="toast-icon" aria-hidden="true" />
         <div class="toast-body">
           <strong v-if="t.summary" class="toast-summary">{{ t.summary }}</strong>
           <span v-if="t.detail" class="toast-detail">{{ t.detail }}</span>
@@ -80,9 +81,9 @@ const icon: Record<ToastSeverity, string> = {
 }
 
 .toast-icon {
-  font-size: 1rem;
+  font-size: 1.2rem;
   flex: none;
-  line-height: 1.2;
+  line-height: 1;
 }
 
 .toast-body {

@@ -1,4 +1,5 @@
 <script setup>
+import { Icon } from '@iconify/vue'
 import { Capacitor } from '@capacitor/core'
 import { onMounted, ref } from 'vue'
 import ConnectionIndicator from './components/ConnectionIndicator.vue'
@@ -67,7 +68,7 @@ onMounted(async () => {
           aria-label="No se encuentra el servidor. Abrir Configuración para emparejar tu PC"
           @click="requestSettings"
         >
-          <span class="su-icon" aria-hidden="true">📡</span>
+          <Icon icon="mdi:satellite-uplink" class="su-icon" aria-hidden="true" />
           <span class="su-text">
             <strong>No se encuentra el servidor</strong>
             <span class="su-cta">Toca aquí para emparejar tu PC <span aria-hidden="true">→</span></span>

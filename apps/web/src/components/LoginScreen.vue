@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { ref } from 'vue'
 import { useAuth } from '../composables/useAuth'
 
@@ -194,7 +195,7 @@ const setConfirmRef = (el: any, index: number) => {
     <div class="login-card" :class="{ shake }">
       <!-- Setup mode (desktop) -->
       <template v-if="mode === 'setup'">
-        <div class="login-icon">🔧</div>
+        <Icon icon="mdi:wrench" class="login-icon" />
         <h2 class="login-title">Configurar PIN</h2>
 
         <!-- Step 1: Enter PIN -->
@@ -252,7 +253,7 @@ const setConfirmRef = (el: any, index: number) => {
 
       <!-- Login mode (mobile) -->
       <template v-else>
-        <div class="login-icon">🔐</div>
+        <Icon icon="mdi:lock" class="login-icon" />
         <h2 class="login-title">Spartan Hub</h2>
         <p class="login-subtitle">Ingresa el PIN para conectar</p>
 
@@ -298,10 +299,10 @@ const setConfirmRef = (el: any, index: number) => {
       </button>
 
       <p class="login-hint" v-if="mode === 'setup'">
-        🛡️ Este PIN se pedirá al conectar desde otros dispositivos
+        <Icon icon="mdi:shield-check" style="vertical-align: -2px" /> Este PIN se pedirá al conectar desde otros dispositivos
       </p>
       <p class="login-hint" v-else>
-        💡 El PIN fue configurado desde la app de escritorio
+        <Icon icon="mdi:lightbulb-on" style="vertical-align: -2px" /> El PIN fue configurado desde la app de escritorio
       </p>
     </div>
   </div>

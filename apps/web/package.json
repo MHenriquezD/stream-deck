@@ -26,6 +26,7 @@
     "@capacitor/cli": "^8.5.0",
     "@capacitor/core": "^8.5.0",
     "@capacitor/haptics": "^8.0.2",
+    "@iconify/vue": "^5.0.1",
     "@shared/core": "workspace:*",
     "network-address": "^1.1.2",
     "pinia": "^3.0.4",

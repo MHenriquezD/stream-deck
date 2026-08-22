@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
 
 interface CommandItem {
@@ -81,12 +82,12 @@ const commandCategories: Record<string, CommandItem[]> = {
 
 const categoryNames = Object.keys(commandCategories)
 const categoryIcons: Record<string, string> = {
-  Navegadores: 'pi pi-globe',
-  'Microsoft Office': 'pi pi-microsoft',
-  Aplicaciones: 'pi pi-th-large',
-  Sistema: 'pi pi-cog',
-  Multimedia: 'pi pi-volume-up',
-  'Carpetas Comunes': 'pi pi-folder-open',
+  Navegadores: 'mdi:web',
+  'Microsoft Office': 'mdi:microsoft-office',
+  Aplicaciones: 'mdi:view-grid',
+  Sistema: 'mdi:cog',
+  Multimedia: 'mdi:volume-high',
+  'Carpetas Comunes': 'mdi:folder-open',
 }
 
 const filteredCommands = computed(() => {
@@ -120,7 +121,7 @@ const selectCommand = (command: string) => {
       <header class="picker-header">
         <h3>Seleccionar Comando</h3>
         <button @click="emit('close')" class="header-close" aria-label="Cerrar">
-          <i class="pi pi-times"></i>
+          <Icon icon="mdi:close" />
         </button>
       </header>
 
@@ -132,7 +133,7 @@ const selectCommand = (command: string) => {
             :class="{ active: activeCategory === null }"
             @click="activeCategory = null"
           >
-            <i class="pi pi-objects-column"></i>
+            <Icon icon="mdi:view-dashboard" />
             <span>Todos</span>
           </button>
           <button
@@ -143,28 +144,28 @@ const selectCommand = (command: string) => {
             :class="{ active: activeCategory === cat }"
             @click="activeCategory = cat"
           >
-            <i :class="categoryIcons[cat] || 'pi pi-folder'"></i>
+            <Icon :icon="categoryIcons[cat] || 'mdi:folder'" />
             <span>{{ cat }}</span>
           </button>
         </nav>
 
         <div class="picker-main">
           <div class="picker-search">
-            <i class="pi pi-search search-icon"></i>
+            <Icon icon="mdi:magnify" class="search-icon" />
             <input v-model="searchQuery" type="text" placeholder="Buscar comando..." class="field" />
             <div class="view-toggle">
               <button type="button" class="view-btn" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="Vista lista">
-                <i class="pi pi-list"></i>
+                <Icon icon="mdi:format-list-bulleted" />
               </button>
               <button type="button" class="view-btn" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="Vista cuadrícula">
-                <i class="pi pi-th-large"></i>
+                <Icon icon="mdi:view-grid" />
               </button>
             </div>
           </div>
 
           <div class="picker-scroll">
             <div v-if="Object.keys(filteredCommands).length === 0" class="empty-state">
-              <i class="pi pi-search" style="font-size: 2rem; opacity: 0.3"></i>
+              <Icon icon="mdi:magnify" style="font-size: 2rem; opacity: 0.3" />
               <p>No se encontraron comandos</p>
             </div>
             <div v-for="(commands, category) in filteredCommands" :key="category" class="category">

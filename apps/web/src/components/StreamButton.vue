@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import type { StreamButton } from '@shared/core'
 import { computed, ref } from 'vue'
 import { useServerUrlStore } from '../store/serverUrl.store'
@@ -181,6 +182,11 @@ const handleDrop = (e: DragEvent) => {
           "
           class="custom-icon"
           alt="icon"
+        />
+        <Icon
+          v-else-if="button.icon.startsWith('mdi:')"
+          :icon="button.icon"
+          class="mdi-icon"
         />
         <i
           v-else-if="
@@ -546,6 +552,11 @@ const handleDrop = (e: DragEvent) => {
   height: 3rem;
   object-fit: contain;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.mdi-icon {
+  width: 3rem;
+  height: 3rem;
 }
 
 .button-label {

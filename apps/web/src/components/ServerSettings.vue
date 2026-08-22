@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning'
 import { Capacitor } from '@capacitor/core'
 import QRCode from 'qrcode'
@@ -535,9 +536,9 @@ const toggleShowAll = () => {
   localStorage.setItem('settingsShowAll', String(showAllSections.value))
 }
 const settingsSections = [
-  { key: 'connection', label: 'Conexión', icon: 'pi pi-wifi' },
-  { key: 'preferences', label: 'Preferencias', icon: 'pi pi-sliders-h' },
-  { key: 'security', label: 'Seguridad', icon: 'pi pi-lock' },
+  { key: 'connection', label: 'Conexión', icon: 'mdi:wifi' },
+  { key: 'preferences', label: 'Preferencias', icon: 'mdi:tune-variant' },
+  { key: 'security', label: 'Seguridad', icon: 'mdi:lock' },
 ]
 </script>
 
@@ -554,7 +555,7 @@ const settingsSections = [
           <div class="scanner-line"></div>
         </div>
         <p class="scanner-hint">Apunta al código QR de tu PC</p>
-        <button @click="stopScanner" class="btn-cancel-scan">✕ Cancelar</button>
+        <button @click="stopScanner" class="btn-cancel-scan"><Icon icon="mdi:close" style="vertical-align: -2px" /> Cancelar</button>
       </div>
     </div>
   </Teleport>
@@ -564,7 +565,7 @@ const settingsSections = [
     <div class="settings-dialog" @click.stop>
       <div class="settings-header">
         <h2>Configuración</h2>
-        <button @click="close" class="close-btn">✕</button>
+        <button @click="close" class="close-btn"><Icon icon="mdi:close" /></button>
       </div>
 
       <div class="settings-body" :class="{ 'show-all': showAllSections }">
@@ -578,12 +579,12 @@ const settingsSections = [
             :class="{ active: !showAllSections && activeSection === s.key }"
             @click="activeSection = s.key; if (showAllSections) { contentEl?.querySelector(`[data-section='${s.key}']`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }"
           >
-            <i :class="s.icon"></i>
+            <Icon :icon="s.icon" />
             <span>{{ s.label }}</span>
           </button>
           <div class="sidebar-spacer"></div>
           <button type="button" class="sidebar-item view-toggle" @click="toggleShowAll" :title="showAllSections ? 'Ver por secciones' : 'Ver todo'">
-            <i :class="showAllSections ? 'pi pi-list' : 'pi pi-align-justify'"></i>
+            <Icon :icon="showAllSections ? 'mdi:format-list-bulleted' : 'mdi:view-sequential'" />
             <span>{{ showAllSections ? 'Secciones' : 'Ver todo' }}</span>
           </button>
         </nav>
@@ -608,7 +609,7 @@ const settingsSections = [
               <label>Selecciona tu IP local:</label>
 
               <div v-if="isDetectingIPs" class="detecting-ips">
-                <i class="pi pi-spin pi-spinner"></i>
+                <Icon icon="mdi:loading" class="mdi-spin" />
                 <span>Detectando IPs locales...</span>
               </div>
 
@@ -622,7 +623,7 @@ const settingsSections = [
                 />
 
                 <div v-if="isTestingConnection" class="testing-indicator">
-                  <i class="pi pi-spin pi-spinner"></i>
+                  <Icon icon="mdi:loading" class="mdi-spin" />
                   <span>Probando conexión...</span>
                 </div>
               </div>
@@ -636,7 +637,7 @@ const settingsSections = [
             <div v-if="isMobile" class="scan-section">
               <div class="scan-idle">
                 <button @click="startScanner" class="btn-scan">
-                  <i class="pi pi-camera"></i> Escanear QR
+                  <Icon icon="mdi:camera" /> Escanear QR
                 </button>
                 <p class="scan-hint">Apunta al QR de la app en tu PC</p>
               </div>
@@ -729,7 +730,7 @@ const settingsSections = [
                   @update:model-value="onSoundChange(String($event))"
                 />
                 <button class="sound-test-btn" @click="playTestSound()" title="Probar sonido">
-                  <i class="pi pi-play"></i>
+                  <Icon icon="mdi:play" />
                 </button>
               </div>
               <small>Reproduce un sonido al presionar un botón</small>

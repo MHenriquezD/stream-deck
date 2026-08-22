@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useServerUrlStore } from '../store/serverUrl.store'
@@ -7,7 +8,7 @@ interface IconItem {
   icon: string
   label: string
   keywords?: string[]
-  isPrime?: boolean
+  isIconify?: boolean
   isFontAwesome?: boolean
   isCustom?: boolean
   isStreamDeck?: boolean
@@ -280,32 +281,32 @@ const streamDeckCategories: Record<string, IconItem[]> = {
 
 const iconCategories = computed<Record<string, IconItem[]>>(() => ({
   Multimedia: [
-    { icon: '🎵', label: 'Música' }, { icon: '🔊', label: 'Volumen Alto' },
-    { icon: '🔉', label: 'Volumen Medio' }, { icon: '🔇', label: 'Silencio' },
-    { icon: '⏯️', label: 'Play/Pausa' }, { icon: '⏸️', label: 'Pausa' },
-    { icon: '▶️', label: 'Play' }, { icon: '⏹️', label: 'Stop' },
-    { icon: '⏭️', label: 'Siguiente' }, { icon: '⏮️', label: 'Anterior' },
-    { icon: '🎧', label: 'Audífonos' }, { icon: '🎤', label: 'Micrófono' },
-    { icon: '🎬', label: 'Video' }, { icon: '📹', label: 'Cámara' },
+    { icon: 'mdi:music-note', label: 'Música', isIconify: true }, { icon: 'mdi:volume-high', label: 'Volumen Alto', isIconify: true },
+    { icon: 'mdi:volume-medium', label: 'Volumen Medio', isIconify: true }, { icon: 'mdi:volume-off', label: 'Silencio', isIconify: true },
+    { icon: 'mdi:play-pause', label: 'Play/Pausa', isIconify: true }, { icon: 'mdi:pause', label: 'Pausa', isIconify: true },
+    { icon: 'mdi:play', label: 'Play', isIconify: true }, { icon: 'mdi:stop', label: 'Stop', isIconify: true },
+    { icon: 'mdi:skip-next', label: 'Siguiente', isIconify: true }, { icon: 'mdi:skip-previous', label: 'Anterior', isIconify: true },
+    { icon: 'mdi:headphones', label: 'Audífonos', isIconify: true }, { icon: 'mdi:microphone', label: 'Micrófono', isIconify: true },
+    { icon: 'mdi:movie', label: 'Video', isIconify: true }, { icon: 'mdi:video', label: 'Cámara', isIconify: true },
   ],
   Aplicaciones: [
-    { icon: '🌐', label: 'Navegador' }, { icon: '📧', label: 'Email' },
-    { icon: '💬', label: 'Chat' }, { icon: '📱', label: 'Teléfono' },
-    { icon: '💻', label: 'Computadora' }, { icon: '🖥️', label: 'Monitor' },
-    { icon: '⌨️', label: 'Teclado' }, { icon: '🖱️', label: 'Mouse' },
-    { icon: '📁', label: 'Carpeta' }, { icon: '📂', label: 'Carpeta Abierta' },
-    { icon: '📄', label: 'Documento' }, { icon: '📊', label: 'Gráfico' },
-    { icon: '🎮', label: 'Juego' }, { icon: '🎯', label: 'Objetivo' },
+    { icon: 'mdi:web', label: 'Navegador', isIconify: true }, { icon: 'mdi:email', label: 'Email', isIconify: true },
+    { icon: 'mdi:chat', label: 'Chat', isIconify: true }, { icon: 'mdi:cellphone', label: 'Teléfono', isIconify: true },
+    { icon: 'mdi:desktop-classic', label: 'Computadora', isIconify: true }, { icon: 'mdi:monitor', label: 'Monitor', isIconify: true },
+    { icon: 'mdi:keyboard', label: 'Teclado', isIconify: true }, { icon: 'mdi:mouse', label: 'Mouse', isIconify: true },
+    { icon: 'mdi:folder', label: 'Carpeta', isIconify: true }, { icon: 'mdi:folder-open', label: 'Carpeta Abierta', isIconify: true },
+    { icon: 'mdi:file-document', label: 'Documento', isIconify: true }, { icon: 'mdi:chart-bar', label: 'Gráfico', isIconify: true },
+    { icon: 'mdi:gamepad-variant', label: 'Juego', isIconify: true }, { icon: 'mdi:target', label: 'Objetivo', isIconify: true },
   ],
   Acciones: [
-    { icon: '✅', label: 'Confirmado' }, { icon: '❌', label: 'Cancelar' },
-    { icon: '⚙️', label: 'Configuración' }, { icon: '🔧', label: 'Herramientas' },
-    { icon: '🔨', label: 'Martillo' }, { icon: '🗑️', label: 'Eliminar' },
-    { icon: '📌', label: 'Pin' }, { icon: '🔖', label: 'Marcador' },
-    { icon: '💾', label: 'Guardar' }, { icon: '📥', label: 'Descargar' },
-    { icon: '📤', label: 'Subir' }, { icon: '🔄', label: 'Actualizar' },
-    { icon: '🔍', label: 'Buscar' }, { icon: '➕', label: 'Agregar' },
-    { icon: '➖', label: 'Quitar' },
+    { icon: 'mdi:check-circle', label: 'Confirmado', isIconify: true }, { icon: 'mdi:close-circle', label: 'Cancelar', isIconify: true },
+    { icon: 'mdi:cog', label: 'Configuración', isIconify: true }, { icon: 'mdi:tools', label: 'Herramientas', isIconify: true },
+    { icon: 'mdi:hammer', label: 'Martillo', isIconify: true }, { icon: 'mdi:trash-can', label: 'Eliminar', isIconify: true },
+    { icon: 'mdi:pin', label: 'Pin', isIconify: true }, { icon: 'mdi:bookmark', label: 'Marcador', isIconify: true },
+    { icon: 'mdi:content-save', label: 'Guardar', isIconify: true }, { icon: 'mdi:download', label: 'Descargar', isIconify: true },
+    { icon: 'mdi:upload', label: 'Subir', isIconify: true }, { icon: 'mdi:refresh', label: 'Actualizar', isIconify: true },
+    { icon: 'mdi:magnify', label: 'Buscar', isIconify: true }, { icon: 'mdi:plus', label: 'Agregar', isIconify: true },
+    { icon: 'mdi:minus', label: 'Quitar', isIconify: true },
   ],
   FontAwesome: [
     { icon: 'fas fa-house', label: 'Casa', isFontAwesome: true },
@@ -388,41 +389,41 @@ const iconCategories = computed<Record<string, IconItem[]>>(() => ({
     { icon: 'fas fa-database', label: 'Access', isFontAwesome: true },
     { icon: 'fas fa-users', label: 'Teams', isFontAwesome: true },
   ],
-  PrimeIcons: [
-    { icon: 'pi pi-home', label: 'Home', isPrime: true },
-    { icon: 'pi pi-star', label: 'Estrella', isPrime: true },
-    { icon: 'pi pi-heart', label: 'Corazón', isPrime: true },
-    { icon: 'pi pi-bolt', label: 'Rayo', isPrime: true },
-    { icon: 'pi pi-play', label: 'Play', isPrime: true },
-    { icon: 'pi pi-pause', label: 'Pausa', isPrime: true },
-    { icon: 'pi pi-volume-up', label: 'Volumen', isPrime: true },
-    { icon: 'pi pi-volume-down', label: 'Bajar Volumen', isPrime: true },
-    { icon: 'pi pi-volume-off', label: 'Sin Volumen', isPrime: true },
-    { icon: 'pi pi-cog', label: 'Configuración', isPrime: true },
-    { icon: 'pi pi-power-off', label: 'Apagar', isPrime: true },
-    { icon: 'pi pi-wifi', label: 'WiFi', isPrime: true },
-    { icon: 'pi pi-desktop', label: 'Escritorio', isPrime: true },
-    { icon: 'pi pi-mobile', label: 'Móvil', isPrime: true },
-    { icon: 'pi pi-folder', label: 'Carpeta', isPrime: true },
-    { icon: 'pi pi-download', label: 'Descargar', isPrime: true },
-    { icon: 'pi pi-upload', label: 'Subir', isPrime: true },
-    { icon: 'pi pi-refresh', label: 'Actualizar', isPrime: true },
-    { icon: 'pi pi-search', label: 'Buscar', isPrime: true },
-    { icon: 'pi pi-times', label: 'Cerrar', isPrime: true },
-    { icon: 'pi pi-check', label: 'Check', isPrime: true },
-    { icon: 'pi pi-trash', label: 'Basura', isPrime: true },
+  Iconos: [
+    { icon: 'mdi:home', label: 'Home', isIconify: true },
+    { icon: 'mdi:star', label: 'Estrella', isIconify: true },
+    { icon: 'mdi:heart', label: 'Corazón', isIconify: true },
+    { icon: 'mdi:lightning-bolt', label: 'Rayo', isIconify: true },
+    { icon: 'mdi:play', label: 'Play', isIconify: true },
+    { icon: 'mdi:pause', label: 'Pausa', isIconify: true },
+    { icon: 'mdi:volume-high', label: 'Volumen', isIconify: true },
+    { icon: 'mdi:volume-medium', label: 'Bajar Volumen', isIconify: true },
+    { icon: 'mdi:volume-off', label: 'Sin Volumen', isIconify: true },
+    { icon: 'mdi:cog', label: 'Configuración', isIconify: true },
+    { icon: 'mdi:power', label: 'Apagar', isIconify: true },
+    { icon: 'mdi:wifi', label: 'WiFi', isIconify: true },
+    { icon: 'mdi:monitor', label: 'Escritorio', isIconify: true },
+    { icon: 'mdi:cellphone', label: 'Móvil', isIconify: true },
+    { icon: 'mdi:folder', label: 'Carpeta', isIconify: true },
+    { icon: 'mdi:download', label: 'Descargar', isIconify: true },
+    { icon: 'mdi:upload', label: 'Subir', isIconify: true },
+    { icon: 'mdi:refresh', label: 'Actualizar', isIconify: true },
+    { icon: 'mdi:magnify', label: 'Buscar', isIconify: true },
+    { icon: 'mdi:close', label: 'Cerrar', isIconify: true },
+    { icon: 'mdi:check', label: 'Check', isIconify: true },
+    { icon: 'mdi:trash-can', label: 'Basura', isIconify: true },
   ],
   ...(customSvgIcons.length > 0 && { 'Custom SVG': customSvgIcons }),
   ...(customUserIcons.value.length > 0 && { 'Mis Iconos': customUserIcons.value }),
   ...streamDeckCategories,
   Símbolos: [
-    { icon: '⭐', label: 'Estrella' }, { icon: '❤️', label: 'Corazón' },
-    { icon: '💡', label: 'Idea' }, { icon: '🔥', label: 'Fuego' },
-    { icon: '⚡', label: 'Rayo' }, { icon: '🚀', label: 'Cohete' },
-    { icon: '🎨', label: 'Arte' }, { icon: '📸', label: 'Foto' },
-    { icon: '🔔', label: 'Campana' }, { icon: '⏰', label: 'Alarma' },
-    { icon: '🌙', label: 'Luna' }, { icon: '☀️', label: 'Sol' },
-    { icon: '🌟', label: 'Brillante' }, { icon: '💫', label: 'Destello' },
+    { icon: 'mdi:star', label: 'Estrella', isIconify: true }, { icon: 'mdi:heart', label: 'Corazón', isIconify: true },
+    { icon: 'mdi:lightbulb-on', label: 'Idea', isIconify: true }, { icon: 'mdi:fire', label: 'Fuego', isIconify: true },
+    { icon: 'mdi:lightning-bolt', label: 'Rayo', isIconify: true }, { icon: 'mdi:rocket-launch', label: 'Cohete', isIconify: true },
+    { icon: 'mdi:palette', label: 'Arte', isIconify: true }, { icon: 'mdi:camera', label: 'Foto', isIconify: true },
+    { icon: 'mdi:bell', label: 'Campana', isIconify: true }, { icon: 'mdi:alarm', label: 'Alarma', isIconify: true },
+    { icon: 'mdi:moon-waning-crescent', label: 'Luna', isIconify: true }, { icon: 'mdi:white-balance-sunny', label: 'Sol', isIconify: true },
+    { icon: 'mdi:star-four-points', label: 'Brillante', isIconify: true }, { icon: 'mdi:shimmer', label: 'Destello', isIconify: true },
   ],
 }))
 
@@ -457,7 +458,7 @@ const selectIcon = (icon: string) => { emit('select', icon) }
       <header class="picker-header">
         <h3>Seleccionar Icono</h3>
         <button @click="emit('close')" class="header-close" aria-label="Cerrar">
-          <i class="pi pi-times"></i>
+          <Icon icon="mdi:close" />
         </button>
       </header>
 
@@ -475,28 +476,28 @@ const selectIcon = (icon: string) => { emit('select', icon) }
             :class="{ active: activeIconCategory === cat }"
             @click="activeIconCategory = cat"
           >
-            <i :class="cat.startsWith('SD ') ? 'fas fa-gamepad' : cat === 'FontAwesome' ? 'fab fa-font-awesome' : cat === 'PrimeIcons' ? 'pi pi-prime' : cat === 'Custom SVG' ? 'fas fa-shapes' : cat === 'Mis Iconos' ? 'fas fa-user' : cat === 'Multimedia' ? 'fas fa-music' : cat === 'Aplicaciones' ? 'fas fa-grid' : cat === 'Acciones' ? 'fas fa-bolt' : cat === 'Símbolos' ? 'fas fa-icons' : 'fas fa-folder'"></i>
+            <i :class="cat.startsWith('SD ') ? 'fas fa-gamepad' : cat === 'FontAwesome' ? 'fab fa-font-awesome' : cat === 'Iconos' ? 'fas fa-icons' : cat === 'Custom SVG' ? 'fas fa-shapes' : cat === 'Mis Iconos' ? 'fas fa-user' : cat === 'Multimedia' ? 'fas fa-music' : cat === 'Aplicaciones' ? 'fas fa-grid' : cat === 'Acciones' ? 'fas fa-bolt' : cat === 'Símbolos' ? 'fas fa-icons' : 'fas fa-folder'"></i>
             <span>{{ cat }}</span>
           </button>
         </nav>
 
         <div class="picker-main">
           <div class="picker-search">
-            <i class="pi pi-search search-icon"></i>
+            <Icon icon="mdi:magnify" class="search-icon" />
             <input v-model="searchQuery" type="text" placeholder="Buscar icono..." class="field" />
           </div>
 
           <div class="upload-bar">
             <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp" multiple style="display:none" @change="handleUpload" />
             <button class="upload-btn" @click="fileInput?.click()" :disabled="isUploading">
-              <i class="pi" :class="isUploading ? 'pi-spin pi-spinner' : 'pi-upload'"></i>
+              <Icon :icon="isUploading ? 'mdi:loading' : 'mdi:upload'" :class="{ 'mdi-spin': isUploading }" />
               {{ isUploading ? 'Subiendo...' : 'Subir Icono' }}
             </button>
           </div>
 
           <div class="picker-scroll">
             <div v-if="Object.keys(filteredIcons).length === 0" class="empty-state">
-              <i class="pi pi-search" style="font-size: 2rem; opacity: 0.3"></i>
+              <Icon icon="mdi:magnify" style="font-size: 2rem; opacity: 0.3" />
               <p>No se encontraron iconos</p>
             </div>
             <div v-for="(icons, category) in filteredIcons" :key="category" class="category">
@@ -514,10 +515,11 @@ const selectIcon = (icon: string) => { emit('select', icon) }
                   <img v-if="item.isCustom" :src="'./icons/' + item.icon.replace('svg:', '')" class="cell-img" :alt="item.label" />
                   <img v-else-if="item.isUserCustom" :src="serverUrlStore.serverUrl + '/custom-icons/' + item.icon.replace('custom:', '')" class="cell-img" :alt="item.label" />
                   <img v-else-if="item.isStreamDeck" :src="'./streamdeck-icons/' + item.icon.replace('sd:', '')" class="cell-img" :alt="item.label" />
-                  <i v-else-if="item.isPrime || item.isFontAwesome" :class="item.icon"></i>
+                  <Icon v-else-if="item.isIconify" :icon="item.icon" />
+                  <i v-else-if="item.isFontAwesome" :class="item.icon"></i>
                   <span v-else class="cell-emoji">{{ item.icon }}</span>
                   <span class="cell-label">{{ item.label }}</span>
-                  <span v-if="item.isUserCustom" class="delete-badge" @click.stop="deleteCustomIcon(item)" title="Eliminar icono">✕</span>
+                  <span v-if="item.isUserCustom" class="delete-badge" @click.stop="deleteCustomIcon(item)" title="Eliminar icono"><Icon icon="mdi:close" /></span>
                 </button>
               </div>
             </div>
@@ -698,7 +700,7 @@ const selectIcon = (icon: string) => { emit('select', icon) }
   box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
-.icon-cell i { font-size: 1.8rem; }
+.icon-cell i, .icon-cell svg { font-size: 1.8rem; width: 1.8rem; height: 1.8rem; }
 .cell-img { width: 1.8rem; height: 1.8rem; object-fit: contain; }
 .cell-emoji { font-size: 2rem; line-height: 1; }
 .cell-label {
