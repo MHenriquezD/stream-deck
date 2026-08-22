@@ -811,7 +811,7 @@ if ($unique.Count -gt 0) {
       const result = apps.slice(0, 100);
 
       // Extract icons from executables
-      await this.extractWindowsIcons(result);
+      await this.extractWindowsIcons(result, forceRescan);
 
       // Save to cache
       try {
@@ -1081,7 +1081,10 @@ done
   }
 
   // ─── Windows Icon Extraction ───
-  private async extractWindowsIcons(apps: InstalledApp[]): Promise<void> {
+  private async extractWindowsIcons(
+    apps: InstalledApp[],
+    forceRescan = false,
+  ): Promise<void> {
     if (process.platform !== 'win32') return;
 
     // Ensure icons directory exists
@@ -1116,10 +1119,18 @@ done
       const iconFile = `${safeName}.png`;
       const iconPath = path.join(this.iconsDir, iconFile);
 
-      // Skip if icon already exists
+      // Skip if icon already exists — unless this is a forced rescan, in
+      // which case we drop the stale file so it gets regenerated below.
       if (fs.existsSync(iconPath)) {
-        app.Icon = `/app-icons/${iconFile}`;
-        continue;
+        if (!forceRescan) {
+          app.Icon = `/app-icons/${iconFile}`;
+          continue;
+        }
+        try {
+          fs.unlinkSync(iconPath);
+        } catch {
+          /* ignore */
+        }
       }
 
       // Check if Icon points to an image file (PNG/ICO) — just copy it
