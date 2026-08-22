@@ -11,7 +11,6 @@ declare module '*.css' {
   export default content
 }
 
-declare module 'primeicons/primeicons.css'
 declare module '*.svg'
 declare module '*.png'
 declare module '*.jpg'

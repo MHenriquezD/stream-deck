@@ -6,7 +6,6 @@ import {
   Get,
   Param,
   Post,
-  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -64,12 +63,6 @@ export class CommandController {
   @Post('installed-apps/rescan')
   rescanInstalledApps() {
     return this.service.getInstalledApps(true);
-  }
-
-  @Get('cert')
-  downloadCert(@Res() res) {
-    const certPath = require('path').join(process.cwd(), 'certs', 'cert.pem');
-    res.download(certPath);
   }
 
   @Get('network-info')
