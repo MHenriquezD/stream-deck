@@ -45,12 +45,17 @@ const formData = reactive({
   payload: '',
 })
 
-const actionTypes = [
-  { value: 'OPEN_APP', label: 'App', icon: 'mdi:monitor' },
-  { value: 'COMMAND', label: 'Comando', icon: 'mdi:code-tags' },
-  { value: 'HOTKEY', label: 'Atajo', icon: 'mdi:lightning-bolt' },
-  { value: 'URL', label: 'URL', icon: 'mdi:web' },
+const actionGroups = [
+  { types: ['OPEN_APP', 'COMMAND'] as ActionType[], label: 'App o Comando', icon: 'mdi:apps' },
+  { types: ['HOTKEY'] as ActionType[], label: 'Atajo', icon: 'mdi:lightning-bolt' },
+  { types: ['URL'] as ActionType[], label: 'URL', icon: 'mdi:web' },
 ]
+
+const selectActionGroup = (group: (typeof actionGroups)[number]) => {
+  if (!group.types.includes(formData.actionType)) {
+    formData.actionType = group.types[0]
+  }
+}
 
 const hotkeyPresets = [
   { label: 'Copiar', keys: 'Ctrl+C' },
@@ -247,6 +252,7 @@ const handleIconSelect = (icon: string) => {
 }
 
 const handleCommandSelect = (command: string) => {
+  formData.actionType = 'COMMAND'
   formData.payload = command
   showCommandPicker.value = false
 }
@@ -256,6 +262,7 @@ const handleAppSelect = (data: {
   icon?: string
   name?: string
 }) => {
+  formData.actionType = 'OPEN_APP'
   formData.payload = data.command
   if (data.icon) {
     formData.icon = `appicon:${data.icon}`
@@ -462,15 +469,15 @@ const handleIconInputBlur = () => {
                 <label class="card-label">Tipo de acción</label>
                 <div class="segmented">
                   <button
-                    v-for="t in actionTypes"
-                    :key="t.value"
+                    v-for="g in actionGroups"
+                    :key="g.label"
                     type="button"
                     class="seg-item"
-                    :class="{ active: formData.actionType === t.value }"
-                    @click="formData.actionType = t.value as ActionType"
+                    :class="{ active: g.types.includes(formData.actionType) }"
+                    @click="selectActionGroup(g)"
                   >
-                    <Icon :icon="t.icon" />
-                    <span>{{ t.label }}</span>
+                    <Icon :icon="g.icon" />
+                    <span>{{ g.label }}</span>
                   </button>
                 </div>
 
@@ -490,12 +497,10 @@ const handleIconInputBlur = () => {
                   rows="3"
                 ></textarea>
 
-                <div class="action-helpers" v-if="formData.actionType === 'OPEN_APP'">
+                <div class="action-helpers" v-if="formData.actionType === 'OPEN_APP' || formData.actionType === 'COMMAND'">
                   <button type="button" @click="showAppPicker = true" class="btn-neon btn-sm">
                     <Icon icon="mdi:monitor" /> Aplicaciones
                   </button>
-                </div>
-                <div class="action-helpers" v-else-if="formData.actionType === 'COMMAND'">
                   <button type="button" @click="showCommandPicker = true" class="btn-neon btn-sm">
                     <Icon icon="mdi:format-list-bulleted" /> Comandos
                   </button>
@@ -531,12 +536,13 @@ const handleIconInputBlur = () => {
                 </div>
               </section>
             </div>
+
           </div>
         </div>
 
         <!-- ─── FOOTER ─── -->
         <footer class="editor-footer">
-          <button v-if="button" class="btn-neon btn-neon-danger btn-foot" @click="handleDelete">
+          <button v-if="button" class="btn-neon btn-neon-danger btn-foot" @click="handleDelete" aria-label="Eliminar botón">
             <Icon icon="mdi:trash-can" />
           </button>
           <div class="footer-spacer"></div>
@@ -950,7 +956,7 @@ const handleIconInputBlur = () => {
 /* ── SEGMENTED CONTROL ── */
 .segmented {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   background: rgba(255, 255, 255, 0.04);
   border-radius: 12px;
@@ -988,6 +994,9 @@ const handleIconInputBlur = () => {
 /* ── ACTION HELPERS ── */
 .action-helpers {
   margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .preset-grid {
@@ -1123,7 +1132,7 @@ const handleIconInputBlur = () => {
     border-bottom: 1px solid var(--glass-border);
     padding: 10px 14px 8px;
     overflow: hidden;
-    gap: 8px;
+    gap: 20px;
     background: transparent;
   }
   .sidebar-preview {
@@ -1134,14 +1143,14 @@ const handleIconInputBlur = () => {
     align-items: center;
   }
   .sidebar-preview .preview-button {
-    width: 96px;
-    height: 96px;
-    border-radius: 18px;
-    padding: 8px;
+    width: 140px;
+    height: 140px;
+    border-radius: 24px;
+    padding: 12px;
   }
-  .sidebar-preview .preview-icon { font-size: 2rem; }
-  .sidebar-preview .preview-icon .preview-img { width: 40px; height: 40px; }
-  .sidebar-preview .preview-label { font-size: 0.7rem; }
+  .sidebar-preview .preview-icon { font-size: 3rem; }
+  .sidebar-preview .preview-icon .preview-img { width: 56px; height: 56px; }
+  .sidebar-preview .preview-label { font-size: 0.85rem; }
   .editor-sidebar .sidebar-tabs {
     display: flex;
     gap: 4px;
@@ -1154,7 +1163,7 @@ const handleIconInputBlur = () => {
   }
   .sidebar-item span { display: none; }
   .sidebar-item i { font-size: 1.1rem; }
-  .segmented { grid-template-columns: repeat(4, 1fr); }
+  .segmented { grid-template-columns: repeat(3, 1fr); }
   .seg-item { padding: 8px 4px; gap: 3px; }
   .seg-item span { font-size: 0.6rem; }
   .btn-foot span { display: none; }

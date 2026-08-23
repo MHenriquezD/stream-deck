@@ -228,7 +228,7 @@ const adjustSensitivity = (delta: number) => {
   <div class="mouse-controller">
     <!-- Header -->
     <div class="mc-header">
-      <button @click="emit('close')" class="mc-back-btn">
+      <button @click="emit('close')" class="mc-back-btn" aria-label="Volver">
         <Icon icon="mdi:arrow-left" />
       </button>
       <h3>Mouse & Teclado</h3>
@@ -237,6 +237,7 @@ const adjustSensitivity = (delta: number) => {
           @click="showKeyboard = !showKeyboard"
           class="mc-toggle-btn"
           :class="{ active: showKeyboard }"
+          :aria-label="showKeyboard ? 'Ocultar teclado' : 'Mostrar teclado'"
         >
           <Icon icon="mdi:keyboard" style="font-size: 1.2rem" />
         </button>
@@ -314,7 +315,7 @@ const adjustSensitivity = (delta: number) => {
             class="keyboard-input"
             @keyup.enter="handleSendText"
           />
-          <button @click="handleSendText" class="keyboard-send-btn">
+          <button @click="handleSendText" class="keyboard-send-btn" aria-label="Enviar texto">
             <Icon icon="mdi:send" />
           </button>
         </div>

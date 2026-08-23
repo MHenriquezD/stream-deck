@@ -205,6 +205,14 @@ body {
 
 }
 
+/* Iconify icons render as inline <svg>; Tailwind's preflight sets all
+   svg to display:block, which breaks icons placed inline before text
+   onto their own line. Restore inline flow for icon-sized svgs. */
+svg.iconify {
+  display: inline-block;
+  vertical-align: -0.125em;
+}
+
 /* Iconify spin animation */
 .mdi-spin { animation: mdi-spin 0.7s linear infinite; }
 @keyframes mdi-spin { to { transform: rotate(360deg); } }

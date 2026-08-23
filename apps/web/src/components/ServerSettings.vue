@@ -565,7 +565,7 @@ const settingsSections = [
     <div class="settings-dialog" @click.stop>
       <div class="settings-header">
         <h2>Configuración</h2>
-        <button @click="close" class="close-btn"><Icon icon="mdi:close" /></button>
+        <button @click="close" class="close-btn" aria-label="Cerrar"><Icon icon="mdi:close" /></button>
       </div>
 
       <div class="settings-body" :class="{ 'show-all': showAllSections }">

@@ -1065,6 +1065,7 @@ async function handleServerUnreachableClean() {
           @click="handleBiometricRetry"
           :disabled="mobileLockLoading"
           class="mobile-pin-lock-btn biometric-btn"
+          aria-label="Desbloquear con huella digital"
         >
           <Icon icon="mdi:fingerprint" style="font-size: 3rem" />
         </button>
@@ -1122,7 +1123,7 @@ async function handleServerUnreachableClean() {
       <p class="credits">
         Hecho por
         <a
-          href="https://mhenriquezdev.com/"
+          href="https://mhenriquezd.github.io/portfolio-v2/"
           target="_blank"
           rel="noopener noreferrer"
         >
