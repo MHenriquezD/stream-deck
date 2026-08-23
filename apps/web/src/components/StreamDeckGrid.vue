@@ -225,6 +225,7 @@ const {
   isTouchDragging,
   isTouchDragOver,
   isTouchOverPage,
+  ignoreClickUntil,
 } = useDragAndDrop({
   swapButtons,
   moveButtonToPage,
@@ -551,13 +552,25 @@ watch(isConnected, async (connected) => {
 // Al perder la conexión (o desactivar el servidor), cerrar cualquier modal
 // abierto — no tiene sentido dejar Configuración o el editor de botones
 // abiertos operando sobre un servidor al que ya no se puede llegar.
+//
+// OJO: el socket parpadea (se cae y reconecta solo) durante el uso normal en
+// móvil, y cerrar en el primer 'disconnected' hacía que el editor se cerrara
+// solo justo después de abrirlo con long-press. Por eso se espera a que la
+// desconexión se sostenga un par de segundos antes de cerrar nada.
+let disconnectCloseTimer: ReturnType<typeof setTimeout> | null = null
 watch(connectionStatus, (status) => {
-  if (status === 'disconnected') {
+  if (disconnectCloseTimer) {
+    clearTimeout(disconnectCloseTimer)
+    disconnectCloseTimer = null
+  }
+  if (status !== 'disconnected') return
+  disconnectCloseTimer = setTimeout(() => {
+    if (connectionStatus.value !== 'disconnected') return
     showSettings.value = false
     showEditor.value = false
     showClearAllDialog.value = false
     showMouseController.value = false
-  }
+  }, 2500)
 })
 
 /** Open settings — if PIN is configured and user not authenticated, ask PIN first (desktop only) */
@@ -635,6 +648,9 @@ const handleButtonClick = async (button: ButtonType | null) => {
 
   // No ejecutar si se está arrastrando en mobile
   if (touchDragButton.value) return
+  // Ni si es el "click" fantasma que el navegador dispara solo después de
+  // un long-press/arrastre (ver handleTouchEnd en useDragAndDrop).
+  if (Date.now() < ignoreClickUntil.value) return
 
   // Reproducir sonido de tecla + feedback háptico en móvil
   playClickSound()
@@ -647,8 +663,20 @@ const handleButtonClick = async (button: ButtonType | null) => {
     let result: { success: boolean; output?: string; message?: string }
 
     if (isConnected.value) {
-      // Via WebSocket (más rápido)
-      result = await socketExecute(button.id)
+      // Via WebSocket (más rápido). Red de seguridad aparte del ack-timeout
+      // interno de emitWithAck: si el socket se desconecta/recrea a mitad
+      // de la espera, la promesa original queda huérfana y nunca resuelve,
+      // dejando el botón en "ejecutando" para siempre — este timeout la
+      // fuerza a resolver igual.
+      result = await Promise.race([
+        socketExecute(button.id),
+        new Promise<{ success: boolean; message: string }>((resolve) =>
+          setTimeout(
+            () => resolve({ success: false, message: 'Tiempo de espera agotado' }),
+            8000,
+          ),
+        ),
+      ])
     } else {
       // Fallback HTTP
       const response = await fetch(
@@ -961,7 +989,7 @@ async function handleServerUnreachableClean() {
         :class="{ 'grid-reloading': isReloadingGrid, 'grid-swiping': isMouseSwiping }"
         @touchstart="handlePageSwipeTouchStart($event)"
         @touchmove="handleTouchMove($event); handlePageSwipeTouchMove($event)"
-        @touchend="handleTouchEnd(); resolvePageSwipe()"
+        @touchend="handleTouchEnd($event); resolvePageSwipe()"
         @touchcancel="handleTouchCancel(); resolvePageSwipe()"
         @mousedown="handleGridMouseDown"
         @mousemove="handleGridMouseMove"

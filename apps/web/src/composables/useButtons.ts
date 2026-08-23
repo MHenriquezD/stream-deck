@@ -121,15 +121,22 @@ export function useButtons({ serverEnabled }: UseButtonsOptions) {
 
   /**
    * Reacomoda posiciones guardadas con un ancho de columnas distinto al
-   * actual, preservando el orden de lectura original. Cubre tanto datos de
-   * una versión anterior con grid más ancho (8/12/16/24/32 columnas) como el
-   * caso de cambiar de dispositivo: si los botones se guardaron en el modo
-   * compacto de móvil (2 columnas) y se abren en desktop (4 columnas),
-   * quedarían apretados en las primeras 2 columnas sin este reflow.
+   * actual — tanto datos de una versión anterior con grid más ancho como
+   * datos guardados en el modo compacto de móvil (2 columnas) que en
+   * desktop (4) quedarían apretados a la izquierda.
+   *
+   * Solo se ejecuta UNA vez por sesión: dos clientes con distinto número de
+   * columnas conectados a la vez se "corregían" mutuamente el layout al
+   * recibir cada actualización del otro, guardando en bucle infinito. Con
+   * el flag basta para acomodar los datos al abrir, sin volver a disparar
+   * en cada sincronización posterior.
    */
+  let didMigratePositions = false
   const migrateLegacyPositions = () => {
+    if (didMigratePositions) return
     const values = Array.from(buttons.value.values())
     if (values.length === 0) return
+    didMigratePositions = true
     const maxCol = values.reduce((m, b) => Math.max(m, b.position.col), 0)
     const inferredCols = maxCol + 1
     if (inferredCols === gridCols.value) return

@@ -57,8 +57,20 @@ export function useDragAndDrop({
   const armStartX = ref(0)
   const armStartY = ref(0)
 
+  /** Timestamp hasta el cual hay que ignorar un click (ver handleTouchEnd). */
+  const ignoreClickUntil = ref(0)
+  /**
+   * Timestamp del último touchend que vino de un long-press/arrastre. Tras
+   * un swap, el DOM cambia bajo el dedo y algunos WebView de Android
+   * re-sintetizan un touchstart nuevo sin que el usuario haya soltado,
+   * encadenando swaps sin parar. Si un touchstart llega pegado a este
+   * timestamp, es ese eco automático, no un toque real — se ignora.
+   */
+  let lastGestureEndAt = 0
+  const GESTURE_COOLDOWN = 350
+
   const LONG_PRESS_DELAY = 450
-  const DRAG_MOVE_THRESHOLD = 12
+  const DRAG_MOVE_THRESHOLD = 24
   const SCROLL_CANCEL_THRESHOLD = 10
 
   // ── Ratón ──
@@ -106,6 +118,7 @@ export function useDragAndDrop({
     event: TouchEvent,
   ) => {
     if (!button) return
+    if (Date.now() - lastGestureEndAt < GESTURE_COOLDOWN) return
     startX.value = event.touches[0].clientX
     startY.value = event.touches[0].clientY
     isPressing.value = button.id
@@ -113,7 +126,11 @@ export function useDragAndDrop({
     touchTimer.value = setTimeout(() => {
       // Long-press cumplido sin haberse cancelado por scroll: queda "armado"
       // a la espera de ver si el usuario suelta (editar) o arrastra (mover).
+      // isPressing se apaga aquí — su animación de pulso es para el tiempo
+      // de espera ANTES del long-press, no para mientras se sigue
+      // sosteniendo ya armado (si no, pulsa sin parar todo lo que dure el hold).
       if (navigator.vibrate) navigator.vibrate(40)
+      isPressing.value = null
       armedButton.value = button
       armedPosition.value = position
       armStartX.value = startX.value
@@ -177,12 +194,25 @@ export function useDragAndDrop({
     }
   }
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (event?: TouchEvent) => {
     if (touchTimer.value) {
       clearTimeout(touchTimer.value)
       touchTimer.value = null
     }
     isPressing.value = null
+
+    // Si hubo long-press (armado) o arrastre, el navegador todavía va a
+    // disparar su propio "click" sintético ~300ms después de este
+    // touchend — sin suprimirlo, ese click fantasma termina EJECUTANDO el
+    // botón (o el que quedó debajo tras moverlo) sin que el usuario lo
+    // haya tocado de verdad. preventDefault() debería bastar, pero algunos
+    // WebView de Android lo ignoran, así que además marcamos una ventana
+    // de tiempo para que quien ejecute el click la revise (ignoreClickUntil).
+    if (armedButton.value || touchDragButton.value) {
+      ignoreClickUntil.value = Date.now() + 400
+      lastGestureEndAt = Date.now()
+      if (event?.cancelable) event.preventDefault()
+    }
 
     // Se quedó "armado" (long-press cumplido) sin llegar a arrastrar →
     // el gesto era para editar, no para reordenar.
@@ -216,6 +246,9 @@ export function useDragAndDrop({
 
   /** Limpia TODO el estado táctil (red de seguridad para touchcancel). */
   const handleTouchCancel = () => {
+    if (armedButton.value || touchDragButton.value) {
+      lastGestureEndAt = Date.now()
+    }
     if (touchTimer.value) {
       clearTimeout(touchTimer.value)
       touchTimer.value = null
@@ -246,6 +279,7 @@ export function useDragAndDrop({
     draggedButton,
     touchDragButton,
     isPressing,
+    ignoreClickUntil,
     // ratón
     handleDragStart,
     handleDragEnd,

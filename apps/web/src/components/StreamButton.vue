@@ -160,12 +160,14 @@ const handleDrop = (e: DragEvent) => {
           :src="'./icons/' + button.icon.replace('svg:', '')"
           class="custom-icon"
           alt="icon"
+          draggable="false"
         />
         <img
           v-else-if="button.icon.startsWith('appicon:')"
           :src="serverUrlStore.serverUrl + button.icon.replace('appicon:', '')"
           class="custom-icon app-icon"
           alt="icon"
+          draggable="false"
           @error="($event.target as HTMLImageElement).style.display = 'none'"
         />
         <img
@@ -173,6 +175,7 @@ const handleDrop = (e: DragEvent) => {
           :src="'./streamdeck-icons/' + button.icon.replace('sd:', '')"
           class="custom-icon"
           alt="icon"
+          draggable="false"
         />
         <img
           v-else-if="button.icon.startsWith('custom:')"
@@ -183,6 +186,7 @@ const handleDrop = (e: DragEvent) => {
           "
           class="custom-icon"
           alt="icon"
+          draggable="false"
         />
         <Icon
           v-else-if="button.icon.startsWith('mdi:')"
@@ -537,6 +541,12 @@ const handleDrop = (e: DragEvent) => {
   height: 3.6rem;
   object-fit: contain;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  /* El drag nativo del navegador en <img> competía con nuestro gesto de
+     long-press/arrastre — pointer-events:none deja que el touch pase de
+     largo hacia el botón, y -webkit-user-drag remata el drag nativo. */
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
 }
 
 .mdi-icon {
