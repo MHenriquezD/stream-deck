@@ -309,15 +309,6 @@ const handleDrop = (e: DragEvent) => {
     );
 }
 
-.stream-button:not(.empty):hover {
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--glow, transparent) 90%, transparent),
-    0 0 18px 2px color-mix(in srgb, var(--glow, transparent) 70%, transparent),
-    0 0 40px 8px color-mix(in srgb, var(--glow, transparent) 45%, transparent),
-    0 16px 32px rgba(0, 0, 0, 0.5),
-    inset 0 3px 6px rgba(255, 255, 255, 0.18);
-}
-
 .stream-button::before {
   content: '';
   position: absolute;
@@ -389,27 +380,20 @@ const handleDrop = (e: DragEvent) => {
       inset 0 2px 3px rgba(255, 255, 255, 0.08),
       inset -2px 0 3px rgba(0, 0, 0, 0.2);
   }
-}
 
-/* ⭐ Active con transición rápida para evitar stuck */
-.stream-button:active {
-  transform: perspective(1000px) rotateY(-1deg) translateZ(10px) translateY(1px);
-  transition: all 0.1s ease-out;
-  box-shadow:
-    4px 0 8px rgba(0, 0, 0, 0.3),
-    0 4px 12px rgba(0, 0, 0, 0.2),
-    0 2px 4px rgba(0, 0, 0, 0.15),
-    inset 0 1px 3px rgba(255, 255, 255, 0.08),
-    inset 0 -1px 3px rgba(0, 0, 0, 0.5),
-    inset -1px 0 3px rgba(0, 0, 0, 0.3);
-}
-
-/* Desactivar :active pegado en dispositivos táctiles */
-@media (hover: none) and (pointer: coarse) {
+  /* El estado :active se queda "pegado" en navegadores táctiles tras
+     soltar (bug conocido), ocultando el glow de color hasta el próximo
+     toque — por eso este efecto vive solo donde hay hover real (mouse). */
   .stream-button:active {
-    transform: none !important;
-    box-shadow: inherit !important;
-    transition: none !important;
+    transform: perspective(1000px) rotateY(-1deg) translateZ(10px) translateY(1px);
+    transition: all 0.1s ease-out;
+    box-shadow:
+      4px 0 8px rgba(0, 0, 0, 0.3),
+      0 4px 12px rgba(0, 0, 0, 0.2),
+      0 2px 4px rgba(0, 0, 0, 0.15),
+      inset 0 1px 3px rgba(255, 255, 255, 0.08),
+      inset 0 -1px 3px rgba(0, 0, 0, 0.5),
+      inset -1px 0 3px rgba(0, 0, 0, 0.3);
   }
 }
 

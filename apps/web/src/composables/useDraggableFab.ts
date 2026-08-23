@@ -75,10 +75,23 @@ export function useDraggableFab() {
     e.preventDefault()
     const el = fabRef.value
     if (!el) return
+    // Clamp para que el botón nunca quede posicionado fuera de la pantalla
+    // visible mientras se arrastra (antes se podía soltar más abajo del
+    // borde y quedaba cortado).
+    const size = el.offsetWidth || 48
+    const margin = 4
+    const x = Math.min(
+      Math.max(t.clientX - size / 2, margin),
+      window.innerWidth - size - margin,
+    )
+    const y = Math.min(
+      Math.max(t.clientY - size / 2, margin),
+      window.innerHeight - size - margin,
+    )
     el.style.transition = 'none'
     el.style.position = 'fixed'
-    el.style.left = `${t.clientX - 24}px`
-    el.style.top = `${t.clientY - 24}px`
+    el.style.left = `${x}px`
+    el.style.top = `${y}px`
     el.style.right = 'auto'
     el.style.bottom = 'auto'
   }
