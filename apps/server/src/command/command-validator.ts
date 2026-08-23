@@ -83,14 +83,19 @@ const DESTRUCTIVE: Record<string, string[]> = {
 
 const URL_PATTERN = /^(https?:\/\/|www\.)/i;
 
-/** True when the payload looks like a filesystem path / app-launch target. */
+/**
+ * True when the payload is *itself* a bare filesystem path / app-launch
+ * target (no wrapping launcher). A `start "" "…"`-style command that merely
+ * mentions a WindowsApps path is a shell command, not a bare path — it must
+ * fall through to the shell-allowlist branch, which already permits `start`
+ * and only rejects real metacharacters, not the quotes `start` requires.
+ */
 function looksLikePath(payload: string, platform: Platform): boolean {
   const t = payload.trim().replace(/^["']|["']$/g, '');
   if (platform === 'win32') {
     return (
       /^[a-z]:\\/i.test(t) || // drive path
-      t.toLowerCase().startsWith('shell:appsfolder\\') ||
-      t.toLowerCase().includes('\\windowsapps\\')
+      t.toLowerCase().startsWith('shell:appsfolder\\')
     );
   }
   if (platform === 'darwin') {
@@ -174,6 +179,29 @@ export function validateCommand(
   // 3) Filesystem / app-launch paths — reject anything that could chain a
   //    second command once interpolated into a shell string.
   if (looksLikePath(trimmed, platform)) {
+    // Chromium PWA launch commands look like `"<exe path>" <args...>` — a
+    // quoted path followed by unquoted trailing arguments (no wrapping
+    // `start`/`open`, so they land here rather than in the shell branch).
+    // A naive "strip one leading/trailing quote" leaves the closing quote
+    // after the path dangling, which then gets flagged as an injection
+    // attempt. Detect this exact shape and validate each half properly
+    // instead of the whole string as one blob.
+    const quotedPathMatch = trimmed.match(/^"([^"]*)"(.*)$/);
+    if (quotedPathMatch) {
+      const [, quotedPath, rest] = quotedPathMatch;
+      if (
+        SHELL_METACHARACTERS.test(quotedPath) ||
+        QUOTES.test(rest) ||
+        SHELL_METACHARACTERS.test(rest)
+      ) {
+        return {
+          allowed: false,
+          reason: 'La ruta contiene caracteres no permitidos',
+        };
+      }
+      return { allowed: true, kind: 'path' };
+    }
+
     const unquoted = trimmed.replace(/^["']|["']$/g, '');
     if (SHELL_METACHARACTERS.test(unquoted) || QUOTES.test(unquoted)) {
       return {

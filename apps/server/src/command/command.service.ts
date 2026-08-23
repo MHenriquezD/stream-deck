@@ -515,7 +515,10 @@ foreach ($path in $paths) {
   Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { 
     $_.DisplayName -and $_.DisplayName -notlike 'Update for*' 
   } | ForEach-Object {
-    $icon = if ($_.DisplayIcon) { $_.DisplayIcon } else { '' }
+    # Algunos instaladores (ej. Realtek) guardan DisplayIcon con comillas
+    # literales incluidas ("C:\...\icon.ico"), lo que rompe cualquier chequeo
+    # de extensión al final de la cadena — se quitan aquí de una vez.
+    $icon = if ($_.DisplayIcon) { $_.DisplayIcon.Trim('"') } else { '' }
     $location = if ($_.InstallLocation) { $_.InstallLocation } else { '' }
     $displayName = $_.DisplayName
     
@@ -567,9 +570,16 @@ foreach ($path in $paths) {
         $finalPath = if ($exePath) { $exePath } else { $location }
       }
       
+      # Para el ícono: si el DisplayIcon del registro ya es un archivo de
+      # imagen (.ico/.png, no un .exe) confiar en él directamente — suele
+      # ser el ícono real elegido por el instalador. Solo si el registro
+      # no trae ícono útil (vacío o apuntando a un .exe genérico tipo
+      # Update.exe de Squirrel) usamos el $exePath ya resuelto arriba,
+      # que descarta explícitamente Update.exe/uninstallers.
+      $iconIsImage = $icon -and $icon -notlike '*.exe*'
       $apps += [PSCustomObject]@{
         Name = $displayName
-        Icon = $icon
+        Icon = if ($iconIsImage) { $icon } elseif ($exePath) { $exePath } else { $icon }
         Path = $finalPath
         Source = 'Registry'
       }
@@ -683,28 +693,36 @@ try {
           $arguments = $shortcut.Arguments
           
           # Detectar PWAs (Chrome, Edge, Brave con --app-id)
+          # ⚠️ Brave usa el mismo binario "chrome_proxy.exe" que Chrome para
+          # lanzar sus PWAs, así que el nombre del exe NO alcanza para saber
+          # de qué navegador es — hay que mirar la carpeta de instalación.
+          $isBravePath = $targetPath -like "*\\BraveSoftware\\Brave-Browser\\*"
+          $isChromePath = $targetPath -like "*\\Google\\Chrome\\*" -and -not $isBravePath
+          $isEdgePath = $targetPath -like "*\\Microsoft\\Edge\\*"
+
           $isPWA = (
-            ($targetPath -like "*chrome.exe" -or 
-             $targetPath -like "*msedge.exe" -or 
+            ($targetPath -like "*chrome.exe" -or
+             $targetPath -like "*msedge.exe" -or
              $targetPath -like "*chrome_proxy.exe" -or
-             $targetPath -like "*brave.exe") -and 
+             $targetPath -like "*brave.exe") -and
             $arguments -like "*--app-id=*"
           )
-          
+
           if ($isPWA) {
             $appName = $_.BaseName
             # Limpiar nombres técnicos
             if ($appName -notlike '*Uninstall*' -and $appName -notlike '*Update*') {
-              # Determinar el navegador
+              # Determinar el navegador por la ruta de instalación, no por el
+              # nombre del exe (compartido entre Chrome y Brave).
               $browser = "PWA"
-              if ($targetPath -like "*chrome_proxy.exe" -or $targetPath -like "*brave.exe") {
+              if ($isBravePath) {
                 $browser = "Brave"
-              } elseif ($targetPath -like "*chrome.exe") {
+              } elseif ($isChromePath) {
                 $browser = "Chrome"
-              } elseif ($targetPath -like "*msedge.exe") {
+              } elseif ($isEdgePath) {
                 $browser = "Edge"
               }
-              
+
               # Intentar encontrar el icono real de la PWA
               $pwaIcon = ''
               try {
@@ -712,16 +730,23 @@ try {
                 if ($arguments -match '--app-id=([^\s"]+)') {
                   $pwaAppId = $Matches[1]
 
-                  # Determinar el directorio de datos del navegador
+                  # Directorio de datos del navegador detectado por ruta,
+                  # probado primero — pero si la detección falla por algún
+                  # motivo (paths raros, instalaciones portátiles, etc.),
+                  # igual probamos los tres conocidos como respaldo: el
+                  # app-id es único por PWA, así que no hay riesgo de
+                  # confundir iconos entre navegadores.
+                  $knownDataDirs = @(
+                    "$env:LOCALAPPDATA\\BraveSoftware\\Brave-Browser\\User Data",
+                    "$env:LOCALAPPDATA\\Google\\Chrome\\User Data",
+                    "$env:LOCALAPPDATA\\Microsoft\\Edge\\User Data"
+                  )
                   $browserDataDirs = @()
-                  if ($targetPath -like "*chrome.exe" -or $targetPath -like "*chrome_proxy.exe") {
-                    $browserDataDirs += "$env:LOCALAPPDATA\Google\Chrome\User Data"
-                  }
-                  if ($targetPath -like "*msedge.exe") {
-                    $browserDataDirs += "$env:LOCALAPPDATA\Microsoft\Edge\User Data"
-                  }
-                  if ($targetPath -like "*brave.exe") {
-                    $browserDataDirs += "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data"
+                  if ($isBravePath) { $browserDataDirs += $knownDataDirs[0] }
+                  if ($isChromePath) { $browserDataDirs += $knownDataDirs[1] }
+                  if ($isEdgePath) { $browserDataDirs += $knownDataDirs[2] }
+                  foreach ($dir in $knownDataDirs) {
+                    if ($browserDataDirs -notcontains $dir) { $browserDataDirs += $dir }
                   }
 
                   foreach ($dataDir in $browserDataDirs) {
@@ -729,15 +754,25 @@ try {
                     # Buscar en todos los perfiles (Default, Profile 1, etc.)
                     $profiles = @('Default') + @(Get-ChildItem -Path $dataDir -Directory -Filter "Profile *" -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
                     foreach ($profile in $profiles) {
-                      $iconsDir = Join-Path $dataDir "$profile\Web Applications\$pwaAppId\Icons"
-                      if (Test-Path $iconsDir) {
-                        # Buscar el icono más grande (mayor tamaño de archivo)
-                        $iconFiles = Get-ChildItem -Path $iconsDir -Include "*.png","*.ico" -Recurse -ErrorAction SilentlyContinue | Sort-Object Length -Descending
-                        if ($iconFiles) {
-                          $pwaIcon = $iconFiles[0].FullName
-                          break
+                      # Chromium moderno guarda los iconos bajo "Manifest
+                      # Resources\<app-id>\Icons"; versiones/perfiles viejos
+                      # los tenían directo en "<app-id>\Icons" — probamos
+                      # ambas rutas por compatibilidad.
+                      $iconsDirCandidates = @(
+                        (Join-Path $dataDir "$profile\\Web Applications\\Manifest Resources\\$pwaAppId\\Icons"),
+                        (Join-Path $dataDir "$profile\\Web Applications\\$pwaAppId\\Icons")
+                      )
+                      foreach ($iconsDir in $iconsDirCandidates) {
+                        if (Test-Path $iconsDir) {
+                          # Buscar el icono más grande (mayor tamaño de archivo)
+                          $iconFiles = Get-ChildItem -Path $iconsDir -Include "*.png","*.ico" -Recurse -ErrorAction SilentlyContinue | Sort-Object Length -Descending
+                          if ($iconFiles) {
+                            $pwaIcon = $iconFiles[0].FullName
+                            break
+                          }
                         }
                       }
+                      if ($pwaIcon) { break }
                     }
                     if ($pwaIcon) { break }
                   }
@@ -779,7 +814,10 @@ if ($unique.Count -gt 0) {
       fs.writeFileSync(scriptPath, psScript, 'utf-8');
 
       // Ejecutar el script desde el archivo
-      const command = `powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`;
+      // chcp 65001 evita que los acentos salgan como � en la salida/errores:
+      // PowerShell escribe en la codepage OEM del sistema por defecto, que
+      // no coincide con el UTF-8 que Node espera al leer stdout/stderr.
+      const command = `chcp 65001>nul & powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`;
 
       console.log('Ejecutando script de PowerShell para obtener apps...');
       const output = await this.execAsyncRaw(command);
@@ -812,6 +850,12 @@ if ($unique.Count -gt 0) {
 
       // Extract icons from executables
       await this.extractWindowsIcons(result, forceRescan);
+
+      // Un rescan puede dejar íconos viejos huérfanos (ej. cambió la
+      // extensión esperada de .png a .ico para el mismo nombre de app).
+      if (forceRescan) {
+        this.cleanupOrphanIcons(result);
+      }
 
       // Save to cache
       try {
@@ -1080,6 +1124,40 @@ done
     }
   }
 
+  /**
+   * Borra archivos en la carpeta de íconos que ya no corresponde a ninguna
+   * app del escaneo actual (ej. quedaron huérfanos tras cambiar el nombre
+   * de archivo esperado, como al pasar de forzar .png a preservar .ico).
+   */
+  private cleanupOrphanIcons(apps: InstalledApp[]) {
+    if (!fs.existsSync(this.iconsDir)) return;
+    try {
+      const referenced = new Set(
+        apps
+          .map((app) => app.Icon)
+          .filter((icon): icon is string => !!icon?.startsWith('/app-icons/'))
+          .map((icon) => icon.replace('/app-icons/', '')),
+      );
+      const onDisk = fs.readdirSync(this.iconsDir);
+      let removed = 0;
+      for (const file of onDisk) {
+        if (!referenced.has(file)) {
+          try {
+            fs.unlinkSync(path.join(this.iconsDir, file));
+            removed++;
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      if (removed > 0) {
+        console.log(`🎨 Iconos huérfanos eliminados: ${removed}`);
+      }
+    } catch (e) {
+      console.error('Error limpiando iconos huérfanos:', e);
+    }
+  }
+
   // ─── Windows Icon Extraction ───
   private async extractWindowsIcons(
     apps: InstalledApp[],
@@ -1116,7 +1194,14 @@ done
         0,
         60,
       );
-      const iconFile = `${safeName}.png`;
+
+      // Los iconos copiados de PWAs/Store pueden ser .ico, no solo .png —
+      // forzar la extensión a .png (como antes) mientras el contenido real
+      // es ICO hace que el navegador falle al decodificarlo y se vea como
+      // imagen rota. Conservamos la extensión real del archivo fuente.
+      const sourceImageMatch = app.Icon?.match(/\.(png|ico|jpg|jpeg|bmp)$/i);
+      const ext = sourceImageMatch ? sourceImageMatch[1].toLowerCase() : 'png';
+      const iconFile = `${safeName}.${ext}`;
       const iconPath = path.join(this.iconsDir, iconFile);
 
       // Skip if icon already exists — unless this is a forced rescan, in
@@ -1134,11 +1219,7 @@ done
       }
 
       // Check if Icon points to an image file (PNG/ICO) — just copy it
-      if (
-        app.Icon &&
-        /\.(png|ico|jpg|jpeg|bmp)$/i.test(app.Icon) &&
-        fs.existsSync(app.Icon)
-      ) {
+      if (app.Icon && sourceImageMatch && fs.existsSync(app.Icon)) {
         copyTasks.push({ index: i, srcPath: app.Icon, iconFile });
         continue;
       }
@@ -1147,7 +1228,13 @@ done
       let exePath = '';
 
       if (app.Icon && app.Icon.toLowerCase().includes('.exe')) {
-        exePath = app.Icon.replace(/^["']|["']$/g, '').replace(/,\d+$/, '');
+        // El registro de Windows guarda DisplayIcon como "ruta",índice — el
+        // índice puede ser negativo (ej. ",-128"), así que hay que quitarlo
+        // ANTES de despojar las comillas, o queda basura como `exe",-128`
+        // que rompe el script de PowerShell generado más abajo.
+        exePath = app.Icon
+          .replace(/,-?\d+$/, '')
+          .replace(/^["']|["']$/g, '');
       } else if (app.Path && app.Path.toLowerCase().includes('.exe')) {
         exePath = app.Path.replace(/^["']|["']$/g, '')
           .split('"')[0]
@@ -1160,14 +1247,22 @@ done
     }
 
     // Copy image-based icons (PWAs and Store apps)
+    let copiedCount = 0;
     for (const task of copyTasks) {
       try {
         const destPath = path.join(this.iconsDir, task.iconFile);
         fs.copyFileSync(task.srcPath, destPath);
         apps[task.index].Icon = `/app-icons/${task.iconFile}`;
-      } catch {
-        // Skip failed copies
+        copiedCount++;
+      } catch (e) {
+        console.error(
+          `🎨 Error copiando icono de "${apps[task.index].Name}" desde ${task.srcPath}:`,
+          e,
+        );
       }
+    }
+    if (copyTasks.length > 0) {
+      console.log(`🎨 Iconos copiados (PWA/Store): ${copiedCount}/${copyTasks.length}`);
     }
 
     if (extractionTasks.length === 0) {
@@ -1228,7 +1323,7 @@ $results -join ","
 
     try {
       const output = await this.execAsyncRaw(
-        `powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`,
+        `chcp 65001>nul & powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`,
       );
 
       // Clean up script
