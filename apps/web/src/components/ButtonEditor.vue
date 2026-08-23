@@ -7,6 +7,8 @@ import { useServerUrlStore } from '../store/serverUrl.store'
 import AppPicker from './AppPicker.vue'
 import CommandPicker from './CommandPicker.vue'
 import IconPicker from './IconPicker.vue'
+import MultimediaPresetPicker from './MultimediaPresetPicker.vue'
+import PickerModal from './PickerModal.vue'
 import TailwindConfirmDialog from './TailwindConfirmDialog.vue'
 
 const serverUrlStore = useServerUrlStore()
@@ -26,6 +28,17 @@ const emit = defineEmits<{
 const showIconPicker = ref(false)
 const showCommandPicker = ref(false)
 const showAppPicker = ref(false)
+const showMultimediaPicker = ref(false)
+/** Oculta el editor mientras hay un sub-picker abierto, para no apilar
+ * un modal encima de otro (solo un backdrop visible a la vez). */
+const showEditor = computed(
+  () =>
+    props.show &&
+    !showIconPicker.value &&
+    !showCommandPicker.value &&
+    !showAppPicker.value &&
+    !showMultimediaPicker.value,
+)
 const showIconSuggestions = ref(false)
 const iconInputFocused = ref(false)
 const showDeleteDialog = ref(false)
@@ -276,6 +289,14 @@ const handleAppSelect = (data: {
   showAppPicker.value = false
 }
 
+const handleMultimediaSelect = (preset: { label: string; icon: string; payload: string }) => {
+  formData.actionType = ActionType.COMMAND
+  formData.payload = preset.payload
+  if (!formData.label) formData.label = preset.label
+  if (!formData.icon) formData.icon = preset.icon
+  showMultimediaPicker.value = false
+}
+
 const selectSuggestion = (icon: string) => {
   formData.icon = icon
   showIconSuggestions.value = false
@@ -298,17 +319,14 @@ const handleIconInputBlur = () => {
 </script>
 
 <template>
-  <Transition name="editor">
-    <div v-if="show" class="editor-backdrop" @click="handleClose">
-      <div class="editor-panel" @click.stop>
-        <!-- ─── HEADER ─── -->
-        <header class="editor-header">
-          <h2>{{ button ? 'Editar' : 'Nuevo' }} Botón</h2>
-          <button class="header-close" @click="handleClose" aria-label="Cerrar">
-            <Icon icon="mdi:close" />
-          </button>
-        </header>
-
+  <PickerModal
+    :show="showEditor"
+    :title="button ? 'Editar Botón' : 'Nuevo Botón'"
+    :max-width="720"
+    :height="620"
+    mobile-fullscreen
+    @close="handleClose"
+  >
         <div class="editor-body">
           <!-- ─── SIDEBAR ─── -->
           <nav class="editor-sidebar">
@@ -504,6 +522,9 @@ const handleIconInputBlur = () => {
                   <button type="button" @click="showCommandPicker = true" class="btn-neon btn-sm">
                     <Icon icon="mdi:format-list-bulleted" /> Comandos
                   </button>
+                  <button type="button" @click="showMultimediaPicker = true" class="btn-neon btn-sm">
+                    <Icon icon="mdi:volume-high" /> Multimedia
+                  </button>
                 </div>
                 <div class="action-helpers" v-else-if="formData.actionType === 'HOTKEY'">
                   <div class="preset-grid">
@@ -555,9 +576,7 @@ const handleIconInputBlur = () => {
             <Icon icon="mdi:check" /> Guardar
           </button>
         </footer>
-      </div>
-    </div>
-  </Transition>
+  </PickerModal>
 
   <IconPicker
     :show="showIconPicker"
@@ -585,78 +604,14 @@ const handleIconInputBlur = () => {
     @select="handleAppSelect"
     @close="showAppPicker = false"
   />
+  <MultimediaPresetPicker
+    :show="showMultimediaPicker"
+    @select="handleMultimediaSelect"
+    @close="showMultimediaPicker = false"
+  />
 </template>
 
 <style scoped>
-/* ── BACKDROP ── */
-.editor-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--scrim);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-}
-
-/* ── PANEL ── */
-.editor-panel {
-  width: 100%;
-  max-width: 720px;
-  height: 620px;
-  display: flex;
-  flex-direction: column;
-  border-radius: 24px;
-  background: linear-gradient(170deg, rgba(22, 22, 32, 0.92) 0%, rgba(10, 10, 16, 0.96) 100%);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 32px 80px rgba(0, 0, 0, 0.7),
-    0 0 60px -10px color-mix(in srgb, var(--accent) 30%, transparent);
-  overflow: hidden;
-}
-
-/* ── HEADER ── */
-.editor-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 22px;
-  border-bottom: 1px solid var(--glass-border);
-}
-
-.editor-header h2 {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--text-1);
-  letter-spacing: 0.01em;
-}
-
-.header-close {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-2);
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  font-size: 0.9rem;
-  transition: all 0.18s;
-}
-@media (hover: hover) {
-  .header-close:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-1);
-    transform: rotate(90deg);
-  }
-}
-
 /* ── BODY: SIDEBAR + CONTENT ── */
 .editor-body {
   flex: 1;
@@ -1092,24 +1047,6 @@ const handleIconInputBlur = () => {
 }
 .footer-spacer { flex: 1; }
 
-/* ── TRANSITIONS ── */
-.editor-enter-active { transition: opacity 0.35s ease; }
-.editor-leave-active { transition: opacity 0.25s ease; }
-.editor-enter-from, .editor-leave-to { opacity: 0; }
-.editor-enter-active .editor-panel {
-  transition: transform 0.45s cubic-bezier(0.22, 1.2, 0.36, 1);
-}
-.editor-leave-active .editor-panel {
-  transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1);
-}
-.editor-enter-from .editor-panel { transform: translateY(60px) scale(0.9); }
-.editor-leave-to .editor-panel { transform: translateY(40px) scale(0.92); }
-
-@media (max-width: 640px) {
-  .editor-enter-from .editor-panel { transform: translateY(100%); }
-  .editor-leave-to .editor-panel { transform: translateY(100%); }
-}
-
 /* ── SCROLLBAR ── */
 .editor-content::-webkit-scrollbar { width: 4px; }
 .editor-content::-webkit-scrollbar-track { background: transparent; }
@@ -1117,13 +1054,6 @@ const handleIconInputBlur = () => {
 
 /* ── MOBILE ── */
 @media (max-width: 640px) {
-  .editor-backdrop { align-items: stretch; padding: 0; }
-  .editor-panel {
-    max-width: 100%;
-    height: 100dvh;
-    max-height: 100dvh;
-    border-radius: 0;
-  }
   .editor-body { flex-direction: column; }
   .editor-sidebar {
     width: 100%;
@@ -1171,28 +1101,6 @@ const handleIconInputBlur = () => {
 }
 
 /* Light theme */
-[data-theme='light'] .editor-panel {
-  background: linear-gradient(170deg, rgba(255, 255, 255, 0.97) 0%, rgba(245, 245, 250, 0.98) 100%);
-  border-color: rgba(0, 0, 0, 0.1);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.04),
-    0 32px 80px rgba(0, 0, 0, 0.15),
-    0 0 60px -10px color-mix(in srgb, var(--accent) 15%, transparent);
-}
-
-[data-theme='light'] .editor-header {
-  border-bottom-color: rgba(0, 0, 0, 0.08);
-}
-
-[data-theme='light'] .header-close {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: rgba(0, 0, 0, 0.1);
-}
-
-[data-theme='light'] .header-close:hover {
-  background: rgba(0, 0, 0, 0.08);
-}
-
 [data-theme='light'] .card {
   background: rgba(0, 0, 0, 0.03);
   border-color: rgba(0, 0, 0, 0.07);
