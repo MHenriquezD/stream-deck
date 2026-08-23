@@ -14,11 +14,20 @@ interface UseButtonsOptions {
   serverEnabled: Ref<boolean>
 }
 
+/** Columnas fijas del grid; cada página tiene PAGE_ROWS * PAGE_COLS = 12 botones. */
+const PAGE_COLS = 4
+const PAGE_ROWS = 3
+const PAGE_SIZE = PAGE_COLS * PAGE_ROWS
+
 /**
- * Estado central del stream deck: el mapa de botones, las dimensiones del grid
- * y la persistencia (carga/guardado vía socket o HTTP). Concentra aquí la única
+ * Estado central del stream deck: el mapa de botones, la paginación y la
+ * persistencia (carga/guardado vía socket o HTTP). Concentra aquí la única
  * fuente de verdad de los botones para que el componente y el drag & drop
  * operen sobre ella sin duplicar la lógica de intercambio ni de guardado.
+ *
+ * El grid es siempre de 4 columnas; `position.col` está en [0,3] y
+ * `position.row` crece sin límite: la página N ocupa las filas absolutas
+ * [3N, 3N+2]. Así no hace falta un campo `page` aparte ni tocar el backend.
  */
 export function useButtons({ serverEnabled }: UseButtonsOptions) {
   const serverUrlStore = useServerUrlStore()
@@ -30,42 +39,81 @@ export function useButtons({ serverEnabled }: UseButtonsOptions) {
   // ── Estado ──
   // ref<Map> (no shallowRef): Vue trackea .set/.delete/.clear de un Map reactivo.
   const buttons = ref<Map<string, StreamButton>>(new Map())
-  const gridRows = ref(3)
-  const gridCols = ref(4)
+  const gridRows = ref(PAGE_ROWS)
+  const gridCols = ref(PAGE_COLS)
   const isReloadingGrid = ref(false)
   /** True hasta que termina la primera carga (muestra skeletons). */
   const isLoadingButtons = ref(true)
 
+  // ── Paginación ──
+  const currentPage = ref(0)
+
+  const maxOccupiedRow = computed(() => {
+    let max = -1
+    buttons.value.forEach((b) => {
+      if (b.position.row > max) max = b.position.row
+    })
+    return max
+  })
+
+  /** Última página con contenido, más una página extra vacía si esa está llena. */
+  const totalPages = computed(() => {
+    if (maxOccupiedRow.value < 0) return 1
+    const lastPage = Math.floor(maxOccupiedRow.value / PAGE_ROWS)
+    const startRow = lastPage * PAGE_ROWS
+    let countInLastPage = 0
+    buttons.value.forEach((b) => {
+      if (b.position.row >= startRow && b.position.row < startRow + PAGE_ROWS) {
+        countInLastPage++
+      }
+    })
+    return countInLastPage >= PAGE_SIZE ? lastPage + 2 : lastPage + 1
+  })
+
+  const goToPage = (page: number) => {
+    currentPage.value = Math.max(0, Math.min(page, totalPages.value - 1))
+  }
+
   const gridItems = computed(() => {
     const items: Array<GridPosition & { button: StreamButton | null }> = []
-    for (let row = 0; row < gridRows.value; row++) {
-      for (let col = 0; col < gridCols.value; col++) {
+    const baseRow = currentPage.value * PAGE_ROWS
+    const values = Array.from(buttons.value.values())
+    for (let r = 0; r < PAGE_ROWS; r++) {
+      for (let c = 0; c < PAGE_COLS; c++) {
+        const row = baseRow + r
         const button =
-          Array.from(buttons.value.values()).find(
-            (b) => b.position.row === row && b.position.col === col,
-          ) || null
-        items.push({ row, col, button })
+          values.find((b) => b.position.row === row && b.position.col === c) ||
+          null
+        items.push({ row, col: c, button })
       }
     }
     return items
   })
 
-  // ── Dimensiones ──
-  const calculateGridDimensions = (totalButtons: number) => {
-    const layouts: Record<number, { rows: number; cols: number }> = {
-      8: { rows: 2, cols: 4 },
-      12: { rows: 3, cols: 4 },
-      16: { rows: 4, cols: 4 },
-      24: { rows: 4, cols: 6 },
-      32: { rows: 4, cols: 8 },
-    }
-    return layouts[totalButtons] || { rows: 3, cols: 4 }
-  }
+  /**
+   * Migración única: reacomoda posiciones guardadas por una versión anterior
+   * con grid de ancho variable (8/12/16/24/32 → hasta 8 columnas) al nuevo
+   * esquema de 4 columnas fijas, preservando el orden de lectura original.
+   */
+  const migrateLegacyPositions = () => {
+    const values = Array.from(buttons.value.values())
+    const maxCol = values.reduce((m, b) => Math.max(m, b.position.col), 0)
+    if (maxCol < PAGE_COLS) return
 
-  const updateGridFromSize = (gridSize: number) => {
-    const dims = calculateGridDimensions(gridSize)
-    gridRows.value = dims.rows
-    gridCols.value = dims.cols
+    const oldCols = maxCol + 1
+    const ordered = values.sort(
+      (a, b) =>
+        a.position.row * oldCols + a.position.col -
+        (b.position.row * oldCols + b.position.col),
+    )
+    ordered.forEach((button, index) => {
+      button.position = {
+        row: Math.floor(index / PAGE_COLS),
+        col: index % PAGE_COLS,
+      }
+      buttons.value.set(button.id, button)
+    })
+    void saveButtons()
   }
 
   // ── Consultas / mutaciones ──
@@ -110,6 +158,28 @@ export function useButtons({ serverEnabled }: UseButtonsOptions) {
     return true
   }
 
+  /**
+   * Mueve `button` a la primera casilla libre de `page` (arrastrar un botón
+   * hasta el punto de otra página). No intercambia nada: la casilla de
+   * origen queda vacía. Devuelve false si la página destino está llena.
+   */
+  const moveButtonToPage = (button: StreamButton, page: number): boolean => {
+    const startRow = page * PAGE_ROWS
+    for (let r = 0; r < PAGE_ROWS; r++) {
+      for (let c = 0; c < PAGE_COLS; c++) {
+        const row = startRow + r
+        if (row === button.position.row && c === button.position.col) continue
+        if (!getButtonAt({ row, col: c })) {
+          button.position = { row, col: c }
+          buttons.value.set(button.id, button)
+          void saveButtons()
+          return true
+        }
+      }
+    }
+    return false
+  }
+
   // ── Persistencia ──
   const parseAndSetButtons = (data: any[]) => {
     data.forEach((cmd: any, index: number) => {
@@ -129,18 +199,17 @@ export function useButtons({ serverEnabled }: UseButtonsOptions) {
           payload: cmd.payload,
         },
         position: cmd.position || {
-          row: Math.floor(index / gridCols.value),
-          col: index % gridCols.value,
+          row: Math.floor(index / PAGE_COLS),
+          col: index % PAGE_COLS,
         },
       }
 
-      if (
-        button.position.row < gridRows.value &&
-        button.position.col < gridCols.value
-      ) {
+      if (button.position.row >= 0 && button.position.col >= 0) {
         buttons.value.set(button.id, button)
       }
     })
+
+    migrateLegacyPositions()
   }
 
   const loadButtons = async () => {
@@ -209,15 +278,17 @@ export function useButtons({ serverEnabled }: UseButtonsOptions) {
     gridItems,
     isReloadingGrid,
     isLoadingButtons,
-    // dimensiones
-    calculateGridDimensions,
-    updateGridFromSize,
+    // paginación
+    currentPage,
+    totalPages,
+    goToPage,
     // mutaciones
     getButtonAt,
     setButton,
     deleteButton,
     clearButtons,
     swapButtons,
+    moveButtonToPage,
     // persistencia
     parseAndSetButtons,
     loadButtons,

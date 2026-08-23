@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useSocket } from '../composables/useSocket'
 
 const emit = defineEmits<{
@@ -13,7 +13,12 @@ const { socket } = useSocket()
 const trackpadRef = ref<HTMLDivElement | null>(null)
 const lastTouch = ref<{ x: number; y: number } | null>(null)
 const isDragging = ref(false)
-const sensitivity = ref(1.8)
+
+// DPI es un valor familiar para el usuario; internamente se traduce a un
+// multiplicador de sensibilidad (dpi / 800, con 800 como referencia base).
+const dpiPresets = [800, 1200, 1600, 2400, 3000]
+const dpi = ref(1600)
+const sensitivity = computed(() => dpi.value / 800)
 
 // ─── Scroll State ───
 const lastScrollY = ref<number | null>(null)
@@ -29,8 +34,11 @@ let rippleId = 0
 const spawnRipple = (x: number, y: number, type: Ripple['type'] = 'left') => {
   const id = ++rippleId
   ripples.value.push({ id, x, y, type })
-  setTimeout(() => { ripples.value = ripples.value.filter(r => r.id !== id) }, 600)
+  setTimeout(() => { ripples.value = ripples.value.filter(r => r.id !== id) }, 700)
 }
+
+/** Punto de contacto visible mientras el dedo está sobre el trackpad (tap o arrastre). */
+const touchPoint = ref<{ x: number; y: number } | null>(null)
 
 // ─── Keyboard State ───
 const showKeyboard = ref(false)
@@ -46,8 +54,23 @@ onMounted(() => {
 })
 
 // ─── Trackpad touch handlers ───
+const updateTouchPoint = (clientX: number, clientY: number) => {
+  const rect = trackpadRef.value?.getBoundingClientRect()
+  if (!rect) return
+  touchPoint.value = { x: clientX - rect.left, y: clientY - rect.top }
+}
+
+/** Ignora toques que empiezan sobre controles propios del trackpad (ej. sensibilidad),
+ * para que no se interpreten como mover/clickear el mouse. */
+const isControlTouch = (e: TouchEvent) => {
+  const touch = e.touches[0] ?? e.changedTouches[0]
+  return !!(touch?.target as HTMLElement)?.closest?.('.sensitivity-control')
+}
+
 const handleTouchStart = (e: TouchEvent) => {
+  if (isControlTouch(e)) return
   e.preventDefault()
+  updateTouchPoint(e.touches[0].clientX, e.touches[0].clientY)
   if (e.touches.length === 2) {
     // Two-finger: could be scroll or right-click tap
     twoFingerStartTime = Date.now()
@@ -64,7 +87,9 @@ const handleTouchStart = (e: TouchEvent) => {
 }
 
 const handleTouchMove = (e: TouchEvent) => {
+  if (isControlTouch(e)) return
   e.preventDefault()
+  updateTouchPoint(e.touches[0].clientX, e.touches[0].clientY)
 
   // Two-finger scroll (vertical + horizontal)
   if (
@@ -113,6 +138,8 @@ const handleTouchMove = (e: TouchEvent) => {
 }
 
 const handleTouchEnd = (e: TouchEvent) => {
+  if (isControlTouch(e)) return
+  touchPoint.value = null
   if (isScrolling.value) {
     // Two-finger tap (no scroll movement, quick release) → right-click
     const elapsed = Date.now() - twoFingerStartTime
@@ -151,6 +178,7 @@ const DOUBLE_TAP_WINDOW = 300 // ms between taps to count as double
 const HOLD_THRESHOLD = 150 // ms hold after second tap to start drag
 
 const handleTapStart = (e: TouchEvent) => {
+  if (isControlTouch(e)) return
   if (e.touches.length === 1) {
     const now = Date.now()
     tapStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY }
@@ -174,6 +202,7 @@ const handleTapStart = (e: TouchEvent) => {
 }
 
 const handleTapEnd = (e: TouchEvent) => {
+  if (isControlTouch(e)) return
   // If dragging, release on finger up
   if (isDragging.value) {
     socket.value?.emit('mouse:pressUp')
@@ -218,9 +247,9 @@ const handleCombo = (keys: string[]) => {
   socket.value?.emit('keyboard:combo', { keys })
 }
 
-// ─── Sensitivity ───
-const adjustSensitivity = (delta: number) => {
-  sensitivity.value = Math.max(0.5, Math.min(4, sensitivity.value + delta))
+// ─── DPI ───
+const setDpi = (value: number) => {
+  dpi.value = value
 }
 </script>
 
@@ -260,7 +289,7 @@ const adjustSensitivity = (delta: number) => {
         @touchcancel="handleTouchEnd"
       >
         <div class="trackpad-hint">
-          <Icon icon="mdi:arrow-all" style="font-size: 1.5rem; opacity: 0.2" />
+          <Icon icon="mdi:arrow-all" style="font-size: 1.7rem; opacity: 0.5" />
           <span>Desliza para mover el cursor</span>
           <span class="trackpad-sub-hint"
             >Toca = click · 2 dedos: toca = derecho, desliza = scroll · Doble
@@ -268,14 +297,17 @@ const adjustSensitivity = (delta: number) => {
           >
         </div>
 
-        <!-- Sensitivity indicator -->
+        <!-- DPI selector -->
         <div class="sensitivity-control">
-          <button @click.stop="adjustSensitivity(-0.3)" class="sens-btn">
-            −
-          </button>
-          <span class="sens-label">{{ sensitivity.toFixed(1) }}x</span>
-          <button @click.stop="adjustSensitivity(0.3)" class="sens-btn">
-            +
+          <button
+            v-for="d in dpiPresets"
+            :key="d"
+            type="button"
+            class="dpi-chip"
+            :class="{ active: dpi === d }"
+            @click.stop="setDpi(d)"
+          >
+            {{ d }}
           </button>
         </div>
 
@@ -289,6 +321,13 @@ const adjustSensitivity = (delta: number) => {
           class="touch-ripple"
           :class="`ripple-${r.type}`"
           :style="{ left: r.x + 'px', top: r.y + 'px' }"
+        />
+
+        <!-- Punto de contacto activo (visible mientras el dedo está sobre el trackpad) -->
+        <div
+          v-if="touchPoint"
+          class="touch-point"
+          :style="{ left: touchPoint.x + 'px', top: touchPoint.y + 'px' }"
         />
       </div>
 
@@ -464,30 +503,31 @@ const adjustSensitivity = (delta: number) => {
 }
 .trackpad-hint {
   display: flex; flex-direction: column; align-items: center;
-  gap: 6px; color: var(--text-2); font-size: 0.85rem;
+  gap: 8px; color: var(--text-1); font-size: 0.95rem; font-weight: 500;
   pointer-events: none; text-align: center; padding: 0 24px;
+  opacity: 0.9;
 }
-.trackpad-sub-hint { font-size: 0.7rem; opacity: 0.6; }
+.trackpad-sub-hint { font-size: 0.78rem; font-weight: 400; opacity: 0.75; color: var(--text-2); }
 
-/* Sensitivity pill */
+/* DPI selector pill */
 .sensitivity-control {
   position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 4px;
   background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
-  border-radius: 20px; padding: 4px 14px;
+  border-radius: 20px; padding: 4px;
 }
-.sens-btn {
-  width: 26px; height: 26px; border-radius: 50%;
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.08); color: var(--text-1);
-  font-size: 1rem; cursor: pointer;
-  display: grid; place-items: center; transition: all 0.15s;
+.dpi-chip {
+  padding: 6px 10px; border-radius: 16px; border: none;
+  background: transparent; color: var(--text-2);
+  font-size: 0.72rem; font-weight: 600; cursor: pointer;
+  transition: all 0.15s;
 }
-.sens-btn:active { transform: scale(0.88); }
-.sens-label {
-  font-size: 0.72rem; color: var(--text-2);
-  min-width: 30px; text-align: center;
+.dpi-chip:active { transform: scale(0.92); }
+.dpi-chip.active {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: #fff;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 /* Drag indicator */
@@ -605,22 +645,36 @@ const adjustSensitivity = (delta: number) => {
 /* ── Touch ripple visualizer ── */
 .touch-ripple {
   position: absolute; pointer-events: none;
-  width: 40px; height: 40px; border-radius: 50%;
+  width: 56px; height: 56px; border-radius: 50%;
   transform: translate(-50%, -50%) scale(0.3);
-  animation: ripple-expand 0.55s ease-out forwards;
-  border: 2px solid rgba(139, 92, 246, 0.7);
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, transparent 70%);
+  animation: ripple-expand 0.7s ease-out forwards;
+  border: 3px solid rgba(139, 92, 246, 0.95);
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.45) 0%, transparent 70%);
+  box-shadow: 0 0 20px 4px rgba(139, 92, 246, 0.4);
 }
 .ripple-right {
-  border-color: rgba(74, 222, 128, 0.7);
-  background: radial-gradient(circle, rgba(74, 222, 128, 0.25) 0%, transparent 70%);
+  border-color: rgba(74, 222, 128, 0.95);
+  background: radial-gradient(circle, rgba(74, 222, 128, 0.45) 0%, transparent 70%);
+  box-shadow: 0 0 20px 4px rgba(74, 222, 128, 0.4);
 }
 .ripple-double {
-  border-color: rgba(251, 191, 36, 0.7);
-  background: radial-gradient(circle, rgba(251, 191, 36, 0.25) 0%, transparent 70%);
+  border-color: rgba(251, 191, 36, 0.95);
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.45) 0%, transparent 70%);
+  box-shadow: 0 0 20px 4px rgba(251, 191, 36, 0.4);
 }
 @keyframes ripple-expand {
   0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(2.6); opacity: 0; }
+}
+
+/* ── Punto de contacto activo (tap sostenido / arrastre) ── */
+.touch-point {
+  position: absolute; pointer-events: none;
+  width: 34px; height: 34px; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.5) 0%, rgba(139, 92, 246, 0.15) 60%, transparent 100%);
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 0 16px 4px rgba(139, 92, 246, 0.55);
+  z-index: 2;
 }
 </style>

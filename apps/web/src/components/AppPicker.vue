@@ -128,7 +128,7 @@ const selectApp = (app: InstalledApp) => {
         <div class="scan-actions">
           <button @click="cancelScan" class="btn-neon">Cancelar</button>
           <button @click="confirmScan" class="btn-neon btn-neon-primary">
-            <template v-if="isRescan"><Icon icon="mdi:refresh" style="vertical-align: -2px" /> Re-analizar</template>
+            <template v-if="isRescan"><Icon icon="mdi:refresh" style="vertical-align: -2px" /> Volver a Analizar</template>
             <template v-else><Icon icon="mdi:magnify" style="vertical-align: -2px" /> Analizar</template>
           </button>
         </div>
@@ -228,9 +228,13 @@ const selectApp = (app: InstalledApp) => {
 .header-close {
   width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.04); color: var(--text-2); cursor: pointer;
-  display: grid; place-items: center; font-size: 0.9rem; transition: all 0.18s;
+  display: grid; place-items: center; font-size: 0.9rem; transition: background 0.18s, color 0.18s;
 }
-@media (hover: hover) { .header-close:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-1); transform: rotate(90deg); } }
+.header-close svg { transition: transform 0.18s; }
+@media (hover: hover) {
+  .header-close:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-1); }
+  .header-close:hover svg { transform: rotate(90deg); }
+}
 
 .picker-search {
   display: flex; align-items: center; gap: 10px; padding: 14px 22px;
@@ -354,9 +358,14 @@ const selectApp = (app: InstalledApp) => {
 .scanned-at { margin: 4px 0 0; font-size: 0.72rem; color: var(--text-2); text-align: center; }
 .rescan-chip {
   background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px; padding: 6px 10px; font-size: 1rem; cursor: pointer; transition: all 0.18s; flex-shrink: 0;
+  border-radius: 8px; padding: 6px 10px; font-size: 1rem; cursor: pointer; transition: background 0.18s; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
 }
-@media (hover: hover) { .rescan-chip:hover { background: rgba(255, 255, 255, 0.12); transform: rotate(180deg); } }
+.rescan-chip svg { transition: transform 0.3s; }
+@media (hover: hover) {
+  .rescan-chip:hover { background: rgba(255, 255, 255, 0.12); }
+  .rescan-chip:hover svg { transform: rotate(180deg); }
+}
 .rescan-chip:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .picker-scroll::-webkit-scrollbar { width: 4px; }

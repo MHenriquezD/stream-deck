@@ -129,11 +129,6 @@ export function useSocket() {
     })
   }
 
-  /** Cambiar gridSize y notificar a todos los clientes */
-  const setGridSize = (gridSize: number) => {
-    socket.value?.emit('settings:gridSize', { gridSize })
-  }
-
   /** Cambiar sonido de botón y notificar a todos los clientes */
   const setButtonSound = (enabled: boolean, file: string) => {
     socket.value?.emit('settings:buttonSound', { enabled, file })
@@ -193,7 +188,6 @@ export function useSocket() {
     saveCommands,
     getCommands,
     getSettings,
-    setGridSize,
     setButtonSound,
     setServerEnabled,
     getVolume,

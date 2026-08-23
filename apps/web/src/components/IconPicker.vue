@@ -573,10 +573,12 @@ const selectIcon = (icon: string) => { emit('select', icon) }
   width: 34px; height: 34px; border-radius: 10px;
   border: 1px solid var(--glass-border); background: rgba(255, 255, 255, 0.04);
   color: var(--text-2); cursor: pointer; display: grid; place-items: center;
-  font-size: 0.9rem; transition: all 0.18s;
+  font-size: 0.9rem; transition: background 0.18s, color 0.18s;
 }
+.header-close svg { transition: transform 0.18s; }
 @media (hover: hover) {
-  .header-close:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-1); transform: rotate(90deg); }
+  .header-close:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-1); }
+  .header-close:hover svg { transform: rotate(90deg); }
 }
 
 .picker-body {

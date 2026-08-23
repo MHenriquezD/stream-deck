@@ -95,6 +95,8 @@
   box-shadow: 0 0 22px -6px var(--accent);
 }
 .btn-neon-primary:hover {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color: transparent;
   box-shadow: 0 0 30px -4px var(--accent);
   filter: brightness(1.08);
 }
@@ -104,6 +106,8 @@
   box-shadow: 0 0 22px -6px #8b5cf6, 0 0 40px -8px rgba(139, 92, 246, 0.3);
 }
 .btn-save-always-purple.btn-neon-primary:hover {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  border-color: rgba(139, 92, 246, 0.6);
   box-shadow: 0 0 30px -4px #8b5cf6, 0 0 50px -6px rgba(139, 92, 246, 0.45);
 }
 .btn-neon-danger {

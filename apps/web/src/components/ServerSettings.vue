@@ -68,11 +68,9 @@ const serverUrlStore = useServerUrlStore()
 const serverUrl = ref(serverUrlStore.serverUrl)
 const isConnecting = ref(false)
 const connectionStatus = ref<'success' | 'error' | null>(null)
-const gridSize = ref(12)
 const qrCodeUrl = ref<string | null>(null)
 
 const {
-  setGridSize: socketSetGridSize,
   setButtonSound: socketSetButtonSound,
   isConnected,
   disconnect: socketDisconnect,
@@ -165,14 +163,6 @@ const selectedIP = ref<string>('')
 const isDetectingIPs = ref(false)
 const isTestingConnection = ref(false)
 
-const gridSizeOptions = [
-  { value: 8, label: '8 botones (2x4)' },
-  { value: 12, label: '12 botones (3x4)' },
-  { value: 16, label: '16 botones (4x4)' },
-  { value: 24, label: '24 botones (4x6)' },
-  { value: 32, label: '32 botones (4x8)' },
-]
-
 onMounted(async () => {
   // Check PIN status
   await checkPinStatus()
@@ -195,9 +185,6 @@ onMounted(async () => {
       serverUrlStore.setServerUrl(saved)
     }
   }
-
-  const savedGridSize = localStorage.getItem('gridSize')
-  if (savedGridSize) gridSize.value = parseInt(savedGridSize)
 
   // También cargar desde el servidor
   loadSettingsFromServer()
@@ -479,12 +466,6 @@ const testConnection = async () => {
 const save = () => {
   const urlChanged = serverUrlStore.serverUrl !== serverUrl.value
   serverUrlStore.setServerUrl(serverUrl.value)
-  // Guardar gridSize en el servidor via WebSocket
-  if (isConnected.value && !urlChanged) {
-    socketSetGridSize(gridSize.value)
-  }
-  // Mantener localStorage como cache local
-  localStorage.setItem('gridSize', gridSize.value.toString())
   show.value = false
   // Si la URL cambió, reconectar socket a la nueva dirección
   if (urlChanged) {
@@ -501,10 +482,6 @@ const loadSettingsFromServer = async () => {
     })
     if (response.ok) {
       const settings = await response.json()
-      if (settings.gridSize) {
-        gridSize.value = settings.gridSize
-        localStorage.setItem('gridSize', settings.gridSize.toString())
-      }
       // Sound settings
       if (typeof settings.buttonSound === 'boolean') {
         buttonSoundEnabled.value = settings.buttonSound
@@ -701,19 +678,9 @@ const settingsSections = [
             </div>
           </div>
 
-          <!-- ── Preferencias (Cuadrícula + Sonido) ── -->
+          <!-- ── Preferencias (Sonido) ── -->
           <div v-if="showAllSections || activeSection === 'preferences'" class="section-panel" data-section="preferences">
             <h3 class="section-title">Preferencias</h3>
-
-            <div class="form-group">
-              <label>Tamaño de la Cuadrícula</label>
-              <CustomSelect
-                :options="gridSizeOptions"
-                :model-value="gridSize"
-                @update:model-value="gridSize = Number($event)"
-              />
-              <small>Cantidad de botones en la cuadrícula</small>
-            </div>
 
             <div class="form-group">
               <label>Sonido al presionar</label>
@@ -1330,7 +1297,6 @@ select.server-input {
 }
 
 select.server-input option,
-select#gridSize option,
 select#soundSelector option {
   background: rgba(16, 16, 24, 0.98);
   color: var(--text-1);
@@ -1697,7 +1663,6 @@ select#soundSelector option {
 
 [data-theme='light'] .ip-select option,
 [data-theme='light'] select.server-input option,
-[data-theme='light'] select#gridSize option,
 [data-theme='light'] select#soundSelector option {
   background: #fff;
   color: rgba(0, 0, 0, 0.87);

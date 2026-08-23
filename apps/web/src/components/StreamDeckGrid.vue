@@ -86,7 +86,6 @@ const {
   on: socketOn,
   off: socketOff,
   getSettings: socketGetSettings,
-  setGridSize: socketSetGridSize,
   setButtonSound: socketSetButtonSound,
   setServerEnabled: socketSetServerEnabled,
 } = useSocket()
@@ -140,8 +139,11 @@ const {
   gridItems,
   isReloadingGrid,
   isLoadingButtons,
-  updateGridFromSize,
+  currentPage,
+  totalPages,
+  goToPage,
   swapButtons,
+  moveButtonToPage,
   parseAndSetButtons,
   loadButtons,
   saveButtons,
@@ -208,6 +210,7 @@ const isMobileView = ref(false)
 
 // Drag & drop (ratón + táctil), delegando el intercambio en useButtons
 const {
+  draggedButton,
   touchDragButton,
   isPressing,
   handleDragStart,
@@ -224,8 +227,10 @@ const {
   handleTouchCancel,
   isTouchDragging,
   isTouchDragOver,
+  isTouchOverPage,
 } = useDragAndDrop({
   swapButtons,
+  moveButtonToPage,
   onMouseDrop: () => {
     toast.removeAllGroups()
     toast.add({
@@ -239,6 +244,81 @@ const {
     handleButtonEdit(button, position)
   },
 })
+
+// ── Paginación: swipe horizontal / drag con mouse entre páginas ──
+const pageSwipeStartX = ref<number | null>(null)
+const pageSwipeStartY = ref<number | null>(null)
+const pageSwipeDeltaX = ref(0)
+const SWIPE_THRESHOLD = 60
+
+const handlePageSwipeTouchStart = (e: TouchEvent) => {
+  if (e.touches.length !== 1) return
+  pageSwipeStartX.value = e.touches[0].clientX
+  pageSwipeStartY.value = e.touches[0].clientY
+  pageSwipeDeltaX.value = 0
+}
+
+const handlePageSwipeTouchMove = (e: TouchEvent) => {
+  if (pageSwipeStartX.value === null || e.touches.length !== 1) return
+  // Si ya se activó el drag-reorder de un botón, no interferir.
+  if (touchDragButton.value) return
+  pageSwipeDeltaX.value = e.touches[0].clientX - pageSwipeStartX.value
+}
+
+const resolvePageSwipe = () => {
+  const dx = pageSwipeDeltaX.value
+  pageSwipeStartX.value = null
+  pageSwipeStartY.value = null
+  pageSwipeDeltaX.value = 0
+  if (touchDragButton.value) return
+  if (dx > SWIPE_THRESHOLD) goToPage(currentPage.value - 1)
+  else if (dx < -SWIPE_THRESHOLD) goToPage(currentPage.value + 1)
+}
+
+/** Página resaltada mientras se arrastra un botón con mouse sobre su dot. */
+const dragOverPageIndex = ref<number | null>(null)
+
+/** Soltar un botón (drag con mouse) sobre el punto de otra página lo mueve ahí. */
+const handleDropOnPage = (page: number) => {
+  const source = draggedButton.value
+  handleDragEnd()
+  if (!source) return
+  if (moveButtonToPage(source, page)) {
+    toast.removeAllGroups()
+    toast.add({
+      severity: 'success',
+      summary: 'Botón movido',
+      detail: `Se movió a la página ${page + 1}`,
+      life: 2000,
+    })
+  }
+}
+
+// ── Paginación: arrastre con mouse (desktop) sobre el fondo del grid ──
+const isMouseSwiping = ref(false)
+let mouseSwipeStartX = 0
+
+const handleGridMouseDown = (e: MouseEvent) => {
+  // Solo si el click empieza en el fondo del grid, no sobre un botón.
+  if ((e.target as HTMLElement).closest('.grid-item')) return
+  isMouseSwiping.value = true
+  mouseSwipeStartX = e.clientX
+  pageSwipeDeltaX.value = 0
+}
+
+const handleGridMouseMove = (e: MouseEvent) => {
+  if (!isMouseSwiping.value) return
+  pageSwipeDeltaX.value = e.clientX - mouseSwipeStartX
+}
+
+const handleGridMouseUp = () => {
+  if (!isMouseSwiping.value) return
+  isMouseSwiping.value = false
+  const dx = pageSwipeDeltaX.value
+  pageSwipeDeltaX.value = 0
+  if (dx > SWIPE_THRESHOLD) goToPage(currentPage.value - 1)
+  else if (dx < -SWIPE_THRESHOLD) goToPage(currentPage.value + 1)
+}
 
 const API_URL = computed(() => serverUrlStore.serverUrl)
 
@@ -305,11 +385,6 @@ onMounted(async () => {
   connectionStatus.value = 'connecting'
   socketConnect()
 
-  // Escuchar cambios de gridSize desde otros clientes
-  socketOn('settings:gridSizeChanged', (data: { gridSize: number }) => {
-    updateGridFromSize(data.gridSize)
-  })
-
   // Escuchar actualizaciones de comandos desde otros clientes
   socketOn('commands:updated', (commands: any[]) => {
     buttons.value.clear()
@@ -324,7 +399,6 @@ onMounted(async () => {
       buttons.value.clear()
     } else {
       connectionStatus.value = 'connected'
-      loadSettings()
       loadButtons()
     }
   })
@@ -345,8 +419,6 @@ onMounted(async () => {
     buttons.value.clear()
   })
 
-  // Carga inicial via HTTP (fallback si el socket tarda en conectar)
-  await loadSettings()
   // Comprobar serverEnabled antes de cargar botones
   try {
     const initRes = await fetch(`${API_URL.value}/command/settings`, {
@@ -377,7 +449,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  socketOff('settings:gridSizeChanged')
   socketOff('commands:updated')
   socketOff('server:enabledChanged')
   socketOff('settings:buttonSoundChanged')
@@ -428,8 +499,6 @@ const handleReconnectButton = () => {
 // Reaccionar a cambios de conexión del socket
 watch(isConnected, async (connected) => {
   if (connected) {
-    // Recargar settings y botones al reconectarse
-    await loadSettings()
     // Comprobar si el servidor está habilitado
     try {
       const response = await fetch(`${API_URL.value}/command/settings`, {
@@ -454,23 +523,6 @@ watch(isConnected, async (connected) => {
     buttons.value.clear()
   }
 })
-
-const loadSettings = async () => {
-  try {
-    // Intentar via HTTP (más confiable en carga inicial)
-    const response = await fetch(`${API_URL.value}/command/settings`, {
-      headers: { ...getAuthHeaders() },
-    })
-    if (response.ok) {
-      const settings = await response.json()
-      updateGridFromSize(settings.gridSize || 12)
-      return
-    }
-  } catch {
-    // Fallback: valor por defecto
-    updateGridFromSize(12)
-  }
-}
 
 /** Open settings — if PIN is configured and user not authenticated, ask PIN first (desktop only) */
 const openSettings = async () => {
@@ -757,7 +809,6 @@ async function handleServerUnreachableRetry() {
     // Connect socket and load data
     connectionStatus.value = 'connecting'
     socketConnect()
-    await loadSettings()
     try {
       const initRes = await fetch(`${API_URL.value}/command/settings`, {
         headers: { ...getAuthHeaders() },
@@ -936,15 +987,20 @@ async function handleServerUnreachableClean() {
 
       <div
         class="grid"
-        :class="{ 'grid-reloading': isReloadingGrid }"
+        :class="{ 'grid-reloading': isReloadingGrid, 'grid-swiping': isMouseSwiping }"
         :style="{
           '--grid-cols': gridCols,
           '--grid-rows': gridRows,
+          '--swipe-x': pageSwipeDeltaX + 'px',
         }"
-        @touchstart="handleGridTouchStart"
-        @touchmove="handleTouchMove"
-        @touchend="handleTouchEnd"
-        @touchcancel="handleTouchCancel"
+        @touchstart="handleGridTouchStart($event); handlePageSwipeTouchStart($event)"
+        @touchmove="handleTouchMove($event); handlePageSwipeTouchMove($event)"
+        @touchend="handleTouchEnd(); resolvePageSwipe()"
+        @touchcancel="handleTouchCancel(); resolvePageSwipe()"
+        @mousedown="handleGridMouseDown"
+        @mousemove="handleGridMouseMove"
+        @mouseup="handleGridMouseUp"
+        @mouseleave="handleGridMouseUp"
       >
         <div
           v-for="item in gridItems"
@@ -988,6 +1044,46 @@ async function handleServerUnreachableClean() {
             @drop="handleDrop({ row: item.row, col: item.col })"
           />
         </div>
+      </div>
+
+      <!-- Paginación: puntos + flechas -->
+      <div v-if="totalPages > 1" class="page-nav">
+        <button
+          type="button"
+          class="page-arrow"
+          :disabled="currentPage === 0"
+          aria-label="Página anterior"
+          @click="goToPage(currentPage - 1)"
+        >
+          <Icon icon="mdi:chevron-left" />
+        </button>
+        <div class="page-dots">
+          <button
+            v-for="p in totalPages"
+            :key="p"
+            type="button"
+            class="page-dot"
+            :class="{
+              active: currentPage === p - 1,
+              'drop-target': isTouchOverPage(p - 1) || (draggedButton && dragOverPageIndex === p - 1),
+            }"
+            :data-page-dot="p - 1"
+            :aria-label="`Ir a la página ${p}`"
+            @click="goToPage(p - 1)"
+            @dragover.prevent="dragOverPageIndex = p - 1"
+            @dragleave="dragOverPageIndex = null"
+            @drop.prevent="handleDropOnPage(p - 1); dragOverPageIndex = null"
+          />
+        </div>
+        <button
+          type="button"
+          class="page-arrow"
+          :disabled="currentPage === totalPages - 1"
+          aria-label="Página siguiente"
+          @click="goToPage(currentPage + 1)"
+        >
+          <Icon icon="mdi:chevron-right" />
+        </button>
       </div>
     </template>
 
@@ -1529,6 +1625,69 @@ async function handleServerUnreachableClean() {
   grid-auto-rows: 1fr;
   perspective: 1000px;
   perspective-origin: center;
+}
+
+.grid.grid-swiping {
+  transform: translateX(calc(var(--swipe-x) * 0.3));
+  transition: none;
+  cursor: grabbing;
+}
+
+/* ── Navegación entre páginas ── */
+.page-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: -8px 0 20px;
+}
+.page-arrow {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--text-1);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  transition: all 0.15s;
+}
+.page-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.page-arrow:not(:disabled):active {
+  transform: scale(0.9);
+}
+.page-dots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.page-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  background: color-mix(in srgb, var(--text-2) 40%, transparent);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.page-dot.active {
+  width: 22px;
+  border-radius: 5px;
+  background: var(--accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.page-dot.drop-target {
+  width: 16px;
+  height: 16px;
+  background: var(--accent-2);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-2) 30%, transparent);
+  transform: scale(1.2);
 }
 
 @media (max-width: 640px) {

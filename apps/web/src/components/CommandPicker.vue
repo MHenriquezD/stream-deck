@@ -249,10 +249,12 @@ const selectCommand = (command: string) => {
   display: grid;
   place-items: center;
   font-size: 0.9rem;
-  transition: all 0.18s;
+  transition: background 0.18s, color 0.18s;
 }
+.header-close svg { transition: transform 0.18s; }
 @media (hover: hover) {
-  .header-close:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-1); transform: rotate(90deg); }
+  .header-close:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-1); }
+  .header-close:hover svg { transform: rotate(90deg); }
 }
 
 .picker-body {

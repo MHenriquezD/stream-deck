@@ -9,6 +9,8 @@ interface GridPosition {
 interface UseDragAndDropOptions {
   /** Intercambia un botón con la posición destino y persiste (de useButtons). */
   swapButtons: (source: StreamButton, targetPos: GridPosition) => boolean
+  /** Mueve un botón a la primera casilla libre de otra página (de useButtons). */
+  moveButtonToPage?: (button: StreamButton, page: number) => boolean
   /** Callback tras un drop de ratón con cambio (p. ej. mostrar un toast). */
   onMouseDrop?: () => void
   /** Callback cuando se detecta two-finger tap (editar botón en móvil). */
@@ -23,6 +25,7 @@ interface UseDragAndDropOptions {
  */
 export function useDragAndDrop({
   swapButtons,
+  moveButtonToPage,
   onMouseDrop,
   onTwoFingerTap,
 }: UseDragAndDropOptions) {
@@ -33,6 +36,8 @@ export function useDragAndDrop({
   // ── Estado táctil ──
   const touchDragButton = ref<StreamButton | null>(null)
   const touchOverPosition = ref<GridPosition | null>(null)
+  /** Página cuyo punto de navegación está bajo el dedo mientras se arrastra. */
+  const touchOverPageIndex = ref<number | null>(null)
   const touchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
   const isPressing = ref<string | null>(null) // para la animación de pulso
   const startY = ref(0) // para detectar intento de scroll
@@ -133,6 +138,17 @@ export function useDragAndDrop({
     if (event.cancelable) event.preventDefault()
     const touch = event.touches[0]
     const element = document.elementFromPoint(touch.clientX, touch.clientY)
+
+    const pageDot = element?.closest('[data-page-dot]')
+    if (pageDot) {
+      touchOverPageIndex.value = parseInt(
+        pageDot.getAttribute('data-page-dot') || '-1',
+      )
+      touchOverPosition.value = null
+      return
+    }
+    touchOverPageIndex.value = null
+
     const gridItem = element?.closest('[data-grid-row]')
     if (gridItem) {
       const row = parseInt(gridItem.getAttribute('data-grid-row') || '-1')
@@ -152,9 +168,15 @@ export function useDragAndDrop({
 
     const source = touchDragButton.value
     const targetPos = touchOverPosition.value
+    const targetPage = touchOverPageIndex.value
     touchDragButton.value = null
     touchOverPosition.value = null
+    touchOverPageIndex.value = null
 
+    if (source && targetPage !== null && moveButtonToPage?.(source, targetPage)) {
+      if (navigator.vibrate) navigator.vibrate([30, 10, 30])
+      return
+    }
     if (source && targetPos && swapButtons(source, targetPos)) {
       if (navigator.vibrate) navigator.vibrate([30, 10, 30])
     }
@@ -169,6 +191,7 @@ export function useDragAndDrop({
     isPressing.value = null
     touchDragButton.value = null
     touchOverPosition.value = null
+    touchOverPageIndex.value = null
   }
 
   const isTouchDragging = (button: StreamButton | null): boolean =>
@@ -181,8 +204,12 @@ export function useDragAndDrop({
       touchDragButton.value !== null
     )
 
+  const isTouchOverPage = (page: number): boolean =>
+    touchOverPageIndex.value === page
+
   return {
     // estado táctil que el template/otros consumen
+    draggedButton,
     touchDragButton,
     isPressing,
     // ratón
@@ -201,5 +228,6 @@ export function useDragAndDrop({
     handleTouchCancel,
     isTouchDragging,
     isTouchDragOver,
+    isTouchOverPage,
   }
 }
