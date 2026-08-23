@@ -120,15 +120,20 @@ export function useButtons({ serverEnabled }: UseButtonsOptions) {
   }
 
   /**
-   * Migración única: reacomoda posiciones guardadas por una versión anterior
-   * con grid de ancho variable (8/12/16/24/32 → hasta 8 columnas) al esquema
-   * de columnas actual, preservando el orden de lectura original.
+   * Reacomoda posiciones guardadas con un ancho de columnas distinto al
+   * actual, preservando el orden de lectura original. Cubre tanto datos de
+   * una versión anterior con grid más ancho (8/12/16/24/32 columnas) como el
+   * caso de cambiar de dispositivo: si los botones se guardaron en el modo
+   * compacto de móvil (2 columnas) y se abren en desktop (4 columnas),
+   * quedarían apretados en las primeras 2 columnas sin este reflow.
    */
   const migrateLegacyPositions = () => {
     const values = Array.from(buttons.value.values())
+    if (values.length === 0) return
     const maxCol = values.reduce((m, b) => Math.max(m, b.position.col), 0)
-    if (maxCol < gridCols.value) return
-    reflowToColumns(maxCol + 1, gridCols.value)
+    const inferredCols = maxCol + 1
+    if (inferredCols === gridCols.value) return
+    reflowToColumns(inferredCols, gridCols.value)
   }
 
   /**

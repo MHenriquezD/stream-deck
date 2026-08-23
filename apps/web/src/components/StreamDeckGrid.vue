@@ -144,7 +144,6 @@ const {
   parseAndSetButtons,
   loadButtons,
   saveButtons,
-  reloadButtonsWithAnimation,
 } = useButtons({ serverEnabled })
 
 // Server unreachable dialog (mobile)
@@ -186,17 +185,8 @@ const {
 const showMouseController = ref(false)
 
 
-// Theme FAB draggable
-// Botón flotante arrastrable (persiste su esquina, distingue tap de arrastre)
-const {
-  fabRef: themeFabRef,
-  fabCorner,
-  fabStyle,
-  fabMoved,
-  onTouchStart: handleFabTouchStart,
-  onTouchMove: handleFabTouchMove,
-  onTouchEnd: handleFabTouchEnd,
-} = useDraggableFab()
+// Theme FAB — posición fija (ya no es arrastrable), solo en desktop/tablet.
+const { fabRef: themeFabRef, fabCorner, fabStyle } = useDraggableFab()
 
 // Detectar plataforma nativa (Android/iOS) vs desktop
 const platform = Capacitor.getPlatform()
@@ -212,7 +202,7 @@ const isMobileView = ref(false)
  */
 const updatePageDimensions = () => {
   const isTallMobile = window.innerWidth <= 640 && window.innerHeight > window.innerWidth
-  if (isTallMobile) setPageDimensions(3, 2)
+  if (isTallMobile) setPageDimensions(2, 3)
   else setPageDimensions(4, 3)
 }
 
@@ -506,18 +496,26 @@ const checkConnection = async () => {
  * desconectado.
  */
 const handleReconnectButton = () => {
-  if (isMobile || connectionStatus.value !== 'connected') {
+  // OJO: se compara isConnected.value (estado real del socket), no
+  // connectionStatus — este último también es 'disconnected' cuando el
+  // servidor está desactivado (serverEnabled=false) aunque el socket siga
+  // vivo, y en ese caso lo que hay que hacer es reactivar el servidor, no
+  // reconectar un socket que ya está bien.
+  if (isMobile || !isConnected.value) {
     socketDisconnect()
     connectionStatus.value = 'connecting'
     socketConnect()
   } else {
-    // Desktop conectado: toggle estado del servidor
+    // Desktop con socket conectado: toggle estado del servidor
     if (serverEnabled.value) {
       // Apagar: enviar al server que está disabled
       socketSetServerEnabled(false)
     } else {
       // Encender: enviar al server que está enabled
       socketSetServerEnabled(true)
+      // Cerrar Configuración al reactivar, igual que se cierra al
+      // desconectar — no tiene sentido dejarla abierta tras la acción.
+      showSettings.value = false
     }
   }
 }
@@ -547,6 +545,18 @@ watch(isConnected, async (connected) => {
   } else {
     connectionStatus.value = 'disconnected'
     buttons.value.clear()
+  }
+})
+
+// Al perder la conexión (o desactivar el servidor), cerrar cualquier modal
+// abierto — no tiene sentido dejar Configuración o el editor de botones
+// abiertos operando sobre un servidor al que ya no se puede llegar.
+watch(connectionStatus, (status) => {
+  if (status === 'disconnected') {
+    showSettings.value = false
+    showEditor.value = false
+    showClearAllDialog.value = false
+    showMouseController.value = false
   }
 })
 
@@ -719,14 +729,22 @@ const showClearAllDialog = ref(false)
 function openClearAllDialog() {
   showClearAllDialog.value = true
 }
+/** En vez de borrar los botones, restablece su color a un estilo estático
+ * uniforme — el usuario pidió esto porque perder la configuración entera
+ * (ícono, acción, posición) por accidente es más grave que solo perder el
+ * color elegido. */
 function handleClearAllConfirm() {
-  buttons.value.clear()
+  buttons.value.forEach((button) => {
+    button.color = '#ffffff'
+    button.backgroundColor = '#2c3e50'
+    buttons.value.set(button.id, button)
+  })
   saveButtons()
   toast.removeAllGroups()
   toast.add({
     severity: 'info',
-    summary: 'Botones eliminados',
-    detail: 'Todos los botones han sido eliminados',
+    summary: 'Colores restablecidos',
+    detail: 'Todos los botones volvieron a su color estático',
     life: 3000,
   })
   showClearAllDialog.value = false
@@ -845,7 +863,8 @@ async function handleServerUnreachableClean() {
     </div>
 
     <!-- Floating settings button (top-left): abre Configuración, donde
-         viven las acciones (Volumen, Mouse, Reconectar, Recargar, Limpiar). -->
+         viven Reconectar/Recargar/Limpiar. En móvil, Volumen y Mouse se
+         muestran aparte, apilados debajo, por ser de uso más frecuente. -->
     <div class="actions-fab-container">
       <button
         class="actions-fab"
@@ -855,19 +874,37 @@ async function handleServerUnreachableClean() {
       >
         <Icon icon="mdi:cog" />
       </button>
+      <button
+        v-if="isMobile"
+        class="actions-fab actions-fab-sm"
+        title="Control de volumen"
+        aria-label="Control de volumen"
+        @click="toggleVolumeSlider"
+      >
+        <Icon :icon="systemMuted ? 'mdi:volume-mute' : 'mdi:volume-high'" />
+      </button>
+      <button
+        v-if="isMobile"
+        class="actions-fab actions-fab-sm"
+        title="Mouse & Teclado"
+        aria-label="Mouse & Teclado"
+        @click="showMouseController = true"
+      >
+        <Icon icon="mdi:mouse" />
+      </button>
     </div>
 
-    <!-- Floating theme toggle (draggable, snaps to corners) -->
-    <div class="fab-container" :class="`fab-${fabCorner}`" :style="fabStyle">
+    <!-- Floating theme toggle (posición fija, esquina superior derecha) -->
+    <div v-if="!isMobileView" class="fab-container" :class="`fab-${fabCorner}`" :style="fabStyle">
       <button
         ref="themeFabRef"
-        @click="!fabMoved && toggleTheme()"
+        @click="toggleTheme()"
         @contextmenu.prevent="toggleAccentPicker"
         :title="isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
         class="theme-fab"
-        @touchstart.passive="(e) => { handleFabTouchStart(e); handleFabLongPressStart() }"
-        @touchmove="(e) => { handleFabTouchMove(e); handleFabLongPressEnd() }"
-        @touchend="(e) => { handleFabTouchEnd(e); handleFabLongPressEnd() }"
+        @touchstart.passive="handleFabLongPressStart"
+        @touchmove="handleFabLongPressEnd"
+        @touchend="handleFabLongPressEnd"
       >
         <img v-if="isDark" src="/icons/sun.svg" alt="Claro" class="theme-fab-icon" />
         <img v-else src="/icons/moon.svg" alt="Oscuro" class="theme-fab-icon" />
@@ -905,19 +942,21 @@ async function handleServerUnreachableClean() {
     </div>
 
     <template v-if="pinConfigured || isMobile">
-      <p class="hint" v-if="!isMobileView">
-        Click para ejecutar • Click derecho para editar • Arrastra para
-        reorganizar
-      </p>
-      <p class="hint" v-else>
-        Toca para ejecutar • Mantén presionado para editar • Mantén y arrastra para reorganizar
-      </p>
-
       <div class="spotify-section">
         <SpotifyPlayer />
       </div>
 
+      <!-- Sin conexión: no mostrar el grid con celdas "Agregar" vacías, ya
+           que da la impresión de que se perdieron los botones. -->
+      <div v-if="connectionStatus === 'disconnected'" class="grid-disconnected">
+        <Icon icon="mdi:wifi-off" class="grid-disconnected-icon" />
+        <p class="grid-disconnected-text">
+          {{ isMobile ? 'Sin conexión con el servidor' : serverEnabled ? 'Sin conexión con el servidor' : 'Servidor desactivado' }}
+        </p>
+      </div>
+
       <div
+        v-else
         class="grid-viewport"
         :class="{ 'grid-reloading': isReloadingGrid, 'grid-swiping': isMouseSwiping }"
         @touchstart="handlePageSwipeTouchStart($event)"
@@ -987,7 +1026,7 @@ async function handleServerUnreachableClean() {
       </div>
 
       <!-- Paginación: puntos + flechas -->
-      <div v-if="totalPages > 1" class="page-nav">
+      <div v-if="connectionStatus !== 'disconnected' && totalPages > 1" class="page-nav">
         <button
           type="button"
           class="page-arrow"
@@ -1030,12 +1069,9 @@ async function handleServerUnreachableClean() {
     <ServerSettings
       v-model:show="showSettings"
       :server-enabled="serverEnabled"
-      :is-connected="connectionStatus === 'connected'"
-      :system-muted="systemMuted"
-      @toggle-volume="toggleVolumeSlider"
-      @open-mouse="showMouseController = true"
+      :is-connected="isConnected"
+      :is-mobile-view="isMobileView"
       @reconnect="handleReconnectButton"
-      @reload-buttons="reloadButtonsWithAnimation"
       @clear-all="openClearAllDialog"
     />
 
@@ -1144,8 +1180,9 @@ async function handleServerUnreachableClean() {
 
     <TailwindConfirmDialog
       :show="showClearAllDialog"
-      title="Confirmar eliminación"
-      message="¿Estás seguro de que quieres eliminar todos los botones?"
+      title="Restablecer colores"
+      message="¿Restablecer el color de todos los botones a un estilo estático? El ícono, la acción y la posición de cada botón no se ven afectados."
+      confirmLabel="Restablecer"
       @confirm="handleClearAllConfirm"
       @cancel="handleClearAllCancel"
       @close="handleClearAllCancel"
@@ -1423,18 +1460,28 @@ async function handleServerUnreachableClean() {
   }
 }
 
-.hint {
-  color: var(--text-2); font-size: 0.85rem;
-  margin: 0 0 16px 0; text-align: center;
-}
-@media (max-width: 640px) {
-  .hint { font-size: 0.72rem; margin-bottom: 10px; }
-}
-
 .spotify-section {
   display: flex; justify-content: center;
   margin-bottom: 12px;
 }
+
+.grid-disconnected {
+  flex: 1;
+  margin-bottom: 24px;
+  padding: 30px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 240px;
+  background: color-mix(in srgb, var(--text-2) 5%, transparent);
+  border: 1.5px dashed color-mix(in srgb, var(--text-2) 25%, transparent);
+  color: var(--text-2);
+}
+.grid-disconnected-icon { font-size: 2.5rem; opacity: 0.6; }
+.grid-disconnected-text { font-size: 0.95rem; text-align: center; margin: 0; }
 
 .grid-viewport {
   flex: 1;
@@ -1589,6 +1636,16 @@ async function handleServerUnreachableClean() {
   touch-action: manipulation;
   will-change: transform, opacity;
   pointer-events: auto;
+}
+
+/* En pantallas grandes los botones pueden escalar más — 140px se veía
+   diminuto en monitores 2K/4K, ya que .stream-deck-container tiene
+   max-width:1200px pero el usuario reportó 140px chico incluso ahí. */
+@media (min-width: 1600px) {
+  .grid-item { max-width: 190px; }
+}
+@media (min-width: 2200px) {
+  .grid-item { max-width: 230px; }
 }
 
 .grid-item.executing {
@@ -2034,6 +2091,10 @@ async function handleServerUnreachableClean() {
   top: 20px;
   left: 20px;
   z-index: 900;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 @media (max-width: 640px) {
   .actions-fab-container { top: 14px; left: 14px; }
@@ -2061,16 +2122,17 @@ async function handleServerUnreachableClean() {
 .actions-fab:active { transform: scale(0.9); }
 @media (hover: hover) { .actions-fab:hover { transform: scale(1.1); } }
 
+.actions-fab-sm {
+  width: 36px;
+  height: 36px;
+  font-size: 1.05rem;
+}
+
 /* Floating theme toggle button */
 /* ── FAB container ── */
 .fab-container {
   position: fixed; z-index: 900;
   display: flex; flex-direction: column; align-items: center; gap: 6px;
-  transition:
-    top 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-    bottom 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-    left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-    right 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .theme-fab {
