@@ -1,6 +1,9 @@
 const webpack = require('webpack');
 const path = require('path');
+const fs = require('fs');
 const nodeExternals = require('webpack-node-externals');
+
+const swcOptions = JSON.parse(fs.readFileSync(path.resolve(__dirname, '.swcrc'), 'utf-8'));
 
 module.exports = (options, webpack) => {
   return {
@@ -41,7 +44,20 @@ module.exports = (options, webpack) => {
     module: {
       ...options.module,
       rules: [
-        ...options.module.rules,
+        // Reemplaza el ts-loader que agrega Nest por defecto con
+        // swc-loader — mismo type-checking lo sigue haciendo `tsc` aparte
+        // (build:tsc / el editor), esto solo acelera la transpilación.
+        ...options.module.rules.filter(
+          (rule) => !(rule.test && rule.test.toString().includes('tsx?')),
+        ),
+        {
+          test: /\.tsx?$/,
+          exclude: /node_modules/,
+          use: {
+            loader: 'swc-loader',
+            options: swcOptions,
+          },
+        },
         {
           test: /\.vscode/,
           loader: 'ignore-loader',
