@@ -9,6 +9,7 @@ import { useButtonSound } from '../composables/useButtonSound'
 import { useSocket } from '../composables/useSocket'
 import { useServerUrlStore } from '../store/serverUrl.store'
 import CustomSelect from './CustomSelect.vue'
+import PickerModal from './PickerModal.vue'
 
 const {
   isEnabled: isSoundEnabled,
@@ -53,6 +54,20 @@ const saveSoundSettings = async (enabled: boolean, file: string) => {
     /* fallback: already saved in localStorage */
   }
 }
+
+const props = defineProps<{
+  serverEnabled?: boolean
+  isConnected?: boolean
+  systemMuted?: boolean
+}>()
+
+const emit = defineEmits<{
+  toggleVolume: []
+  openMouse: []
+  reconnect: []
+  reloadButtons: []
+  clearAll: []
+}>()
 
 const show = defineModel<boolean>('show', { required: true })
 const {
@@ -514,6 +529,7 @@ const toggleShowAll = () => {
 }
 const settingsSections = [
   { key: 'connection', label: 'Conexión', icon: 'mdi:wifi' },
+  { key: 'actions', label: 'Acciones', icon: 'mdi:lightning-bolt' },
   { key: 'preferences', label: 'Preferencias', icon: 'mdi:tune-variant' },
   { key: 'security', label: 'Seguridad', icon: 'mdi:lock' },
 ]
@@ -537,14 +553,7 @@ const settingsSections = [
     </div>
   </Teleport>
 
-  <Transition name="settings">
-  <div v-if="show" class="settings-overlay" @click="close">
-    <div class="settings-dialog" @click.stop>
-      <div class="settings-header">
-        <h2>Configuración</h2>
-        <button @click="close" class="close-btn" aria-label="Cerrar"><Icon icon="mdi:close" /></button>
-      </div>
-
+  <PickerModal :show="show" title="Configuración" :max-width="900" @close="close">
       <div class="settings-body" :class="{ 'show-all': showAllSections }">
         <!-- ─── SIDEBAR ─── -->
         <nav class="settings-sidebar">
@@ -678,6 +687,53 @@ const settingsSections = [
             </div>
           </div>
 
+          <!-- ── Acciones ── -->
+          <div v-if="showAllSections || activeSection === 'actions'" class="section-panel" data-section="actions">
+            <h3 class="section-title">Acciones</h3>
+            <div class="actions-list">
+              <button v-if="isMobile" class="quick-action-btn" @click="emit('toggleVolume')">
+                <span class="qa-icon"><Icon :icon="systemMuted ? 'mdi:volume-mute' : 'mdi:volume-high'" /></span>
+                <span class="qa-text">
+                  <span class="qa-label">Control de Volumen</span>
+                  <span class="qa-desc">Ajusta el volumen del sistema</span>
+                </span>
+                <Icon icon="mdi:chevron-right" class="qa-chevron" />
+              </button>
+              <button v-if="isMobile" class="quick-action-btn" @click="emit('openMouse')">
+                <span class="qa-icon"><Icon icon="mdi:mouse" /></span>
+                <span class="qa-text">
+                  <span class="qa-label">Mouse &amp; Teclado</span>
+                  <span class="qa-desc">Controla tu PC a distancia</span>
+                </span>
+                <Icon icon="mdi:chevron-right" class="qa-chevron" />
+              </button>
+              <button class="quick-action-btn" @click="emit('reconnect')">
+                <span class="qa-icon"><Icon icon="mdi:refresh" /></span>
+                <span class="qa-text">
+                  <span class="qa-label">{{ isMobile || !isConnected ? 'Reconectar' : serverEnabled ? 'Desactivar Servidor' : 'Activar Servidor' }}</span>
+                  <span class="qa-desc">{{ isMobile || !isConnected ? 'Vuelve a conectar con el servidor' : serverEnabled ? 'Deja de recibir comandos temporalmente' : 'Vuelve a recibir comandos' }}</span>
+                </span>
+                <Icon icon="mdi:chevron-right" class="qa-chevron" />
+              </button>
+              <button class="quick-action-btn" @click="emit('reloadButtons')">
+                <span class="qa-icon"><Icon icon="mdi:reload" /></span>
+                <span class="qa-text">
+                  <span class="qa-label">Recargar Botones</span>
+                  <span class="qa-desc">Vuelve a traer los botones del servidor</span>
+                </span>
+                <Icon icon="mdi:chevron-right" class="qa-chevron" />
+              </button>
+              <button v-if="!isMobile" class="quick-action-btn danger" @click="emit('clearAll')">
+                <span class="qa-icon"><Icon icon="mdi:trash-can" /></span>
+                <span class="qa-text">
+                  <span class="qa-label">Limpiar Botones</span>
+                  <span class="qa-desc">Elimina todos los botones de la cuadrícula</span>
+                </span>
+                <Icon icon="mdi:chevron-right" class="qa-chevron" />
+              </button>
+            </div>
+          </div>
+
           <!-- ── Preferencias (Sonido) ── -->
           <div v-if="showAllSections || activeSection === 'preferences'" class="section-panel" data-section="preferences">
             <h3 class="section-title">Preferencias</h3>
@@ -736,9 +792,7 @@ const settingsSections = [
         <button @click="close" class="btn-neon btn-cancel">Cancelar</button>
         <button @click="save" class="btn-neon btn-save-always-purple btn-neon-primary btn-save">Guardar</button>
       </div>
-    </div>
-  </div>
-  </Transition>
+  </PickerModal>
 </template>
 
 <style scoped>
@@ -841,87 +895,6 @@ const settingsSections = [
 /* ===========================
    SETTINGS OVERLAY
    =========================== */
-.settings-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--scrim);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: 16px;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from { transform: translateY(16px) scale(0.97); opacity: 0; }
-  to { transform: none; opacity: 1; }
-}
-
-/* ===========================
-   DIALOG
-   =========================== */
-.settings-dialog {
-  background: linear-gradient(170deg, rgba(22, 22, 32, 0.94) 0%, rgba(10, 10, 16, 0.97) 100%);
-  border-radius: 24px;
-  max-width: 900px;
-  width: 100%;
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 32px 80px rgba(0, 0, 0, 0.7),
-    0 0 60px -10px color-mix(in srgb, var(--accent) 30%, transparent);
-  animation: slideUp 0.25s ease;
-  color: var(--text-1);
-  overflow: hidden;
-}
-
-/* ===========================
-   HEADER
-   =========================== */
-.settings-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 18px 22px;
-  border-bottom: 1px solid var(--glass-border);
-}
-
-.settings-header h2 {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--text-1);
-}
-
-.close-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-2);
-  cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.18s;
-  display: grid;
-  place-items: center;
-}
-
-@media (hover: hover) {
-  .close-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-1);
-    transform: rotate(90deg);
-  }
-}
-
 /* ===========================
    BODY (sidebar + content)
    =========================== */
@@ -1266,6 +1239,81 @@ const settingsSections = [
   font-size: 0.85rem;
 }
 
+/* Acciones rápidas */
+.actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.quick-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-1);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.18s;
+}
+@media (hover: hover) {
+  .quick-action-btn:hover {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    box-shadow: 0 0 16px -6px color-mix(in srgb, var(--accent) 40%, transparent);
+    transform: translateX(3px);
+  }
+  .quick-action-btn:hover .qa-chevron { opacity: 1; transform: translateX(2px); }
+}
+.quick-action-btn:active { transform: scale(0.98); }
+
+.qa-icon {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 1.25rem;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+.qa-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.qa-label { font-weight: 600; font-size: 0.95rem; }
+.qa-desc { font-size: 0.8rem; color: var(--text-2); }
+.qa-chevron {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  color: var(--text-2);
+  opacity: 0.5;
+  transition: all 0.18s;
+}
+
+.quick-action-btn.danger .qa-icon {
+  background: color-mix(in srgb, #ef4444 16%, transparent);
+  color: #ef4444;
+}
+.quick-action-btn.danger .qa-label { color: #ef4444; }
+@media (hover: hover) {
+  .quick-action-btn.danger:hover {
+    background: color-mix(in srgb, #ef4444 12%, transparent);
+    border-color: color-mix(in srgb, #ef4444 40%, transparent);
+    box-shadow: 0 0 16px -6px color-mix(in srgb, #ef4444 40%, transparent);
+  }
+}
+[data-theme='light'] .quick-action-btn {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
 /* Form */
 .form-group {
   margin-bottom: 20px;
@@ -1590,39 +1638,9 @@ select#soundSelector option {
 .settings-content::-webkit-scrollbar-track { background: transparent; }
 .settings-content::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
 
-@media (max-width: 640px) {
-  .settings-overlay { align-items: flex-end; padding: 0; }
-  .settings-dialog { max-width: 100%; border-radius: 24px 24px 0 0; }
-  .settings-enter-from .settings-dialog { transform: translateY(100%); }
-  .settings-leave-to .settings-dialog { transform: translateY(100%); }
-}
-
-.settings-enter-active { transition: opacity 0.35s ease; }
-.settings-leave-active { transition: opacity 0.25s ease; }
-.settings-enter-from, .settings-leave-to { opacity: 0; }
-.settings-enter-active .settings-dialog {
-  transition: transform 0.45s cubic-bezier(0.22, 1.2, 0.36, 1);
-}
-.settings-leave-active .settings-dialog { transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1); }
-.settings-enter-from .settings-dialog { transform: translateY(80px) scale(0.85); }
-.settings-leave-to .settings-dialog { transform: translateY(40px) scale(0.92); }
-
 /* ===========================
    LIGHT THEME
    =========================== */
-[data-theme='light'] .settings-dialog {
-  background: linear-gradient(170deg, rgba(255, 255, 255, 0.97) 0%, rgba(245, 245, 250, 0.98) 100%);
-  border-color: rgba(0, 0, 0, 0.1);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.04),
-    0 32px 80px rgba(0, 0, 0, 0.15),
-    0 0 60px -10px color-mix(in srgb, var(--accent) 15%, transparent);
-}
-
-[data-theme='light'] .settings-header {
-  border-bottom-color: rgba(0, 0, 0, 0.08);
-}
-
 [data-theme='light'] .settings-sidebar {
   background: rgba(0, 0, 0, 0.03);
   border-right-color: rgba(0, 0, 0, 0.08);
@@ -1634,15 +1652,6 @@ select#soundSelector option {
 
 [data-theme='light'] .sidebar-item.active {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
-}
-
-[data-theme='light'] .close-btn {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: rgba(0, 0, 0, 0.1);
-}
-
-[data-theme='light'] .close-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
 }
 
 [data-theme='light'] .info-box {
