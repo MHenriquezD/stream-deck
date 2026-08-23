@@ -3,6 +3,7 @@ import { Icon } from '@iconify/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useServerUrlStore } from '../store/serverUrl.store'
+import PickerModal from './PickerModal.vue'
 
 interface IconItem {
   icon: string
@@ -452,16 +453,7 @@ const selectIcon = (icon: string) => { emit('select', icon) }
 </script>
 
 <template>
-  <Transition name="picker">
-  <div v-if="show" class="picker-backdrop" @click="emit('close')">
-    <div class="picker-panel" @click.stop>
-      <header class="picker-header">
-        <h3>Seleccionar Icono</h3>
-        <button @click="emit('close')" class="header-close" aria-label="Cerrar">
-          <Icon icon="mdi:close" />
-        </button>
-      </header>
-
+  <PickerModal :show="show" title="Seleccionar Icono" :height="620" @close="emit('close')">
       <div class="picker-body">
         <nav class="picker-sidebar">
           <button type="button" class="sidebar-item" :class="{ active: activeIconCategory === null }" @click="activeIconCategory = null">
@@ -476,7 +468,7 @@ const selectIcon = (icon: string) => { emit('select', icon) }
             :class="{ active: activeIconCategory === cat }"
             @click="activeIconCategory = cat"
           >
-            <i :class="cat.startsWith('SD ') ? 'fas fa-gamepad' : cat === 'FontAwesome' ? 'fab fa-font-awesome' : cat === 'Iconos' ? 'fas fa-icons' : cat === 'Custom SVG' ? 'fas fa-shapes' : cat === 'Mis Iconos' ? 'fas fa-user' : cat === 'Multimedia' ? 'fas fa-music' : cat === 'Aplicaciones' ? 'fas fa-grid' : cat === 'Acciones' ? 'fas fa-bolt' : cat === 'Símbolos' ? 'fas fa-icons' : 'fas fa-folder'"></i>
+            <i :class="cat.startsWith('SD ') ? 'fas fa-gamepad' : cat === 'FontAwesome' ? 'fab fa-font-awesome' : cat === 'Iconos' ? 'fas fa-icons' : cat === 'Custom SVG' ? 'fas fa-shapes' : cat === 'Mis Iconos' ? 'fas fa-user' : cat === 'Multimedia' ? 'fas fa-music' : cat === 'Aplicaciones' ? 'fas fa-table-cells' : cat === 'Acciones' ? 'fas fa-bolt' : cat === 'Símbolos' ? 'fas fa-icons' : 'fas fa-folder'"></i>
             <span>{{ cat }}</span>
           </button>
         </nav>
@@ -526,61 +518,10 @@ const selectIcon = (icon: string) => { emit('select', icon) }
           </div>
         </div>
       </div>
-    </div>
-  </div>
-  </Transition>
+  </PickerModal>
 </template>
 
 <style scoped>
-.picker-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--scrim);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: 16px;
-}
-
-.picker-panel {
-  width: 100%;
-  max-width: 900px;
-  height: 620px;
-  display: flex;
-  flex-direction: column;
-  border-radius: 24px;
-  background: linear-gradient(170deg, rgba(22, 22, 32, 0.94) 0%, rgba(10, 10, 16, 0.97) 100%);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 32px 80px rgba(0, 0, 0, 0.7),
-    0 0 60px -10px color-mix(in srgb, var(--accent) 30%, transparent);
-  overflow: hidden;
-}
-
-.picker-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 22px;
-  border-bottom: 1px solid var(--glass-border);
-}
-.picker-header h3 { margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--text-1); }
-.header-close {
-  width: 34px; height: 34px; border-radius: 10px;
-  border: 1px solid var(--glass-border); background: rgba(255, 255, 255, 0.04);
-  color: var(--text-2); cursor: pointer; display: grid; place-items: center;
-  font-size: 0.9rem; transition: background 0.18s, color 0.18s;
-}
-.header-close svg { transition: transform 0.18s; }
-@media (hover: hover) {
-  .header-close:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-1); }
-  .header-close:hover svg { transform: rotate(90deg); }
-}
-
 .picker-body {
   flex: 1;
   display: flex;
@@ -730,8 +671,6 @@ const selectIcon = (icon: string) => { emit('select', icon) }
 .picker-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
 
 @media (max-width: 640px) {
-  .picker-backdrop { align-items: flex-end; padding: 0; }
-  .picker-panel { max-width: 100%; height: auto; max-height: 92dvh; border-radius: 24px 24px 0 0; }
   .picker-body { flex-direction: column; }
   .picker-sidebar {
     width: 100%; flex-direction: row; border-right: none;
@@ -742,29 +681,9 @@ const selectIcon = (icon: string) => { emit('select', icon) }
   .sidebar-item span { display: none; }
   .sidebar-item i { font-size: 1rem; }
   .icons-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
-  .picker-enter-from .picker-panel { transform: translateY(100%); }
-  .picker-leave-to .picker-panel { transform: translateY(100%); }
 }
-
-.picker-enter-active { transition: opacity 0.35s ease; }
-.picker-leave-active { transition: opacity 0.25s ease; }
-.picker-enter-from, .picker-leave-to { opacity: 0; }
-.picker-enter-active .picker-panel {
-  transition: transform 0.45s cubic-bezier(0.22, 1.2, 0.36, 1);
-}
-.picker-leave-active .picker-panel { transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1); }
-.picker-enter-from .picker-panel { transform: translateY(80px) scale(0.85); }
-.picker-leave-to .picker-panel { transform: translateY(40px) scale(0.92); }
 
 /* Light theme */
-[data-theme='light'] .picker-panel {
-  background: linear-gradient(170deg, rgba(255, 255, 255, 0.97) 0%, rgba(245, 245, 250, 0.98) 100%);
-  border-color: rgba(0, 0, 0, 0.1);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 32px 80px rgba(0, 0, 0, 0.15), 0 0 60px -10px color-mix(in srgb, var(--accent) 15%, transparent);
-}
-[data-theme='light'] .picker-header { border-bottom-color: rgba(0, 0, 0, 0.08); }
-[data-theme='light'] .header-close { background: rgba(0, 0, 0, 0.04); border-color: rgba(0, 0, 0, 0.1); }
-[data-theme='light'] .header-close:hover { background: rgba(0, 0, 0, 0.08); }
 [data-theme='light'] .picker-search { border-bottom-color: rgba(0, 0, 0, 0.08); }
 [data-theme='light'] .field:focus { background: rgba(0, 0, 0, 0.02); }
 [data-theme='light'] .icon-cell { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.07); }

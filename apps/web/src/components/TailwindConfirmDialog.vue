@@ -48,7 +48,7 @@ defineEmits(['confirm', 'cancel', 'close'])
 .confirm-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1200;
+  z-index: 2100;
   background: var(--scrim);
   backdrop-filter: blur(6px);
   display: flex;
@@ -115,6 +115,24 @@ defineEmits(['confirm', 'cancel', 'close'])
 .confirm-leave-active .confirm-panel { transition: transform 0.2s ease-in; }
 .confirm-enter-from .confirm-panel { transform: scale(0.5); }
 .confirm-leave-to .confirm-panel { transform: scale(0.85); }
+
+/* Mobile: bottom sheet en vez de tarjeta flotante centrada */
+@media (max-width: 480px) {
+  .confirm-backdrop { align-items: flex-end; padding: 0; }
+  .confirm-panel {
+    max-width: 100%;
+    border-radius: 24px 24px 0 0;
+    padding: 28px 24px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  .confirm-actions { flex-direction: column-reverse; margin-top: 20px; }
+  .btn-act { padding: 14px 18px; font-size: 1rem; }
+  .confirm-enter-active .confirm-panel {
+    transition: transform 0.35s cubic-bezier(0.22, 1.2, 0.36, 1);
+  }
+  .confirm-leave-active .confirm-panel { transition: transform 0.2s ease-in; }
+  .confirm-enter-from .confirm-panel { transform: translateY(100%); }
+  .confirm-leave-to .confirm-panel { transform: translateY(100%); }
+}
 
 /* Light theme */
 [data-theme='light'] .confirm-panel {
