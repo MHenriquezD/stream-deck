@@ -138,6 +138,7 @@ const handleDrop = (e: DragEvent) => {
       'status-error': status === 'error',
     }"
     :aria-busy="status === 'running'"
+    :title="button?.label"
     :style="buttonStyle"
     :draggable="!!button"
     @click="handleClick"
@@ -541,22 +542,22 @@ const handleDrop = (e: DragEvent) => {
 }
 
 .button-icon {
-  font-size: 3rem;
+  font-size: 3.6rem;
   line-height: 1;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 
 .custom-icon {
-  width: 3rem;
-  height: 3rem;
+  width: 3.6rem;
+  height: 3.6rem;
   object-fit: contain;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 .mdi-icon {
-  width: 3rem;
-  height: 3rem;
+  width: 3.6rem;
+  height: 3.6rem;
 }
 
 .button-label {
@@ -609,6 +610,20 @@ const handleDrop = (e: DragEvent) => {
 
 ::-webkit-scrollbar {
   width: 0px;
+}
+
+/* Solo ícono, sin texto — como un Stream Deck real. */
+.button-content {
+  justify-content: center;
+  height: 100%;
+  gap: 0;
+}
+.button-icon {
+  margin-bottom: 0;
+}
+.button-label,
+.button-type {
+  display: none;
 }
 
 /* ─── Feedback de ejecución ─────────────────────────────── */

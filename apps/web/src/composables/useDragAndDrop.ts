@@ -13,8 +13,12 @@ interface UseDragAndDropOptions {
   moveButtonToPage?: (button: StreamButton, page: number) => boolean
   /** Callback tras un drop de ratón con cambio (p. ej. mostrar un toast). */
   onMouseDrop?: () => void
-  /** Callback cuando se detecta two-finger tap (editar botón en móvil). */
-  onTwoFingerTap?: (button: StreamButton | null, position: GridPosition) => void
+  /**
+   * Callback cuando se mantiene presionado sin arrastrar (editar botón en
+   * móvil). Si en cambio el dedo se mueve tras el long-press, se entra en
+   * modo arrastre/reordenar en lugar de disparar esto.
+   */
+  onLongPressEdit?: (button: StreamButton | null, position: GridPosition) => void
 }
 
 /**
@@ -27,7 +31,7 @@ export function useDragAndDrop({
   swapButtons,
   moveButtonToPage,
   onMouseDrop,
-  onTwoFingerTap,
+  onLongPressEdit,
 }: UseDragAndDropOptions) {
   // ── Estado ratón ──
   const draggedButton = ref<StreamButton | null>(null)
@@ -40,7 +44,22 @@ export function useDragAndDrop({
   const touchOverPageIndex = ref<number | null>(null)
   const touchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
   const isPressing = ref<string | null>(null) // para la animación de pulso
+  const startX = ref(0)
   const startY = ref(0) // para detectar intento de scroll
+
+  /**
+   * "Armado": pasó el tiempo de long-press pero el dedo todavía no se ha
+   * movido lo suficiente para decidir si es editar (se suelta quieto) o
+   * arrastrar (se mueve). Un solo gesto, dos resultados posibles.
+   */
+  const armedButton = ref<StreamButton | null>(null)
+  const armedPosition = ref<GridPosition | null>(null)
+  const armStartX = ref(0)
+  const armStartY = ref(0)
+
+  const LONG_PRESS_DELAY = 450
+  const DRAG_MOVE_THRESHOLD = 12
+  const SCROLL_CANCEL_THRESHOLD = 10
 
   // ── Ratón ──
   const handleDragStart = (button: StreamButton | null) => {
@@ -81,50 +100,35 @@ export function useDragAndDrop({
     )
 
   // ── Táctil ──
-  let lastTouchButton: StreamButton | null = null
-  let lastTouchPosition: GridPosition | null = null
-
   const handleTouchStart = (
     button: StreamButton | null,
     position: GridPosition,
     event: TouchEvent,
   ) => {
-    if (event.touches.length >= 2) {
-      if (touchTimer.value) { clearTimeout(touchTimer.value); touchTimer.value = null }
-      isPressing.value = null
-      event.preventDefault()
-      onTwoFingerTap?.(lastTouchButton ?? button, lastTouchPosition ?? position)
-      return
-    }
-    lastTouchButton = button
-    lastTouchPosition = position
     if (!button) return
+    startX.value = event.touches[0].clientX
     startY.value = event.touches[0].clientY
     isPressing.value = button.id
     if (touchTimer.value) clearTimeout(touchTimer.value)
     touchTimer.value = setTimeout(() => {
-      if (navigator.vibrate) navigator.vibrate(100)
-      touchDragButton.value = button
-      isPressing.value = null
-    }, 1000)
-  }
-
-  const handleGridTouchStart = (event: TouchEvent) => {
-    if (event.touches.length >= 2) {
-      if (touchTimer.value) { clearTimeout(touchTimer.value); touchTimer.value = null }
-      isPressing.value = null
-      event.preventDefault()
-      if (lastTouchButton || lastTouchPosition) {
-        onTwoFingerTap?.(lastTouchButton, lastTouchPosition!)
-      }
-    }
+      // Long-press cumplido sin haberse cancelado por scroll: queda "armado"
+      // a la espera de ver si el usuario suelta (editar) o arrastra (mover).
+      if (navigator.vibrate) navigator.vibrate(40)
+      armedButton.value = button
+      armedPosition.value = position
+      armStartX.value = startX.value
+      armStartY.value = startY.value
+      touchTimer.value = null
+    }, LONG_PRESS_DELAY)
   }
 
   const handleTouchMove = (event: TouchEvent) => {
-    // Aún no en modo arrastre: si el dedo se mueve, es scroll → cancelar timer.
-    if (!touchDragButton.value) {
-      const diffY = Math.abs(event.touches[0].clientY - startY.value)
-      if (diffY > 10) {
+    const touch = event.touches[0]
+
+    // Aún no llegó el long-press: si el dedo se mueve, es scroll → cancelar.
+    if (!armedButton.value && !touchDragButton.value) {
+      const diffY = Math.abs(touch.clientY - startY.value)
+      if (diffY > SCROLL_CANCEL_THRESHOLD) {
         if (touchTimer.value) {
           clearTimeout(touchTimer.value)
           touchTimer.value = null
@@ -134,9 +138,23 @@ export function useDragAndDrop({
       return
     }
 
+    // Armado (long-press cumplido) pero aún sin decidir: si se mueve lo
+    // suficiente, pasa a modo arrastre; si no, se queda quieto para editar.
+    if (armedButton.value && !touchDragButton.value) {
+      const dx = Math.abs(touch.clientX - armStartX.value)
+      const dy = Math.abs(touch.clientY - armStartY.value)
+      if (dx > DRAG_MOVE_THRESHOLD || dy > DRAG_MOVE_THRESHOLD) {
+        if (navigator.vibrate) navigator.vibrate(100)
+        touchDragButton.value = armedButton.value
+        isPressing.value = null
+        armedButton.value = null
+        armedPosition.value = null
+      }
+      return
+    }
+
     // Ya en modo arrastre: bloquear scroll y seguir el dedo.
     if (event.cancelable) event.preventDefault()
-    const touch = event.touches[0]
     const element = document.elementFromPoint(touch.clientX, touch.clientY)
 
     const pageDot = element?.closest('[data-page-dot]')
@@ -166,6 +184,20 @@ export function useDragAndDrop({
     }
     isPressing.value = null
 
+    // Se quedó "armado" (long-press cumplido) sin llegar a arrastrar →
+    // el gesto era para editar, no para reordenar.
+    if (armedButton.value && !touchDragButton.value) {
+      const button = armedButton.value
+      const position = armedPosition.value
+      armedButton.value = null
+      armedPosition.value = null
+      if (navigator.vibrate) navigator.vibrate(30)
+      if (position) onLongPressEdit?.(button, position)
+      return
+    }
+    armedButton.value = null
+    armedPosition.value = null
+
     const source = touchDragButton.value
     const targetPos = touchOverPosition.value
     const targetPage = touchOverPageIndex.value
@@ -189,6 +221,8 @@ export function useDragAndDrop({
       touchTimer.value = null
     }
     isPressing.value = null
+    armedButton.value = null
+    armedPosition.value = null
     touchDragButton.value = null
     touchOverPosition.value = null
     touchOverPageIndex.value = null
@@ -222,7 +256,6 @@ export function useDragAndDrop({
     isDragOver,
     // táctil
     handleTouchStart,
-    handleGridTouchStart,
     handleTouchMove,
     handleTouchEnd,
     handleTouchCancel,

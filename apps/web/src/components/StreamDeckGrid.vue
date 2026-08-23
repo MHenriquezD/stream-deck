@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { Capacitor } from '@capacitor/core'
-import { ActionType, type StreamButton as ButtonType } from '@shared/core'
+import type { StreamButton as ButtonType } from '@shared/core'
 import { useToast } from '../composables/useToast'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAuth } from '../composables/useAuth'
@@ -46,10 +46,6 @@ const {
 
 // Tema claro/oscuro (estado + persistencia)
 const { isDark, toggleTheme, initTheme, currentAccent, accentPresets, setAccent } = useTheme()
-const actionColor = (i: number) => {
-  const idx = accentPresets.findIndex(p => p.accent === currentAccent.value.accent)
-  return accentPresets[(idx + i) % accentPresets.length].accent
-}
 const showAccentPicker = ref(false)
 const showAccentToggle = ref(false)
 let accentHideTimer: ReturnType<typeof setTimeout> | null = null
@@ -142,6 +138,7 @@ const {
   currentPage,
   totalPages,
   goToPage,
+  setPageDimensions,
   swapButtons,
   moveButtonToPage,
   parseAndSetButtons,
@@ -208,6 +205,17 @@ const isMobile = platform === 'android' || platform === 'ios'
 // Detectar mobile por tamaño de pantalla (responsive layout)
 const isMobileView = ref(false)
 
+/**
+ * En celulares en vertical (más alto que ancho) usamos páginas de 6
+ * botones (2x3) en vez de 12 (4x3) — así entra una página completa sin
+ * scroll. Landscape/tablet/desktop se quedan con el tamaño normal.
+ */
+const updatePageDimensions = () => {
+  const isTallMobile = window.innerWidth <= 640 && window.innerHeight > window.innerWidth
+  if (isTallMobile) setPageDimensions(3, 2)
+  else setPageDimensions(4, 3)
+}
+
 // Drag & drop (ratón + táctil), delegando el intercambio en useButtons
 const {
   draggedButton,
@@ -221,7 +229,6 @@ const {
   isDragging,
   isDragOver,
   handleTouchStart,
-  handleGridTouchStart,
   handleTouchMove,
   handleTouchEnd,
   handleTouchCancel,
@@ -240,7 +247,7 @@ const {
       life: 2000,
     })
   },
-  onTwoFingerTap: (button, position) => {
+  onLongPressEdit: (button, position) => {
     handleButtonEdit(button, position)
   },
 })
@@ -250,6 +257,13 @@ const pageSwipeStartX = ref<number | null>(null)
 const pageSwipeStartY = ref<number | null>(null)
 const pageSwipeDeltaX = ref(0)
 const SWIPE_THRESHOLD = 60
+
+/** 1 = avanzando a una página siguiente, -1 = retrocediendo. Determina de
+ * qué lado entran/salen los botones en la animación de cambio de página. */
+const pageDirection = ref(1)
+watch(currentPage, (newPage, oldPage) => {
+  pageDirection.value = newPage >= oldPage ? 1 : -1
+})
 
 const handlePageSwipeTouchStart = (e: TouchEvent) => {
   if (e.touches.length !== 1) return
@@ -333,9 +347,11 @@ onMounted(async () => {
   initTheme()
 
   isMobileView.value = window.innerWidth <= 850
+  updatePageDimensions()
 
   const handleResize = () => {
     isMobileView.value = window.innerWidth <= 850
+    updatePageDimensions()
   }
   window.addEventListener('resize', handleResize)
 
@@ -384,6 +400,11 @@ onMounted(async () => {
   // Conectar WebSocket (el watch(isConnected) se encarga de cargar datos al conectar)
   connectionStatus.value = 'connecting'
   socketConnect()
+  // Si el socket ya estaba conectado de antes, socketConnect() no dispara un
+  // nuevo evento 'connect' y el watch(isConnected) de abajo nunca se
+  // ejecuta — sincronizamos el estado a mano para no quedar pegados en
+  // "Conectando...".
+  if (isConnected.value) connectionStatus.value = 'connected'
 
   // Escuchar actualizaciones de comandos desde otros clientes
   socketOn('commands:updated', (commands: any[]) => {
@@ -477,15 +498,20 @@ const checkConnection = async () => {
   }
 }
 
-/** Botón Reconectar: Desktop = toggle server on/off, Mobile = solo reconectar */
+/**
+ * Botón Reconectar/Activar-Desactivar: si no hay conexión real (móvil, o
+ * desktop con el socket caído) simplemente reconecta el socket — el toggle
+ * de encendido/apagado del servidor requiere que el socket ya esté vivo
+ * para poder enviarle el mensaje, así que no tiene sentido si está
+ * desconectado.
+ */
 const handleReconnectButton = () => {
-  if (isMobile) {
-    // Móvil nativo: solo reconectar socket
+  if (isMobile || connectionStatus.value !== 'connected') {
     socketDisconnect()
     connectionStatus.value = 'connecting'
     socketConnect()
   } else {
-    // Desktop: toggle estado del servidor
+    // Desktop conectado: toggle estado del servidor
     if (serverEnabled.value) {
       // Apagar: enviar al server que está disabled
       socketSetServerEnabled(false)
@@ -688,75 +714,6 @@ const clearAll = () => {
   // Aquí irá el nuevo diálogo de confirmación con Tailwind
 }
 
-const loadMultimediaPresets = async () => {
-  try {
-    const response = await fetch(
-      `${API_URL.value}/command/presets/multimedia`,
-      {
-        headers: { ...getAuthHeaders() },
-      },
-    )
-    if (response.ok) {
-      const presets = await response.json()
-      showPresetsDialog.value = true
-      multimediaPresets.value = presets
-    }
-  } catch (error) {
-    console.error('Error loading multimedia presets:', error)
-    toast.removeAllGroups()
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No se pudieron cargar los comandos multimedia',
-      life: 4000,
-    })
-  }
-}
-
-const showPresetsDialog = ref(false)
-const multimediaPresets = ref<any[]>([])
-
-const addPresetButton = (preset: any) => {
-  for (let row = 0; row < gridRows.value; row++) {
-    for (let col = 0; col < gridCols.value; col++) {
-      const exists = Array.from(buttons.value.values()).find(
-        (b) => b.position.row === row && b.position.col === col,
-      )
-      if (!exists) {
-        const newButton: ButtonType = {
-          id: `${preset.id}-${Date.now()}`,
-          label: preset.label,
-          icon: preset.icon,
-          color: '#ffffff',
-          backgroundColor: '#8b5cf6',
-          action: {
-            type: ActionType.COMMAND,
-            payload: preset.payload,
-          },
-          position: { row, col },
-        }
-        buttons.value.set(newButton.id, newButton)
-        saveButtons()
-        toast.removeAllGroups()
-        toast.add({
-          severity: 'success',
-          summary: 'Botón agregado',
-          detail: `${preset.label} agregado correctamente`,
-          life: 3000,
-        })
-        return
-      }
-    }
-  }
-  toast.removeAllGroups()
-  toast.add({
-    severity: 'warn',
-    summary: 'Sin espacio',
-    detail: 'No hay espacio disponible en la cuadrícula',
-    life: 4000,
-  })
-}
-
 // Confirmación para limpiar todos los botones
 const showClearAllDialog = ref(false)
 function openClearAllDialog() {
@@ -809,6 +766,7 @@ async function handleServerUnreachableRetry() {
     // Connect socket and load data
     connectionStatus.value = 'connecting'
     socketConnect()
+    if (isConnected.value) connectionStatus.value = 'connected'
     try {
       const initRes = await fetch(`${API_URL.value}/command/settings`, {
         headers: { ...getAuthHeaders() },
@@ -862,45 +820,6 @@ async function handleServerUnreachableClean() {
           </span>
         </div>
       </div>
-      <div class="actions">
-        <button @click="openSettings" title="Configuración" class="action-btn" :style="{ '--_clr': actionColor(0) }">
-          <img src="/icons/config-line.svg" alt="Configuración" class="btn-svg" />
-          <span class="btn-text">Configuración</span>
-        </button>
-
-        <template v-if="pinConfigured || isMobile">
-          <button @click="loadMultimediaPresets" title="Comandos multimedia" class="action-btn" :style="{ '--_clr': actionColor(1) }">
-            <img src="/icons/music-line.svg" alt="Multimedia" class="btn-svg" />
-            <span class="btn-text">Multimedia</span>
-          </button>
-          <button @click="toggleVolumeSlider" title="Control de volumen" class="action-btn" :style="{ '--_clr': actionColor(2) }">
-            <img :src="systemMuted ? '/icons/volume-mute.svg' : '/icons/volume-high.svg'" alt="Volumen" class="btn-svg" />
-            <span class="btn-text">Volumen</span>
-          </button>
-          <button v-if="isMobile" @click="showMouseController = true" title="Mouse & Teclado" class="action-btn" :style="{ '--_clr': actionColor(3) }">
-            <Icon icon="mdi:mouse" class="action-emoji" />
-            <span class="btn-text">Mouse</span>
-          </button>
-          <button
-            @click="handleReconnectButton"
-            :title="isMobile ? 'Reconectar' : serverEnabled ? 'Desactivar servidor' : 'Activar servidor'"
-            class="action-btn"
-            :style="{ '--_clr': actionColor(4) }"
-          >
-            <img src="/icons/reconnect-line.svg" alt="Reconectar" class="btn-svg" />
-            <span class="btn-text">{{ isMobile ? 'Reconectar' : serverEnabled ? 'Desactivar' : 'Activar' }}</span>
-          </button>
-          <button @click="reloadButtonsWithAnimation" title="Recargar" class="action-btn" :style="{ '--_clr': actionColor(5) }">
-            <img src="/icons/reload-line.svg" alt="Recargar" class="btn-svg" />
-            <span class="btn-text">Recargar Botones</span>
-          </button>
-          <button v-if="!isMobile" @click="openClearAllDialog" title="Limpiar todo" class="action-btn action-danger">
-            <img src="/icons/trash-line.svg" alt="Eliminar" class="btn-svg" />
-            <span class="btn-text">Limpiar Botones</span>
-          </button>
-        </template>
-      </div>
-
       <!-- Volume slider panel (floating overlay) -->
       <Transition name="vol">
       <div v-if="showVolumeSlider" class="volume-overlay" @click.self="showVolumeSlider = false">
@@ -923,6 +842,19 @@ async function handleServerUnreachableClean() {
         </div>
       </div>
       </Transition>
+    </div>
+
+    <!-- Floating settings button (top-left): abre Configuración, donde
+         viven las acciones (Volumen, Mouse, Reconectar, Recargar, Limpiar). -->
+    <div class="actions-fab-container">
+      <button
+        class="actions-fab"
+        title="Configuración"
+        aria-label="Configuración"
+        @click="openSettings"
+      >
+        <Icon icon="mdi:cog" />
+      </button>
     </div>
 
     <!-- Floating theme toggle (draggable, snaps to corners) -->
@@ -978,7 +910,7 @@ async function handleServerUnreachableClean() {
         reorganizar
       </p>
       <p class="hint" v-else>
-        Toca para ejecutar • 2 dedos para editar • Mantén presionado 1s para reorganizar
+        Toca para ejecutar • Mantén presionado para editar • Mantén y arrastra para reorganizar
       </p>
 
       <div class="spotify-section">
@@ -986,14 +918,9 @@ async function handleServerUnreachableClean() {
       </div>
 
       <div
-        class="grid"
+        class="grid-viewport"
         :class="{ 'grid-reloading': isReloadingGrid, 'grid-swiping': isMouseSwiping }"
-        :style="{
-          '--grid-cols': gridCols,
-          '--grid-rows': gridRows,
-          '--swipe-x': pageSwipeDeltaX + 'px',
-        }"
-        @touchstart="handleGridTouchStart($event); handlePageSwipeTouchStart($event)"
+        @touchstart="handlePageSwipeTouchStart($event)"
         @touchmove="handleTouchMove($event); handlePageSwipeTouchMove($event)"
         @touchend="handleTouchEnd(); resolvePageSwipe()"
         @touchcancel="handleTouchCancel(); resolvePageSwipe()"
@@ -1002,48 +929,61 @@ async function handleServerUnreachableClean() {
         @mouseup="handleGridMouseUp"
         @mouseleave="handleGridMouseUp"
       >
-        <div
-          v-for="item in gridItems"
-          :key="`${item.row}-${item.col}`"
-          class="grid-item"
-          :class="{
-            executing: isExecuting === item.button?.id,
-            'is-pressing': isPressing === item.button?.id,
-            'touch-dragging': isTouchDragging(item.button),
-            'touch-drag-over': isTouchDragOver({
-              row: item.row,
-              col: item.col,
-            }),
-          }"
-          :data-grid-row="item.row"
-          :data-grid-col="item.col"
-          @touchstart="
-            handleTouchStart(
-              item.button,
-              { row: item.row, col: item.col },
-              $event,
-            )
-          "
-        >
-          <StreamButton
-            :button="item.button"
-            :isEmpty="!item.button"
-            :isDragging="isDragging(item.button)"
-            :isDragOver="isDragOver({ row: item.row, col: item.col })"
-            :isSelected="false"
-            :status="item.button ? buttonStatus[item.button.id] : undefined"
-            :isLoading="isLoadingButtons && !item.button"
-            @click="handleButtonClick(item.button)"
-            @edit="
-              handleButtonEdit(item.button, { row: item.row, col: item.col })
-            "
-            @dragstart="handleDragStart(item.button)"
-            @dragend="handleDragEnd"
-            @dragover="handleDragOver({ row: item.row, col: item.col })"
-            @dragleave="handleDragLeave"
-            @drop="handleDrop({ row: item.row, col: item.col })"
-          />
-        </div>
+        <Transition :name="pageDirection >= 0 ? 'slide-next' : 'slide-prev'">
+          <div
+            :key="currentPage"
+            class="grid-page"
+            :style="{
+              '--grid-cols': gridCols,
+              '--grid-rows': gridRows,
+              transform: (isMouseSwiping || pageSwipeStartX !== null) ? `translateX(calc(${pageSwipeDeltaX}px * 0.3))` : undefined,
+              transition: (isMouseSwiping || pageSwipeStartX !== null) ? 'none' : undefined,
+            }"
+          >
+            <div
+              v-for="item in gridItems"
+              :key="`${item.row}-${item.col}`"
+              class="grid-item"
+              :class="{
+                executing: isExecuting === item.button?.id,
+                'is-pressing': isPressing === item.button?.id,
+                'touch-dragging': isTouchDragging(item.button),
+                'touch-drag-over': isTouchDragOver({
+                  row: item.row,
+                  col: item.col,
+                }),
+              }"
+              :data-grid-row="item.row"
+              :data-grid-col="item.col"
+              @touchstart="
+                handleTouchStart(
+                  item.button,
+                  { row: item.row, col: item.col },
+                  $event,
+                )
+              "
+            >
+              <StreamButton
+                :button="item.button"
+                :isEmpty="!item.button"
+                :isDragging="isDragging(item.button)"
+                :isDragOver="isDragOver({ row: item.row, col: item.col })"
+                :isSelected="false"
+                :status="item.button ? buttonStatus[item.button.id] : undefined"
+                :isLoading="isLoadingButtons && !item.button"
+                @click="handleButtonClick(item.button)"
+                @edit="
+                  handleButtonEdit(item.button, { row: item.row, col: item.col })
+                "
+                @dragstart="handleDragStart(item.button)"
+                @dragend="handleDragEnd"
+                @dragover="handleDragOver({ row: item.row, col: item.col })"
+                @dragleave="handleDragLeave"
+                @drop="handleDrop({ row: item.row, col: item.col })"
+              />
+            </div>
+          </div>
+        </Transition>
       </div>
 
       <!-- Paginación: puntos + flechas -->
@@ -1087,7 +1027,17 @@ async function handleServerUnreachableClean() {
       </div>
     </template>
 
-    <ServerSettings v-model:show="showSettings" />
+    <ServerSettings
+      v-model:show="showSettings"
+      :server-enabled="serverEnabled"
+      :is-connected="connectionStatus === 'connected'"
+      :system-muted="systemMuted"
+      @toggle-volume="toggleVolumeSlider"
+      @open-mouse="showMouseController = true"
+      @reconnect="handleReconnectButton"
+      @reload-buttons="reloadButtonsWithAnimation"
+      @clear-all="openClearAllDialog"
+    />
 
     <!-- PIN Gate Dialog -->
     <div v-if="showPinGate" class="confirm-overlay" @click.self="cancelPinGate">
@@ -1178,43 +1128,6 @@ async function handleServerUnreachableClean() {
       @close="showEditor = false"
     />
 
-    <!-- Diálogo de comandos multimedia -->
-    <Transition name="mm">
-    <div
-      v-if="showPresetsDialog"
-      class="presets-dialog-overlay"
-      @click="showPresetsDialog = false"
-    >
-      <div class="presets-dialog" @click.stop>
-        <div class="presets-header">
-          <h2>Comandos Multimedia</h2>
-          <button @click="showPresetsDialog = false" class="header-close" aria-label="Cerrar">
-            <Icon icon="mdi:close" />
-          </button>
-        </div>
-        <div class="presets-content">
-          <p class="presets-description">
-            Haz clic en un comando para agregarlo a Spartan Hub
-          </p>
-          <div class="presets-grid">
-            <div
-              v-for="preset in multimediaPresets"
-              :key="preset.id"
-              class="preset-card"
-              @click="addPresetButton(preset)"
-            >
-              <div class="preset-icon">{{ preset.icon }}</div>
-              <div class="preset-info">
-                <div class="preset-label">{{ preset.label }}</div>
-                <div class="preset-description">{{ preset.description }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    </Transition>
-
     <footer class="footer">
       <p class="credits">
         Hecho por
@@ -1292,8 +1205,7 @@ async function handleServerUnreachableClean() {
 
 /* Evita que el estado active/hover se quede pegado en móviles */
 @media (hover: none) {
-  .grid-item:active,
-  .action-btn:active {
+  .grid-item:active {
     background: inherit;
     transform: none;
   }
@@ -1314,29 +1226,6 @@ async function handleServerUnreachableClean() {
   margin: 0; font-size: 2rem; font-weight: 700;
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-}
-
-@media (max-width: 850px) {
-  .actions {
-    width: 100%;
-    display: grid !important;
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 10px !important;
-  }
-
-  .actions .action-btn {
-    flex-direction: column;
-    padding: 10px 6px;
-    height: auto;
-    min-height: 56px;
-    font-size: 0.7rem;
-  }
-  .actions .action-btn .btn-text {
-    overflow: hidden; text-overflow: ellipsis;
-    max-width: 100%; text-align: center;
-  }
-  .actions .btn-svg { width: 24px; height: 24px; }
-  .actions .action-emoji { font-size: 1.3rem; }
 }
 
 @media (max-width: 640px) {
@@ -1387,63 +1276,6 @@ async function handleServerUnreachableClean() {
   }
 }
 
-.actions {
-  display: flex;
-  gap: 12px;
-}
-
-/* ── Action buttons (glass) ── */
-.action-btn {
-  --_clr: var(--text-2);
-  display: flex; align-items: center; gap: 8px;
-  min-width: 44px; height: 44px; padding: 0 14px;
-  border: 1px solid color-mix(in srgb, var(--_clr) 25%, transparent);
-  border-radius: 12px; cursor: pointer;
-  background: color-mix(in srgb, var(--_clr) 8%, rgba(255,255,255,0.04));
-  backdrop-filter: blur(12px);
-  color: var(--text-1); font-size: 0.9rem; font-weight: 500;
-  box-shadow: 0 0 12px color-mix(in srgb, var(--_clr) 15%, transparent),
-              inset 0 1px 0 rgba(255,255,255,0.06);
-  transition: all 0.2s ease;
-}
-@media (hover: hover) {
-  .action-btn:hover {
-    background: color-mix(in srgb, var(--_clr) 18%, rgba(255,255,255,0.06));
-    border-color: color-mix(in srgb, var(--_clr) 50%, transparent);
-    box-shadow: 0 0 20px color-mix(in srgb, var(--_clr) 30%, transparent),
-                inset 0 1px 0 rgba(255,255,255,0.08);
-    transform: translateY(-2px);
-  }
-}
-.action-btn:active { transform: scale(0.97); }
-
-[data-theme='light'] .action-btn {
-  color: #1a1a2e;
-  background: color-mix(in srgb, var(--_clr) 10%, rgba(0,0,0,0.04));
-  border-color: color-mix(in srgb, var(--_clr) 30%, rgba(0,0,0,0.1));
-  box-shadow: 0 0 10px color-mix(in srgb, var(--_clr) 12%, transparent),
-              inset 0 1px 0 rgba(255,255,255,0.5);
-}
-@media (hover: hover) {
-  [data-theme='light'] .action-btn:hover {
-    background: color-mix(in srgb, var(--_clr) 18%, rgba(0,0,0,0.06));
-    border-color: color-mix(in srgb, var(--_clr) 50%, rgba(0,0,0,0.12));
-  }
-}
-
-.action-danger   { --_clr: #ef4444; }
-
-.action-emoji { font-size: 1.2rem; line-height: 1; }
-
-.btn-svg {
-  width: 22px; height: 22px; flex-shrink: 0;
-  transition: all 0.2s;
-  filter: invert(1);
-}
-[data-theme='light'] .btn-svg {
-  filter: invert(0);
-}
-.btn-text { white-space: nowrap; }
 
 /* ── Volume overlay (floating, no layout shift) ── */
 .volume-overlay {
@@ -1604,11 +1436,7 @@ async function handleServerUnreachableClean() {
   margin-bottom: 12px;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(var(--grid-cols), 1fr);
-  grid-template-rows: repeat(var(--grid-rows), 1fr);
-  gap: 20px;
+.grid-viewport {
   flex: 1;
   margin-bottom: 24px;
   padding: 30px;
@@ -1620,18 +1448,49 @@ async function handleServerUnreachableClean() {
     0 8px 24px rgba(120, 120, 130, 0.13),
     0 0 40px -6px color-mix(in srgb, var(--accent) 25%, transparent);
   position: relative;
+  /* overflow-x:hidden + overflow-y:visible NO funciona: la spec de CSS
+     convierte el eje "visible" en "auto" en cuanto el otro eje no es
+     visible, así que seguía recortando la fila vertical. Con overflow
+     visible en ambos ejes se pierde el recorte lateral del carrusel
+     durante los ~0.3s de la animación (bleed leve), pero evita cortar
+     contenido real, que es peor. */
+  overflow: visible;
   touch-action: pan-y;
   user-select: none;
-  grid-auto-rows: 1fr;
-  perspective: 1000px;
-  perspective-origin: center;
 }
 
-.grid.grid-swiping {
-  transform: translateX(calc(var(--swipe-x) * 0.3));
-  transition: none;
+.grid-viewport.grid-swiping {
   cursor: grabbing;
 }
+
+/* La página activa ocupa todo el espacio interior (dentro del padding) del
+   viewport — position:absolute la saca del flujo para que la página que
+   entra y la que sale puedan deslizarse superpuestas sin saltos de layout. */
+.grid-page {
+  position: absolute;
+  inset: var(--grid-pad, 30px);
+  display: grid;
+  grid-template-columns: repeat(var(--grid-cols), 1fr);
+  grid-template-rows: repeat(var(--grid-rows), 1fr);
+  gap: var(--grid-gap, 20px);
+  grid-auto-rows: 1fr;
+  /* Botones más chicos: se centran en su celda en vez de estirarse a
+     ocuparla toda (importante en pantallas anchas con pocas columnas). */
+  align-items: center;
+  justify-items: center;
+}
+
+/* ── Animación al cambiar de página: deslizamiento lateral tipo carrusel ── */
+.slide-next-enter-active,
+.slide-next-leave-active,
+.slide-prev-enter-active,
+.slide-prev-leave-active {
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease;
+}
+.slide-next-enter-from { transform: translateX(60px); opacity: 0; }
+.slide-next-leave-to { transform: translateX(-60px); opacity: 0; }
+.slide-prev-enter-from { transform: translateX(-60px); opacity: 0; }
+.slide-prev-leave-to { transform: translateX(60px); opacity: 0; }
 
 /* ── Navegación entre páginas ── */
 .page-nav {
@@ -1691,25 +1550,22 @@ async function handleServerUnreachableClean() {
 }
 
 @media (max-width: 640px) {
-  .grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px;
+  .grid-viewport {
     padding: 16px;
-  }
-
-  .actions {
-    gap: 8px;
+    --grid-pad: 16px;
+    --grid-gap: 8px;
   }
 }
 
 @media (min-width: 641px) and (max-width: 1024px) {
-  .grid {
-    gap: 10px;
+  .grid-viewport {
     padding: 20px;
+    --grid-pad: 20px;
+    --grid-gap: 10px;
   }
 }
 
-.grid::before {
+.grid-viewport::before {
   content: '';
   position: absolute;
   inset: -2px;
@@ -1724,6 +1580,8 @@ async function handleServerUnreachableClean() {
 }
 
 .grid-item {
+  width: 100%;
+  max-width: 140px;
   transition:
     transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
     opacity 0.15s ease,
@@ -1833,77 +1691,9 @@ async function handleServerUnreachableClean() {
   .header { gap: 16px; }
   .title-section { gap: 12px; text-align: center; }
 
-  .grid {
-    gap: 12px;
+  .grid-viewport {
+    --grid-gap: 12px;
   }
-}
-
-.presets-dialog-overlay {
-  position: fixed; inset: 0; background: var(--scrim); backdrop-filter: blur(6px);
-  display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 16px;
-}
-
-.presets-dialog {
-  width: 100%; max-width: 600px; max-height: 85dvh; display: flex; flex-direction: column;
-  border-radius: 24px;
-  background: linear-gradient(170deg, rgba(22, 22, 32, 0.94) 0%, rgba(10, 10, 16, 0.97) 100%);
-  border: 1px solid var(--glass-border); backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 32px 80px rgba(0, 0, 0, 0.7),
-    0 0 60px -10px color-mix(in srgb, var(--accent) 30%, transparent);
-  overflow: hidden;
-}
-
-.presets-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 18px 22px; border-bottom: 1px solid var(--glass-border);
-}
-.presets-header h2 { margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--text-1); }
-
-.presets-content {
-  padding: 16px 22px; overflow-y: auto; flex: 1;
-}
-
-.presets-description { color: var(--text-2); margin-bottom: 16px; font-size: 0.9rem; }
-
-.presets-grid { display: grid; gap: 6px; }
-
-.preset-card {
-  display: flex; align-items: center; gap: 14px; padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 12px; cursor: pointer; transition: all 0.15s;
-}
-@media (hover: hover) {
-  .preset-card:hover {
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
-    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
-    transform: translateX(3px);
-  }
-}
-
-.preset-icon {
-  font-size: 1.6rem; width: 48px; height: 48px;
-  display: flex; align-items: center; justify-content: center;
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  border-radius: 12px; flex-shrink: 0;
-}
-
-.preset-info { flex: 1; }
-.preset-label { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; color: var(--text-1); }
-.preset-description { font-size: 0.82rem; color: var(--text-2); margin-bottom: 0; }
-
-/* Multimedia dialog transitions */
-.mm-enter-active { transition: opacity 0.35s ease; }
-.mm-leave-active { transition: opacity 0.25s ease; }
-.mm-enter-from, .mm-leave-to { opacity: 0; }
-.mm-enter-active .presets-dialog { transition: transform 0.45s cubic-bezier(0.22, 1.2, 0.36, 1); }
-.mm-leave-active .presets-dialog { transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1); }
-.mm-enter-from .presets-dialog { transform: translateY(80px) scale(0.85); }
-.mm-leave-to .presets-dialog { transform: translateY(40px) scale(0.92); }
-@media (max-width: 640px) {
-  .presets-dialog-overlay { align-items: flex-end; padding: 0; }
-  .presets-dialog { max-width: 100%; border-radius: 24px 24px 0 0; max-height: 92dvh; }
-  .mm-enter-from .presets-dialog { transform: translateY(100%); }
-  .mm-leave-to .presets-dialog { transform: translateY(100%); }
 }
 
 /* ⭐ Forzar limpieza de estado touch en grid */
@@ -2237,6 +2027,39 @@ async function handleServerUnreachableClean() {
   font-size: 0.95rem;
   margin-top: 0.3rem;
 }
+
+/* ── Floating actions menu (top-left) ── */
+.actions-fab-container {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 900;
+}
+@media (max-width: 640px) {
+  .actions-fab-container { top: 14px; left: 14px; }
+}
+
+.actions-fab {
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(30, 30, 50, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+  color: var(--text-1);
+  font-size: 1.3rem;
+  position: relative;
+  z-index: 1000;
+}
+[data-theme='light'] .actions-fab {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.actions-fab:active { transform: scale(0.9); }
+@media (hover: hover) { .actions-fab:hover { transform: scale(1.1); } }
 
 /* Floating theme toggle button */
 /* ── FAB container ── */
