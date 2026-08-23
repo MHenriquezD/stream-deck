@@ -65,7 +65,7 @@ const filteredPresets = computed(() => {
 </script>
 
 <template>
-  <PickerModal :show="show" title="Comandos Multimedia" :max-width="600" :height="520" @close="emit('close')">
+  <PickerModal :show="show" title="Comandos Multimedia" :max-width="600" :height="580" @close="emit('close')">
     <div class="picker-body">
       <div class="picker-search">
         <Icon icon="mdi:magnify" class="search-icon" />

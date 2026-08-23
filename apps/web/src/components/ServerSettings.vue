@@ -3,13 +3,16 @@ import { Icon } from '@iconify/vue'
 import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning'
 import { Capacitor } from '@capacitor/core'
 import QRCode from 'qrcode'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useButtonSound } from '../composables/useButtonSound'
 import { useSocket } from '../composables/useSocket'
+import { useTheme } from '../composables/useTheme'
+import { useToast } from '../composables/useToast'
 import { useServerUrlStore } from '../store/serverUrl.store'
 import CustomSelect from './CustomSelect.vue'
 import PickerModal from './PickerModal.vue'
+import TailwindConfirmDialog from './TailwindConfirmDialog.vue'
 
 const {
   isEnabled: isSoundEnabled,
@@ -58,16 +61,15 @@ const saveSoundSettings = async (enabled: boolean, file: string) => {
 const props = defineProps<{
   serverEnabled?: boolean
   isConnected?: boolean
-  systemMuted?: boolean
+  isMobileView?: boolean
 }>()
 
 const emit = defineEmits<{
-  toggleVolume: []
-  openMouse: []
   reconnect: []
-  reloadButtons: []
   clearAll: []
 }>()
+
+const { isDark, toggleTheme, currentAccent, accentPresets, setAccent } = useTheme()
 
 const show = defineModel<boolean>('show', { required: true })
 const {
@@ -94,6 +96,79 @@ const {
   off: socketOff,
 } = useSocket()
 
+const toast = useToast()
+
+// Zona avanzada (Desactivar servidor / Borrar datos): oculta detrás de un
+// toggle explícito, para que no aparezca a simple vista por accidente.
+const showAdvanced = ref(false)
+
+// Borrar datos recolectados de esta PC (caché de apps instaladas + íconos extraídos)
+// — pide el PIN antes de mostrar la confirmación, ya que es una acción delicada.
+const showClearDataDialog = ref(false)
+const clearingData = ref(false)
+const showDataPinPrompt = ref(false)
+const dataPinInput = ref('')
+const dataPinError = ref('')
+const dataPinLoading = ref(false)
+
+const startClearData = () => {
+  if (pinConfigured.value) {
+    showDataPinPrompt.value = true
+    dataPinInput.value = ''
+    dataPinError.value = ''
+  } else {
+    showClearDataDialog.value = true
+  }
+}
+
+const verifyPinAndClearData = async () => {
+  if (!/^\d{4}$/.test(dataPinInput.value)) {
+    dataPinError.value = 'El PIN debe ser de 4 dígitos'
+    return
+  }
+  dataPinLoading.value = true
+  const result = await login(dataPinInput.value)
+  dataPinLoading.value = false
+  if (result.success) {
+    showDataPinPrompt.value = false
+    dataPinInput.value = ''
+    showClearDataDialog.value = true
+  } else {
+    dataPinError.value = result.message || 'PIN incorrecto'
+  }
+}
+
+const handleClearData = async () => {
+  clearingData.value = true
+  try {
+    const url = serverUrlStore.serverUrl
+    const response = await fetch(`${url}/command/collected-data`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    })
+    if (response.ok) {
+      toast.add({
+        severity: 'success',
+        summary: 'Datos borrados',
+        detail: 'Se eliminó el caché de aplicaciones e íconos de esta PC',
+        life: 4000,
+      })
+    } else {
+      throw new Error('request failed')
+    }
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudieron borrar los datos',
+      life: 4000,
+    })
+  } finally {
+    clearingData.value = false
+    showClearDataDialog.value = false
+  }
+}
+
 // Sync sound state when modal opens or WS broadcasts a change
 const onSoundBroadcast = (data: { enabled: boolean; file: string }) => {
   buttonSoundEnabled.value = data.enabled
@@ -108,6 +183,12 @@ watch(show, (visible) => {
     socketOn('settings:buttonSoundChanged', onSoundBroadcast)
   } else {
     socketOff('settings:buttonSoundChanged', onSoundBroadcast)
+    // Volver a esconder la zona avanzada al cerrar — hay que "desbloquearla"
+    // de nuevo cada vez que se abre Configuración.
+    showAdvanced.value = false
+    showDataPinPrompt.value = false
+    dataPinInput.value = ''
+    dataPinError.value = ''
   }
 })
 
@@ -527,12 +608,22 @@ const toggleShowAll = () => {
   showAllSections.value = !showAllSections.value
   localStorage.setItem('settingsShowAll', String(showAllSections.value))
 }
-const settingsSections = [
+const settingsSections = computed(() => [
   { key: 'connection', label: 'Conexión', icon: 'mdi:wifi' },
-  { key: 'actions', label: 'Acciones', icon: 'mdi:lightning-bolt' },
+  // El tema/acento vive aquí solo en vista móvil — en desktop está el FAB flotante.
+  ...(props.isMobileView ? [{ key: 'theme', label: 'Tema', icon: 'mdi:palette' }] : []),
   { key: 'preferences', label: 'Preferencias', icon: 'mdi:tune-variant' },
   { key: 'security', label: 'Seguridad', icon: 'mdi:lock' },
-]
+])
+
+// Si la sección activa desaparece de la barra (ej. el servidor se
+// desactiva en vivo y "Acciones" se oculta), volver a "Conexión" en vez de
+// quedar en un tab fantasma sin contenido.
+watch(settingsSections, (sections) => {
+  if (!sections.some((s) => s.key === activeSection.value)) {
+    activeSection.value = 'connection'
+  }
+})
 </script>
 
 <template>
@@ -630,6 +721,15 @@ const settingsSections = [
               <div v-if="scanError" class="scan-error">{{ scanError }}</div>
             </div>
 
+            <button v-if="isMobile && !isConnected" class="quick-action-btn" @click="emit('reconnect')">
+              <span class="qa-icon"><Icon icon="mdi:refresh" /></span>
+              <span class="qa-text">
+                <span class="qa-label">Reconectar</span>
+                <span class="qa-desc">Vuelve a conectar con el servidor</span>
+              </span>
+              <Icon icon="mdi:chevron-right" class="qa-chevron" />
+            </button>
+
             <div class="form-group">
               <label for="serverUrl">URL del Servidor</label>
               <input
@@ -687,62 +787,52 @@ const settingsSections = [
             </div>
           </div>
 
-          <!-- ── Acciones ── -->
-          <div v-if="showAllSections || activeSection === 'actions'" class="section-panel" data-section="actions">
-            <h3 class="section-title">Acciones</h3>
-            <div class="actions-list">
-              <button v-if="isMobile" class="quick-action-btn" @click="emit('toggleVolume')">
-                <span class="qa-icon"><Icon :icon="systemMuted ? 'mdi:volume-mute' : 'mdi:volume-high'" /></span>
-                <span class="qa-text">
-                  <span class="qa-label">Control de Volumen</span>
-                  <span class="qa-desc">Ajusta el volumen del sistema</span>
-                </span>
-                <Icon icon="mdi:chevron-right" class="qa-chevron" />
-              </button>
-              <button v-if="isMobile" class="quick-action-btn" @click="emit('openMouse')">
-                <span class="qa-icon"><Icon icon="mdi:mouse" /></span>
-                <span class="qa-text">
-                  <span class="qa-label">Mouse &amp; Teclado</span>
-                  <span class="qa-desc">Controla tu PC a distancia</span>
-                </span>
-                <Icon icon="mdi:chevron-right" class="qa-chevron" />
-              </button>
-              <button class="quick-action-btn" @click="emit('reconnect')">
-                <span class="qa-icon"><Icon icon="mdi:refresh" /></span>
-                <span class="qa-text">
-                  <span class="qa-label">{{ isMobile || !isConnected ? 'Reconectar' : serverEnabled ? 'Desactivar Servidor' : 'Activar Servidor' }}</span>
-                  <span class="qa-desc">{{ isMobile || !isConnected ? 'Vuelve a conectar con el servidor' : serverEnabled ? 'Deja de recibir comandos temporalmente' : 'Vuelve a recibir comandos' }}</span>
-                </span>
-                <Icon icon="mdi:chevron-right" class="qa-chevron" />
-              </button>
-              <button class="quick-action-btn" @click="emit('reloadButtons')">
-                <span class="qa-icon"><Icon icon="mdi:reload" /></span>
-                <span class="qa-text">
-                  <span class="qa-label">Recargar Botones</span>
-                  <span class="qa-desc">Vuelve a traer los botones del servidor</span>
-                </span>
-                <Icon icon="mdi:chevron-right" class="qa-chevron" />
-              </button>
-              <button v-if="!isMobile" class="quick-action-btn danger" @click="emit('clearAll')">
-                <span class="qa-icon"><Icon icon="mdi:trash-can" /></span>
-                <span class="qa-text">
-                  <span class="qa-label">Limpiar Botones</span>
-                  <span class="qa-desc">Elimina todos los botones de la cuadrícula</span>
-                </span>
-                <Icon icon="mdi:chevron-right" class="qa-chevron" />
-              </button>
+          <!-- ── Tema (solo móvil) ── -->
+          <div
+            v-if="isMobileView && (showAllSections || activeSection === 'theme')"
+            class="section-panel"
+            data-section="theme"
+          >
+            <h3 class="section-title">Tema</h3>
+            <div class="form-group">
+              <label>Apariencia</label>
+              <div class="sound-toggle-row">
+                <button class="sound-toggle-btn" :class="{ active: !isDark }" @click="toggleTheme()">
+                  <Icon :icon="isDark ? 'mdi:weather-night' : 'mdi:white-balance-sunny'" />
+                  <span>{{ isDark ? 'Oscuro' : 'Claro' }}</span>
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Color de acento</label>
+              <div class="theme-swatch-row">
+                <button
+                  v-for="p in accentPresets"
+                  :key="p.name"
+                  type="button"
+                  class="theme-swatch"
+                  :class="{ active: currentAccent.accent === p.accent }"
+                  :style="{ '--sw': p.accent }"
+                  :title="p.name"
+                  @click="setAccent(p)"
+                ></button>
+              </div>
             </div>
           </div>
 
           <!-- ── Preferencias (Sonido) ── -->
-          <div v-if="showAllSections || activeSection === 'preferences'" class="section-panel" data-section="preferences">
+          <div
+            v-if="showAllSections || activeSection === 'preferences'"
+            class="section-panel"
+            data-section="preferences"
+          >
             <h3 class="section-title">Preferencias</h3>
 
             <div class="form-group">
               <label>Sonido al presionar</label>
               <div class="sound-toggle-row">
                 <button class="sound-toggle-btn" :class="{ active: buttonSoundEnabled }" @click="toggleSound()">
-                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <Icon :icon="buttonSoundEnabled ? 'mdi:volume-high' : 'mdi:volume-off'" />
                   <span>{{ buttonSoundEnabled ? 'Activado' : 'Desactivado' }}</span>
                 </button>
               </div>
@@ -757,6 +847,18 @@ const settingsSections = [
                 </button>
               </div>
               <small>Reproduce un sonido al presionar un botón</small>
+            </div>
+
+            <div v-if="!isMobile" class="form-group">
+              <label>Colores de los botones</label>
+              <button class="quick-action-btn" @click="emit('clearAll')">
+                <span class="qa-icon"><Icon icon="mdi:palette-outline" /></span>
+                <span class="qa-text">
+                  <span class="qa-label">Restablecer Colores</span>
+                  <span class="qa-desc">Vuelve todos los botones a un color estático</span>
+                </span>
+                <Icon icon="mdi:chevron-right" class="qa-chevron" />
+              </button>
             </div>
           </div>
 
@@ -784,6 +886,64 @@ const settingsSections = [
             <div v-if="isMobile" class="form-group">
               <p class="section-hint">La configuración de PIN solo está disponible desde el escritorio.</p>
             </div>
+
+            <!-- Zona avanzada: agrupa acciones delicadas (apagar el
+                 servidor, borrar datos) detrás de un acordeón. -->
+            <button
+              v-if="!isMobile"
+              type="button"
+              class="advanced-disclosure"
+              @click="showAdvanced = !showAdvanced"
+            >
+              <Icon icon="mdi:chevron-right" class="advanced-disclosure-chevron" :class="{ open: showAdvanced }" />
+              <span>{{ showAdvanced ? 'Ocultar' : 'Mostrar' }} opciones avanzadas</span>
+            </button>
+
+            <div v-if="!isMobile && showAdvanced" class="form-group advanced-zone">
+              <label><Icon icon="mdi:shield-alert-outline" style="vertical-align: -2px" /> Zona avanzada</label>
+
+              <button class="quick-action-btn" @click="emit('reconnect')">
+                <span class="qa-icon"><Icon icon="mdi:power" /></span>
+                <span class="qa-text">
+                  <span class="qa-label">{{ !isConnected ? 'Reconectar' : serverEnabled ? 'Desactivar Servidor' : 'Activar Servidor' }}</span>
+                  <span class="qa-desc">{{ !isConnected ? 'Vuelve a conectar con el servidor' : serverEnabled ? 'Deja de recibir comandos temporalmente' : 'Vuelve a recibir comandos' }}</span>
+                </span>
+                <Icon icon="mdi:chevron-right" class="qa-chevron" />
+              </button>
+
+              <p class="section-hint" style="margin: 14px 0 10px;">
+                Borra el caché de aplicaciones instaladas y los íconos extraídos de este equipo.
+                Se van a volver a escanear la próxima vez que los necesites. Esto no afecta tus botones configurados.
+              </p>
+              <button class="quick-action-btn danger" @click="startClearData">
+                <span class="qa-icon"><Icon icon="mdi:database-remove" /></span>
+                <span class="qa-text">
+                  <span class="qa-label">Borrar datos de esta PC</span>
+                  <span class="qa-desc">Caché de apps instaladas e íconos — pide PIN</span>
+                </span>
+                <Icon icon="mdi:chevron-right" class="qa-chevron" />
+              </button>
+
+              <div v-if="showDataPinPrompt" class="pin-change-form" style="margin-top: 10px;">
+                <input
+                  v-model="dataPinInput"
+                  type="tel"
+                  inputmode="numeric"
+                  maxlength="4"
+                  placeholder="PIN (4 dígitos)"
+                  class="server-input pin-input-small"
+                  autofocus
+                  @keyup.enter="verifyPinAndClearData"
+                />
+                <div class="pin-change-actions">
+                  <button @click="verifyPinAndClearData" :disabled="dataPinLoading" class="btn-pin-save">
+                    {{ dataPinLoading ? 'Verificando...' : 'Continuar' }}
+                  </button>
+                  <button @click="showDataPinPrompt = false; dataPinInput = ''; dataPinError = ''" class="btn-pin-cancel">Cancelar</button>
+                </div>
+                <p v-if="dataPinError" class="pin-error">{{ dataPinError }}</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -793,6 +953,17 @@ const settingsSections = [
         <button @click="save" class="btn-neon btn-save-always-purple btn-neon-primary btn-save">Guardar</button>
       </div>
   </PickerModal>
+
+  <TailwindConfirmDialog
+    :show="showClearDataDialog"
+    title="Borrar datos de esta PC"
+    message="Esto elimina el caché de aplicaciones instaladas y los íconos extraídos de este equipo. Se van a volver a escanear desde cero la próxima vez. Tus botones configurados NO se ven afectados."
+    :confirmLabel="clearingData ? 'Borrando...' : 'Borrar'"
+    cancelLabel="Cancelar"
+    @confirm="handleClearData"
+    @cancel="showClearDataDialog = false"
+    @close="showClearDataDialog = false"
+  />
 </template>
 
 <style scoped>
@@ -900,7 +1071,7 @@ const settingsSections = [
    =========================== */
 .settings-body {
   display: flex;
-  height: 460px;
+  height: 540px;
 }
 
 .settings-sidebar {
@@ -1239,12 +1410,68 @@ const settingsSections = [
   font-size: 0.85rem;
 }
 
-/* Acciones rápidas */
-.actions-list {
+/* Zona avanzada (oculta) */
+.advanced-disclosure {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
 }
+@media (hover: hover) {
+  .advanced-disclosure:hover { text-decoration: underline; }
+}
+.advanced-disclosure-chevron {
+  transition: transform 0.18s ease;
+}
+.advanced-disclosure-chevron.open {
+  transform: rotate(90deg);
+}
+.advanced-zone {
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, #ef4444 35%, transparent);
+  background: color-mix(in srgb, #ef4444 5%, transparent);
+}
+.advanced-zone > label {
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Tema (móvil) */
+.theme-swatch-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.theme-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--sw);
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--sw) 40%, transparent);
+}
+.theme-swatch.active {
+  border-color: #fff;
+  transform: scale(1.12);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--sw) 60%, transparent);
+}
+@media (hover: hover) {
+  .theme-swatch:hover:not(.active) { transform: scale(1.12); }
+}
+
+/* Acciones rápidas */
 .quick-action-btn {
   display: flex;
   align-items: center;
@@ -1373,7 +1600,7 @@ select#soundSelector option {
 .sound-toggle-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--field-border);
   border-radius: 10px;
@@ -1383,34 +1610,11 @@ select#soundSelector option {
   font-size: 0.9rem;
   transition: all 0.18s;
 }
-
-.toggle-track {
-  position: relative;
-  width: 40px;
-  height: 22px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 11px;
-  transition: background 0.2s;
-  display: inline-block;
-}
-
-.sound-toggle-btn.active .toggle-track {
-  background: #667eea;
-}
-
-.toggle-thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
-  background: white;
-  border-radius: 50%;
-  transition: transform 0.2s;
-}
-
-.sound-toggle-btn.active .toggle-thumb {
-  transform: translateX(18px);
+.sound-toggle-btn i { font-size: 1.05rem; }
+.sound-toggle-btn.active {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .sound-selector {
@@ -1690,10 +1894,6 @@ select#soundSelector option {
 [data-theme='light'] .sound-toggle-btn {
   background: rgba(0, 0, 0, 0.04);
   border-color: rgba(0, 0, 0, 0.1);
-}
-
-[data-theme='light'] .toggle-track {
-  background: rgba(0, 0, 0, 0.15);
 }
 
 [data-theme='light'] .settings-footer {

@@ -100,7 +100,7 @@ const selectApp = (app: InstalledApp) => {
 </script>
 
 <template>
-  <PickerModal :show="show" title="Aplicaciones Instaladas" :max-width="720" :height="580" @close="emit('close')">
+  <PickerModal :show="show" title="Aplicaciones Instaladas" :max-width="720" :height="650" @close="emit('close')">
       <template #header-actions>
         <div class="view-toggle">
           <button type="button" class="view-btn" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="Vista lista">

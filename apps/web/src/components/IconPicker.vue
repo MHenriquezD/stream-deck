@@ -453,7 +453,7 @@ const selectIcon = (icon: string) => { emit('select', icon) }
 </script>
 
 <template>
-  <PickerModal :show="show" title="Seleccionar Icono" :height="620" @close="emit('close')">
+  <PickerModal :show="show" title="Seleccionar Icono" :height="680" @close="emit('close')">
       <div class="picker-body">
         <nav class="picker-sidebar">
           <button type="button" class="sidebar-item" :class="{ active: activeIconCategory === null }" @click="activeIconCategory = null">

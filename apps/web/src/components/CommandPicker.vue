@@ -116,7 +116,7 @@ const selectCommand = (command: string) => {
 </script>
 
 <template>
-  <PickerModal :show="show" title="Seleccionar Comando" :max-width="820" :height="580" @close="emit('close')">
+  <PickerModal :show="show" title="Seleccionar Comando" :max-width="820" :height="650" @close="emit('close')">
       <div class="picker-body">
         <nav class="picker-sidebar">
           <button

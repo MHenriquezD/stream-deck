@@ -323,7 +323,7 @@ const handleIconInputBlur = () => {
     :show="showEditor"
     :title="button ? 'Editar Botón' : 'Nuevo Botón'"
     :max-width="720"
-    :height="620"
+    :height="680"
     mobile-fullscreen
     @close="handleClose"
   >
