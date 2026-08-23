@@ -65,6 +65,11 @@ export class CommandController {
     return this.service.getInstalledApps(true);
   }
 
+  @Delete('collected-data')
+  clearCollectedData() {
+    return this.service.clearCollectedData();
+  }
+
   @Get('network-info')
   getNetworkInfo() {
     const nets = networkInterfaces();

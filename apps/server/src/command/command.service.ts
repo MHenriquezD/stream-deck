@@ -909,6 +909,24 @@ if ($unique.Count -gt 0) {
     return { hasCache: false };
   }
 
+  /**
+   * Borra los datos recolectados de esta PC: el caché de aplicaciones
+   * instaladas y los íconos extraídos. No toca los botones configurados
+   * por el usuario (commands.json). La próxima vez que se pida la lista de
+   * apps, se vuelve a escanear desde cero.
+   */
+  clearCollectedData(): { success: boolean } {
+    try {
+      if (fs.existsSync(this.appsCache)) fs.unlinkSync(this.appsCache);
+      if (fs.existsSync(this.iconsDir)) {
+        fs.rmSync(this.iconsDir, { recursive: true, force: true });
+      }
+      return { success: true };
+    } catch {
+      return { success: false };
+    }
+  }
+
   private async execPowerShellScript(script: string): Promise<string> {
     return new Promise((resolve, reject) => {
       exec(
