@@ -1,5 +1,9 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { Capacitor } from '@capacitor/core'
+// Import estático: useExternalLinks.ts ya lo importa así, por lo que este
+// dynamic import() nunca se pudo separar en su propio chunk igual (Vite
+// avisaba de esto en cada build) — no se pierde code-splitting real.
+import { Browser } from '@capacitor/browser'
 
 const CLIENT_ID = '9892ad5321dd410ca237dbd24a4673bc'
 const isNative = Capacitor.isNativePlatform()
@@ -86,7 +90,6 @@ async function login() {
       cleanupAuthState()
     }
   } else if (isNative) {
-    const { Browser } = await import('@capacitor/browser')
     const { App } = await import('@capacitor/app')
 
     let timeoutId: ReturnType<typeof setTimeout>
