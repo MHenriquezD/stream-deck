@@ -3,14 +3,12 @@ import * as path from 'path';
 import { JsonStore } from '../common/json-store';
 
 export interface AppSettings {
-  gridSize: number;
   serverEnabled: boolean;
   buttonSound: boolean;
   buttonSoundFile: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
-  gridSize: 12,
   serverEnabled: true,
   buttonSound: true,
   buttonSoundFile: 'key-click.wav',
@@ -28,14 +26,6 @@ export class SettingsService {
       {},
     );
     return { ...DEFAULT_SETTINGS, ...data };
-  }
-
-  async getGridSize(): Promise<number> {
-    return (await this.getAll()).gridSize;
-  }
-
-  async setGridSize(gridSize: number): Promise<void> {
-    await this.patch({ gridSize });
   }
 
   async isServerEnabled(): Promise<boolean> {

@@ -107,12 +107,6 @@ export class CommandController {
     return this.settingsService.getAll();
   }
 
-  @Post('settings/grid-size')
-  async setGridSize(@Body() body: { gridSize: number }) {
-    await this.settingsService.setGridSize(body.gridSize);
-    return { success: true, gridSize: body.gridSize };
-  }
-
   @Post('settings/button-sound')
   async setButtonSound(@Body() body: { enabled: boolean; file?: string }) {
     if (typeof body.enabled === 'boolean') {

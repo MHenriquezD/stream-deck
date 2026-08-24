@@ -21,11 +21,6 @@ export interface ButtonAction {
   metadata?: Record<string, any>
 }
 
-export interface StreamDeckConfig {
-  buttons: StreamButton[]
-  gridSize: { rows: number; cols: number }
-}
-
 export interface CommandResponse {
   success: boolean
   output?: string
@@ -43,7 +38,6 @@ export interface ExecuteResponse {
 
 /** Ajustes de la app persistidos en el servidor. */
 export interface AppSettings {
-  gridSize: number
   serverEnabled: boolean
   buttonSound: boolean
   buttonSoundFile: string

@@ -145,15 +145,6 @@ export class CommandGateway
     return await this.settingsService.getAll();
   }
 
-  // ─── Actualizar gridSize (y notificar a todos) ───
-  @SubscribeMessage('settings:gridSize')
-  async handleSetGridSize(@MessageBody() data: { gridSize: number }) {
-    await this.settingsService.setGridSize(data.gridSize);
-    // Notificar a TODOS los clientes conectados
-    this.server.emit('settings:gridSizeChanged', { gridSize: data.gridSize });
-    return { success: true };
-  }
-
   // ─── Actualizar sonido (y notificar a todos) ───
   @SubscribeMessage('settings:buttonSound')
   async handleSetButtonSound(

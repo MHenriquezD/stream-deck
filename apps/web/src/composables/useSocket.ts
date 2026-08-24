@@ -122,7 +122,6 @@ export function useSocket() {
   /** Obtener settings */
   const getSettings = (): Promise<AppSettings> => {
     return emitWithAck<AppSettings>('settings:get', {}, {
-      gridSize: 12,
       serverEnabled: true,
       buttonSound: true,
       buttonSoundFile: 'key-click.wav',
