@@ -395,7 +395,7 @@ const handleIconInputBlur = () => {
                   </label>
                 </div>
 
-                <label class="card-label" style="margin-top: 14px;">Color de texto</label>
+                <label class="card-label stacked">Color de texto</label>
                 <div class="swatch-row">
                   <button
                     v-for="c in ['#ffffff', '#e2e8f0', '#94a3b8', '#000000']"
@@ -499,7 +499,7 @@ const handleIconInputBlur = () => {
                   </button>
                 </div>
 
-                <label class="card-label" style="margin-top: 14px;">
+                <label class="card-label stacked">
                   {{ formData.actionType === 'COMMAND' ? 'Comando' : formData.actionType === 'HOTKEY' ? 'Atajo (Ej: Ctrl+C)' : formData.actionType === 'OPEN_APP' ? 'Ruta de la App' : 'URL' }}
                 </label>
 
@@ -724,12 +724,16 @@ const handleIconInputBlur = () => {
 .preview-label { font-weight: 600; font-size: 0.85rem; text-align: center; opacity: 0.95; }
 
 /* ── CARDS ── */
+/* Ley de proximidad: la distancia de una etiqueta a SU campo (8px) tiene que
+   ser claramente menor que la que separa grupos distintos (22px) y tarjetas
+   (20px). Antes eran 10/14/12 — casi iguales, así que no se leía qué
+   etiqueta pertenecía a qué campo. */
 .card {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 16px;
   padding: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 20px;
 }
 
 .card-label {
@@ -739,7 +743,12 @@ const handleIconInputBlur = () => {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-2);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+}
+
+/** Etiqueta que abre un grupo nuevo dentro de la misma tarjeta. */
+.card-label.stacked {
+  margin-top: 22px;
 }
 
 /* ── FIELDS ── */

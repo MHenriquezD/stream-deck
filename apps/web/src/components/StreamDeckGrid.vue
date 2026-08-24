@@ -420,7 +420,17 @@ onMounted(async () => {
     buttons.value.clear()
   })
 
-  // Comprobar serverEnabled antes de cargar botones
+  // Con la pantalla de PIN arriba todavía no hay token válido: pedir aquí
+  // los endpoints protegidos solo llenaba la consola de 401. Se espera al
+  // desbloqueo (ver el watch de showMobilePinLock más abajo).
+  if (!showMobilePinLock.value) await loadInitialData()
+
+  // Check PIN status for settings gate (desktop uses this)
+  await checkPinStatus()
+})
+
+/** Trae settings + botones. Requiere estar ya autenticado si hay PIN. */
+const loadInitialData = async () => {
   try {
     const initRes = await fetch(`${API_URL.value}/command/settings`, {
       headers: { ...getAuthHeaders() },
@@ -444,9 +454,12 @@ onMounted(async () => {
   } else {
     connectionStatus.value = 'disconnected'
   }
+}
 
-  // Check PIN status for settings gate (desktop uses this)
-  await checkPinStatus()
+// Al desbloquear (PIN o biometría) ya hay token: recién ahí se cargan los
+// datos que quedaron pendientes durante el arranque.
+watch(showMobilePinLock, (locked, wasLocked) => {
+  if (wasLocked && !locked) void loadInitialData()
 })
 
 onUnmounted(() => {
@@ -600,7 +613,6 @@ const cleanupAndReset = async () => {
   serverUrlStore.setServerUrl('')
   localStorage.removeItem('serverUrl')
   localStorage.removeItem('qrCodeUrl')
-  localStorage.removeItem('gridSize')
   socketDisconnect()
   connectionStatus.value = 'disconnected'
   buttons.value.clear()
@@ -1382,6 +1394,14 @@ async function handleServerUnreachableClean() {
 .connection-status.disconnected { color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
 .connection-status.connecting { color: #fbbf24; border-color: rgba(251, 191, 36, 0.2); }
 
+/* Los tonos claros del tema oscuro (verde 1.6:1, ámbar 1.5:1 sobre #f5f5f5)
+   no llegaban ni de cerca al 4.5:1 que pide WCAG AA para texto normal.
+   Estas variantes oscuras sí: 4.60, 5.93 y 4.61 respectivamente. El punto
+   de color conserva el tono vivo — es decorativo, no texto. */
+[data-theme='light'] .connection-status.connected { color: #15803d; }
+[data-theme='light'] .connection-status.disconnected { color: #b91c1c; }
+[data-theme='light'] .connection-status.connecting { color: #b45309; }
+
 .status-dot {
   width: 8px;
   height: 8px;
@@ -1749,7 +1769,9 @@ async function handleServerUnreachableClean() {
   border-radius: 50%;
   border: none;
   padding: 0;
-  background: color-mix(in srgb, var(--text-2) 40%, transparent);
+  /* 40% daba 2.4:1 en oscuro y 1.6:1 en claro — por debajo del 3:1 que pide
+     WCAG para elementos de interfaz. Al 55% quedan en 6.3 y 4.7. */
+  background: color-mix(in srgb, var(--text-2) 55%, transparent);
   cursor: pointer;
   transition: all 0.2s;
 }
