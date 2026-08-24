@@ -19,6 +19,30 @@ const DEFAULT_PAGE_COLS = 4
 const DEFAULT_PAGE_ROWS = 3
 
 /**
+ * Ancho de rejilla con el que se GUARDAN las posiciones, siempre, sin
+ * importar cuántas columnas muestre el dispositivo.
+ *
+ * Antes cada cliente guardaba `position` en términos de SUS columnas (4 en
+ * desktop, 2 en móvil vertical) y al abrir "corregía" el layout del otro y
+ * lo volvía a guardar: abrir el móvil reorganizaba el desktop a dos
+ * columnas, recargar el desktop colapsaba tres páginas del móvil en una.
+ * Con un ancho canónico fijo, `position` es solo una forma de codificar el
+ * orden lineal de los botones: cada dispositivo lo reparte en su propia
+ * rejilla al renderizar y nadie reescribe nada al abrir.
+ */
+const CANONICAL_COLS = 4
+
+/** Orden lineal del botón (independiente del dispositivo). */
+const toIndex = (pos: GridPosition): number =>
+  pos.row * CANONICAL_COLS + pos.col
+
+/** Posición canónica que corresponde a un orden lineal. */
+const fromIndex = (index: number): GridPosition => ({
+  row: Math.floor(index / CANONICAL_COLS),
+  col: index % CANONICAL_COLS,
+})
+
+/**
  * Estado central del stream deck: el mapa de botones, la paginación y la
  * persistencia (carga/guardado vía socket o HTTP). Concentra aquí la única
  * fuente de verdad de los botones para que el componente y el drag & drop
@@ -48,114 +72,133 @@ export function useButtons({ serverEnabled }: UseButtonsOptions) {
   // ── Paginación ──
   const currentPage = ref(0)
 
-  const maxOccupiedRow = computed(() => {
+  /** Mayor orden lineal ocupado (-1 si no hay botones). */
+  const maxOccupiedIndex = computed(() => {
     let max = -1
     buttons.value.forEach((b) => {
-      if (b.position.row > max) max = b.position.row
+      const idx = toIndex(b.position)
+      if (idx > max) max = idx
     })
     return max
   })
 
-  /** Última página con contenido, más una página extra vacía si esa está llena. */
+  /**
+   * Cuántas páginas del dispositivo caben en un "bloque" canónico (las
+   * `gridRows` filas completas de 4 columnas). En desktop es 1: la página
+   * muestra el bloque entero. En móvil vertical (2 columnas) son 2: cada
+   * página es una mitad vertical del bloque.
+   */
+  const slicesPerBlock = computed(() =>
+    Math.max(1, Math.round(CANONICAL_COLS / gridCols.value)),
+  )
+
+  /** Última página con contenido, más una extra vacía si esa está llena. */
   const totalPages = computed(() => {
-    const rows = gridRows.value
-    const pageSize = rows * gridCols.value
-    if (maxOccupiedRow.value < 0) return 1
-    const lastPage = Math.floor(maxOccupiedRow.value / rows)
-    const startRow = lastPage * rows
-    let countInLastPage = 0
+    const slices = slicesPerBlock.value
+    if (maxOccupiedIndex.value < 0) return slices
+
+    const blockCapacity = gridRows.value * CANONICAL_COLS
+    let blocks = Math.floor(maxOccupiedIndex.value / blockCapacity) + 1
+
+    const start = (blocks - 1) * blockCapacity
+    let countInLastBlock = 0
     buttons.value.forEach((b) => {
-      if (b.position.row >= startRow && b.position.row < startRow + rows) {
-        countInLastPage++
-      }
+      const idx = toIndex(b.position)
+      if (idx >= start && idx < start + blockCapacity) countInLastBlock++
     })
-    return countInLastPage >= pageSize ? lastPage + 2 : lastPage + 1
+    if (countInLastBlock >= blockCapacity) blocks++
+
+    return blocks * slices
   })
 
   const goToPage = (page: number) => {
     currentPage.value = Math.max(0, Math.min(page, totalPages.value - 1))
   }
 
-  const gridItems = computed(() => {
-    const items: Array<GridPosition & { button: StreamButton | null }> = []
+  /**
+   * Posiciones canónicas que muestra una página del dispositivo.
+   *
+   * En vez de partir la lista en trozos lineales, cada página móvil es una
+   * MITAD VERTICAL del bloque canónico, para que un botón conserve su lugar
+   * relativo entre dispositivos: el que en desktop está arriba a la
+   * izquierda sigue estando arriba a la izquierda en la página 1 del móvil.
+   *
+   *   desktop (1 página)        móvil (2 páginas)
+   *    0  1 |  2  3              0  1     2  3
+   *    4  5 |  6  7      →       4  5     6  7
+   *    8  9 | 10 11              8  9    10 11
+   *                              pág 1   pág 2
+   */
+  const pagePositions = (page: number): GridPosition[] => {
     const rows = gridRows.value
     const cols = gridCols.value
-    const baseRow = currentPage.value * rows
-    const values = Array.from(buttons.value.values())
+    const slices = slicesPerBlock.value
+    const baseRow = Math.floor(page / slices) * rows
+    const baseCol = (page % slices) * cols
+
+    const positions: GridPosition[] = []
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        const row = baseRow + r
-        const button =
-          values.find((b) => b.position.row === row && b.position.col === c) ||
-          null
-        items.push({ row, col: c, button })
+        positions.push({ row: baseRow + r, col: baseCol + c })
       }
     }
-    return items
+    return positions
+  }
+
+  /**
+   * Celdas visibles de la página actual. El `row`/`col` de cada celda es la
+   * posición CANÓNICA (la que se guarda); dónde se dibuja lo decide el orden
+   * en que salen aquí, porque el CSS grid las coloca en secuencia según las
+   * columnas del dispositivo.
+   */
+  const gridItems = computed(() => {
+    const byIndex = new Map<number, StreamButton>()
+    buttons.value.forEach((b) => byIndex.set(toIndex(b.position), b))
+
+    return pagePositions(currentPage.value).map((pos) => ({
+      ...pos,
+      button: byIndex.get(toIndex(pos)) ?? null,
+    }))
   })
 
   /**
-   * Reacomoda todos los botones en orden lineal (fila por fila) usando el
-   * número de columnas ANTERIOR para leer su orden y el NUEVO para
-   * reasignar posiciones. Se usa tanto para migrar datos de una versión
-   * anterior con grid de ancho variable, como para adaptar el tamaño de
-   * página cuando cambia (ej. al rotar el teléfono o cambiar de pantalla).
+   * Normaliza datos de una versión anterior que guardaba con rejillas más
+   * anchas (8/12/16/24/32 → hasta 8 columnas) al ancho canónico actual,
+   * preservando el orden de lectura original.
+   *
+   * La condición depende SOLO de `CANONICAL_COLS`, nunca de las columnas
+   * que muestra este dispositivo: así todos los clientes coinciden en si
+   * hay que migrar o no. Cuando dependía del ancho local, cada dispositivo
+   * "corregía" el layout del otro en bucle.
    */
-  const reflowToColumns = (oldCols: number, newCols: number) => {
-    if (oldCols === newCols) return
+  const migrateLegacyPositions = () => {
     const values = Array.from(buttons.value.values())
+    if (values.length === 0) return
+    const maxCol = values.reduce((m, b) => Math.max(m, b.position.col), 0)
+    if (maxCol < CANONICAL_COLS) return // ya está en formato canónico
+
+    const legacyCols = maxCol + 1
     const ordered = values.sort(
       (a, b) =>
-        a.position.row * oldCols + a.position.col -
-        (b.position.row * oldCols + b.position.col),
+        a.position.row * legacyCols + a.position.col -
+        (b.position.row * legacyCols + b.position.col),
     )
     ordered.forEach((button, index) => {
-      button.position = {
-        row: Math.floor(index / newCols),
-        col: index % newCols,
-      }
+      button.position = fromIndex(index)
       buttons.value.set(button.id, button)
     })
     void saveButtons()
   }
 
   /**
-   * Reacomoda posiciones guardadas con un ancho de columnas distinto al
-   * actual — tanto datos de una versión anterior con grid más ancho como
-   * datos guardados en el modo compacto de móvil (2 columnas) que en
-   * desktop (4) quedarían apretados a la izquierda.
-   *
-   * Solo se ejecuta UNA vez por sesión: dos clientes con distinto número de
-   * columnas conectados a la vez se "corregían" mutuamente el layout al
-   * recibir cada actualización del otro, guardando en bucle infinito. Con
-   * el flag basta para acomodar los datos al abrir, sin volver a disparar
-   * en cada sincronización posterior.
-   */
-  let didMigratePositions = false
-  const migrateLegacyPositions = () => {
-    if (didMigratePositions) return
-    const values = Array.from(buttons.value.values())
-    if (values.length === 0) return
-    didMigratePositions = true
-    const maxCol = values.reduce((m, b) => Math.max(m, b.position.col), 0)
-    const inferredCols = maxCol + 1
-    if (inferredCols === gridCols.value) return
-    reflowToColumns(inferredCols, gridCols.value)
-  }
-
-  /**
-   * Cambia el tamaño de página (columnas x filas) — ej. 4x3=12 en desktop,
-   * 2x3=6 en móvil vertical — y reacomoda los botones existentes si el
-   * número de columnas cambió. No hace nada si las dimensiones son iguales.
+   * Cambia el tamaño de página que MUESTRA este dispositivo (ej. 4x3=12 en
+   * desktop, 2x3=6 en móvil vertical). No toca los datos: las posiciones
+   * son canónicas y solo cambia cómo se reparten en pantalla.
    */
   const setPageDimensions = (cols: number, rows: number) => {
     if (gridCols.value === cols && gridRows.value === rows) return
-    const oldCols = gridCols.value
     gridCols.value = cols
     gridRows.value = rows
-    reflowToColumns(oldCols, cols)
-    // Reflow ya persiste vía saveButtons() si hubo cambios; currentPage
-    // puede quedar fuera de rango si el total de páginas se redujo.
     currentPage.value = Math.max(0, Math.min(currentPage.value, totalPages.value - 1))
   }
 
@@ -207,19 +250,14 @@ export function useButtons({ serverEnabled }: UseButtonsOptions) {
    * origen queda vacía. Devuelve false si la página destino está llena.
    */
   const moveButtonToPage = (button: StreamButton, page: number): boolean => {
-    const rows = gridRows.value
-    const cols = gridCols.value
-    const startRow = page * rows
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const row = startRow + r
-        if (row === button.position.row && c === button.position.col) continue
-        if (!getButtonAt({ row, col: c })) {
-          button.position = { row, col: c }
-          buttons.value.set(button.id, button)
-          void saveButtons()
-          return true
-        }
+    const currentIndex = toIndex(button.position)
+    for (const pos of pagePositions(page)) {
+      if (toIndex(pos) === currentIndex) continue
+      if (!getButtonAt(pos)) {
+        button.position = pos
+        buttons.value.set(button.id, button)
+        void saveButtons()
+        return true
       }
     }
     return false
@@ -243,10 +281,9 @@ export function useButtons({ serverEnabled }: UseButtonsOptions) {
           type: actionType,
           payload: cmd.payload,
         },
-        position: cmd.position || {
-          row: Math.floor(index / gridCols.value),
-          col: index % gridCols.value,
-        },
+        // Sin posición guardada, se coloca según su orden en la lista — en
+        // formato canónico, no según las columnas de este dispositivo.
+        position: cmd.position || fromIndex(index),
       }
 
       if (button.position.row >= 0 && button.position.col >= 0) {

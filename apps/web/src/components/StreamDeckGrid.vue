@@ -117,6 +117,13 @@ const props = defineProps<{
 
 const showEditor = ref(false)
 const showSettings = ref(false)
+/**
+ * Modo edición del grid: fuera de él un toque solo ejecuta; dentro, se
+ * reordena arrastrando y se edita tocando. Sin esta separación, los tres
+ * gestos convivían sobre el mismo elemento y la ambigüedad causaba bugs
+ * imposibles de reproducir a ciegas en móvil.
+ */
+const isEditMode = ref(false)
 const editingButton = ref<ButtonType | null>(null)
 const editingPosition = ref({ row: 0, col: 0 })
 const isExecuting = ref<string | null>(null)
@@ -211,11 +218,7 @@ const {
   draggedButton,
   touchDragButton,
   isPressing,
-  handleDragStart,
-  handleDragEnd,
-  handleDragOver,
-  handleDragLeave,
-  handleDrop,
+  handleMouseDown,
   isDragging,
   isDragOver,
   handleTouchStart,
@@ -226,9 +229,11 @@ const {
   isTouchDragOver,
   isTouchOverPage,
   ignoreClickUntil,
+  touchDragOffset,
 } = useDragAndDrop({
   swapButtons,
   moveButtonToPage,
+  isEditMode,
   onMouseDrop: () => {
     toast.removeAllGroups()
     toast.add({
@@ -280,25 +285,6 @@ const resolvePageSwipe = () => {
   else if (dx < -SWIPE_THRESHOLD) goToPage(currentPage.value + 1)
 }
 
-/** Página resaltada mientras se arrastra un botón con mouse sobre su dot. */
-const dragOverPageIndex = ref<number | null>(null)
-
-/** Soltar un botón (drag con mouse) sobre el punto de otra página lo mueve ahí. */
-const handleDropOnPage = (page: number) => {
-  const source = draggedButton.value
-  handleDragEnd()
-  if (!source) return
-  if (moveButtonToPage(source, page)) {
-    toast.removeAllGroups()
-    toast.add({
-      severity: 'success',
-      summary: 'Botón movido',
-      detail: `Se movió a la página ${page + 1}`,
-      life: 2000,
-    })
-  }
-}
-
 // ── Paginación: arrastre con mouse (desktop) sobre el fondo del grid ──
 const isMouseSwiping = ref(false)
 let mouseSwipeStartX = 0
@@ -342,6 +328,9 @@ onMounted(async () => {
 
   const handleResize = () => {
     isMobileView.value = window.innerWidth <= 850
+    // El modo edición solo existe en táctil; si se pasa a desktop hay que
+    // salir de él o el botón para desactivarlo desaparece con el modo activo.
+    if (!isMobileView.value) isEditMode.value = false
     updatePageDimensions()
   }
   window.addEventListener('resize', handleResize)
@@ -646,10 +635,13 @@ const setButtonStatus = (id: string, status: 'success' | 'error') => {
 const handleButtonClick = async (button: ButtonType | null) => {
   if (!button) return
 
+  // En modo edición no se ejecuta nada: ahí solo se reorganiza.
+  if (isEditMode.value) return
+
   // No ejecutar si se está arrastrando en mobile
   if (touchDragButton.value) return
   // Ni si es el "click" fantasma que el navegador dispara solo después de
-  // un long-press/arrastre (ver handleTouchEnd en useDragAndDrop).
+  // un gesto de edición (ver handleTouchEnd en useDragAndDrop).
   if (Date.now() < ignoreClickUntil.value) return
 
   // Reproducir sonido de tecla + feedback háptico en móvil
@@ -853,17 +845,43 @@ async function handleServerUnreachableClean() {
           width="150"
           class="logo"
         />
-        <div class="connection-status" :class="connectionStatus">
-          <span class="status-dot"></span>
-          <span class="status-text">
-            {{
-              connectionStatus === 'connected'
-                ? 'Conectado'
-                : connectionStatus === 'connecting'
-                  ? 'Conectando...'
-                  : 'Desconectado'
-            }}
-          </span>
+        <!-- El chip de conexión va flanqueado por volumen (izquierda) y
+             editar cuadrícula (derecha), en vez de apilar más FABs. -->
+        <div class="status-row">
+          <button
+            v-if="isMobileView && (pinConfigured || isMobile)"
+            class="status-side-btn"
+            title="Control de volumen"
+            aria-label="Control de volumen"
+            @click="toggleVolumeSlider"
+          >
+            <Icon :icon="systemMuted ? 'mdi:volume-mute' : 'mdi:volume-high'" />
+          </button>
+
+          <div class="connection-status" :class="connectionStatus">
+            <span class="status-dot"></span>
+            <span class="status-text">
+              {{
+                connectionStatus === 'connected'
+                  ? 'Conectado'
+                  : connectionStatus === 'connecting'
+                    ? 'Conectando...'
+                    : 'Desconectado'
+              }}
+            </span>
+          </div>
+
+          <button
+            v-if="isMobileView && (pinConfigured || isMobile)"
+            class="status-side-btn"
+            :class="{ 'is-editing': isEditMode }"
+            :title="isEditMode ? 'Salir del modo edición' : 'Editar cuadrícula'"
+            :aria-label="isEditMode ? 'Salir del modo edición' : 'Editar cuadrícula'"
+            :aria-pressed="isEditMode"
+            @click="isEditMode = !isEditMode"
+          >
+            <Icon :icon="isEditMode ? 'mdi:check' : 'mdi:pencil'" />
+          </button>
         </div>
       </div>
       <!-- Volume slider panel (floating overlay) -->
@@ -890,9 +908,8 @@ async function handleServerUnreachableClean() {
       </Transition>
     </div>
 
-    <!-- Floating settings button (top-left): abre Configuración, donde
-         viven Reconectar/Recargar/Limpiar. En móvil, Volumen y Mouse se
-         muestran aparte, apilados debajo, por ser de uso más frecuente. -->
+    <!-- Floating settings button (top-left). Volumen y Editar viven junto al
+         chip de conexión; aquí solo quedan Configuración y Mouse. -->
     <div class="actions-fab-container">
       <button
         class="actions-fab"
@@ -901,15 +918,6 @@ async function handleServerUnreachableClean() {
         @click="openSettings"
       >
         <Icon icon="mdi:cog" />
-      </button>
-      <button
-        v-if="isMobile"
-        class="actions-fab actions-fab-sm"
-        title="Control de volumen"
-        aria-label="Control de volumen"
-        @click="toggleVolumeSlider"
-      >
-        <Icon :icon="systemMuted ? 'mdi:volume-mute' : 'mdi:volume-high'" />
       </button>
       <button
         v-if="isMobile"
@@ -974,6 +982,16 @@ async function handleServerUnreachableClean() {
         <SpotifyPlayer />
       </div>
 
+      <Transition name="edit-bar">
+        <div v-if="isEditMode" class="edit-bar">
+          <Icon icon="mdi:cursor-move" />
+          <span>Arrastra los botones para reordenarlos</span>
+          <button type="button" class="edit-bar-done" @click="isEditMode = false">
+            Listo
+          </button>
+        </div>
+      </Transition>
+
       <!-- Sin conexión: no mostrar el grid con celdas "Agregar" vacías, ya
            que da la impresión de que se perdieron los botones. -->
       <div v-if="connectionStatus === 'disconnected'" class="grid-disconnected">
@@ -986,7 +1004,11 @@ async function handleServerUnreachableClean() {
       <div
         v-else
         class="grid-viewport"
-        :class="{ 'grid-reloading': isReloadingGrid, 'grid-swiping': isMouseSwiping }"
+        :class="{
+          'grid-reloading': isReloadingGrid,
+          'grid-swiping': isMouseSwiping,
+          'grid-editing': isEditMode,
+        }"
         @touchstart="handlePageSwipeTouchStart($event)"
         @touchmove="handleTouchMove($event); handlePageSwipeTouchMove($event)"
         @touchend="handleTouchEnd($event); resolvePageSwipe()"
@@ -1007,48 +1029,60 @@ async function handleServerUnreachableClean() {
               transition: (isMouseSwiping || pageSwipeStartX !== null) ? 'none' : undefined,
             }"
           >
-            <div
-              v-for="item in gridItems"
-              :key="`${item.row}-${item.col}`"
-              class="grid-item"
-              :class="{
-                executing: isExecuting === item.button?.id,
-                'is-pressing': isPressing === item.button?.id,
-                'touch-dragging': isTouchDragging(item.button),
-                'touch-drag-over': isTouchDragOver({
-                  row: item.row,
-                  col: item.col,
-                }),
-              }"
-              :data-grid-row="item.row"
-              :data-grid-col="item.col"
-              @touchstart="
-                handleTouchStart(
-                  item.button,
-                  { row: item.row, col: item.col },
-                  $event,
-                )
-              "
-            >
-              <StreamButton
-                :button="item.button"
-                :isEmpty="!item.button"
-                :isDragging="isDragging(item.button)"
-                :isDragOver="isDragOver({ row: item.row, col: item.col })"
-                :isSelected="false"
-                :status="item.button ? buttonStatus[item.button.id] : undefined"
-                :isLoading="isLoadingButtons && !item.button"
-                @click="handleButtonClick(item.button)"
-                @edit="
-                  handleButtonEdit(item.button, { row: item.row, col: item.col })
+            <!-- Keyed por id de botón (no por posición) para que al
+                 intercambiar dos botones Vue mueva los nodos y anime el
+                 reacomodo con FLIP en vez de saltar de golpe. -->
+            <TransitionGroup name="swap">
+              <div
+                v-for="item in gridItems"
+                :key="item.button ? `b-${item.button.id}` : `e-${item.row}-${item.col}`"
+                class="grid-item"
+                :class="{
+                  executing: isExecuting === item.button?.id,
+                  'is-pressing': isPressing === item.button?.id,
+                  'touch-dragging': isTouchDragging(item.button),
+                  'touch-drag-over': isTouchDragOver({
+                    row: item.row,
+                    col: item.col,
+                  }),
+                }"
+                :data-grid-row="item.row"
+                :data-grid-col="item.col"
+                :style="
+                  isTouchDragging(item.button)
+                    ? { '--drag-x': touchDragOffset.x + 'px', '--drag-y': touchDragOffset.y + 'px' }
+                    : undefined
                 "
-                @dragstart="handleDragStart(item.button)"
-                @dragend="handleDragEnd"
-                @dragover="handleDragOver({ row: item.row, col: item.col })"
-                @dragleave="handleDragLeave"
-                @drop="handleDrop({ row: item.row, col: item.col })"
-              />
-            </div>
+                @touchstart="
+                  handleTouchStart(
+                    item.button,
+                    { row: item.row, col: item.col },
+                    $event,
+                  )
+                "
+                @mousedown="
+                  handleMouseDown(
+                    item.button,
+                    { row: item.row, col: item.col },
+                    $event,
+                  )
+                "
+              >
+                <StreamButton
+                  :button="item.button"
+                  :isEmpty="!item.button"
+                  :isDragging="isDragging(item.button)"
+                  :isDragOver="isDragOver({ row: item.row, col: item.col })"
+                  :isSelected="false"
+                  :status="item.button ? buttonStatus[item.button.id] : undefined"
+                  :isLoading="isLoadingButtons && !item.button"
+                  @click="handleButtonClick(item.button)"
+                  @edit="
+                    handleButtonEdit(item.button, { row: item.row, col: item.col })
+                  "
+                />
+              </div>
+            </TransitionGroup>
           </div>
         </Transition>
       </div>
@@ -1072,14 +1106,11 @@ async function handleServerUnreachableClean() {
             class="page-dot"
             :class="{
               active: currentPage === p - 1,
-              'drop-target': isTouchOverPage(p - 1) || (draggedButton && dragOverPageIndex === p - 1),
+              'drop-target': isTouchOverPage(p - 1),
             }"
             :data-page-dot="p - 1"
             :aria-label="`Ir a la página ${p}`"
             @click="goToPage(p - 1)"
-            @dragover.prevent="dragOverPageIndex = p - 1"
-            @dragleave="dragOverPageIndex = null"
-            @drop.prevent="handleDropOnPage(p - 1); dragOverPageIndex = null"
           />
         </div>
         <button
@@ -1296,6 +1327,46 @@ async function handleServerUnreachableClean() {
 @media (max-width: 640px) {
   .header { gap: 14px; margin-bottom: 18px; padding-bottom: 14px; }
   .header h1 { font-size: 1.5rem !important; }
+}
+
+/* Fila del chip de conexión con sus botones laterales (volumen / editar) */
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-side-btn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  color: var(--text-1);
+  font-size: 1.05rem;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.status-side-btn:active { transform: scale(0.9); }
+@media (hover: hover) {
+  .status-side-btn:hover {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+}
+.status-side-btn.is-editing {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+[data-theme='light'] .status-side-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.12);
 }
 
 .connection-status {
@@ -1555,6 +1626,78 @@ async function handleServerUnreachableClean() {
   justify-items: center;
 }
 
+/* Reacomodo animado al intercambiar botones (FLIP de TransitionGroup).
+   El que se está arrastrando queda excluido: su transform lo controla el
+   puntero y una transición aquí lo dejaría siempre atrasado. */
+.grid-item.swap-move:not(.touch-dragging) {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Modo edición: guías de cuadrícula ──
+   El grid cambia de aspecto para dejar claro que se está editando: fondo
+   atenuado, celdas marcadas con borde punteado y botones elevados. Sin
+   esto el arrastre era un gesto invisible que había que adivinar. */
+.grid-viewport.grid-editing {
+  background: color-mix(in srgb, var(--accent) 3%, rgba(0, 0, 0, 0.25));
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow:
+    inset 0 0 40px rgba(0, 0, 0, 0.35),
+    0 0 30px -8px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* Celda punteada detrás de cada posición del grid */
+.grid-editing .grid-item {
+  border-radius: 18px;
+  outline: 1px dashed color-mix(in srgb, var(--accent) 35%, transparent);
+  outline-offset: 6px;
+  cursor: grab;
+}
+.grid-editing .grid-item:active {
+  cursor: grabbing;
+}
+/* Botón elevado, para que se lea como "despegado" y movible */
+.grid-editing .grid-item :deep(.stream-button) {
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.5),
+    0 0 0 1px color-mix(in srgb, var(--glow, transparent) 60%, transparent);
+  transform: translateY(-2px);
+}
+
+.edit-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--text-1);
+  font-size: 0.85rem;
+}
+.edit-bar > span { flex: 1; }
+.edit-bar-done {
+  flex-shrink: 0;
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.edit-bar-enter-active,
+.edit-bar-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.edit-bar-enter-from,
+.edit-bar-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
 /* ── Animación al cambiar de página: deslizamiento lateral tipo carrusel ── */
 .slide-next-enter-active,
 .slide-next-leave-active,
@@ -1696,13 +1839,16 @@ async function handleServerUnreachableClean() {
 }
 
 /* Touch drag & drop */
+/* El botón arrastrado sigue al dedo (--drag-x/--drag-y los actualiza el
+   composable en cada touchmove). Sin transición en transform: con una,
+   el botón iba siempre "atrasado" respecto al dedo. */
 .grid-item.touch-dragging {
   z-index: 100;
   opacity: 0.9;
-  transform: scale(1.15) translateY(-5px);
+  transform: translate(var(--drag-x, 0px), var(--drag-y, 0px)) scale(1.1);
   filter: brightness(1.1);
   box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: none;
   pointer-events: none;
 }
 
@@ -1713,22 +1859,12 @@ async function handleServerUnreachableClean() {
   border-radius: 12px;
 }
 
+/* Botón sujeto en modo edición, antes de decidir si es toque o arrastre.
+   Antes era un pulso infinito porque marcaba la espera del long-press; ya
+   no hay espera, así que basta con hundirlo mientras el dedo está encima. */
 .grid-item.is-pressing {
-  animation: pulse-wait 1s ease-in-out infinite;
-  animation-fill-mode: backwards;
-  filter: contrast(1.2) brightness(1.2);
-}
-
-@keyframes pulse-wait {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(0.95);
-  }
-  100% {
-    transform: scale(1);
-  }
+  transform: scale(0.96);
+  filter: brightness(1.15);
 }
 
 .footer {
@@ -2155,7 +2291,6 @@ async function handleServerUnreachableClean() {
   height: 36px;
   font-size: 1.05rem;
 }
-
 /* Floating theme toggle button */
 /* ── FAB container ── */
 .fab-container {

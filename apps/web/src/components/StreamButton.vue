@@ -19,11 +19,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   click: [button: StreamButton | null]
   edit: [button: StreamButton | null]
-  dragstart: [button: StreamButton | null]
-  dragend: []
-  dragover: []
-  dragleave: []
-  drop: []
 }>()
 
 // Long press detection for mobile
@@ -99,30 +94,6 @@ const handleTouchCancel = () => {
   isLongPressing.value = false
 }
 
-const handleDragStart = (e: DragEvent) => {
-  if (!props.button) return
-  e.dataTransfer!.effectAllowed = 'move'
-  emit('dragstart', props.button)
-}
-
-const handleDragEnd = () => {
-  emit('dragend')
-}
-
-const handleDragOver = (e: DragEvent) => {
-  e.preventDefault()
-  e.dataTransfer!.dropEffect = 'move'
-  emit('dragover')
-}
-
-const handleDragLeave = () => {
-  emit('dragleave')
-}
-
-const handleDrop = (e: DragEvent) => {
-  e.preventDefault()
-  emit('drop')
-}
 </script>
 
 <template>
@@ -140,18 +111,12 @@ const handleDrop = (e: DragEvent) => {
     :aria-busy="status === 'running'"
     :title="button?.label"
     :style="buttonStyle"
-    :draggable="!!button"
     @click="handleClick"
     @contextmenu.prevent="handleEdit"
     @touchstart="handleTouchStart"
     @touchend="handleTouchEnd"
     @touchmove="handleTouchMove"
     @touchcancel="handleTouchCancel"
-    @dragstart="handleDragStart"
-    @dragend="handleDragEnd"
-    @dragover="handleDragOver"
-    @dragleave="handleDragLeave"
-    @drop="handleDrop"
   >
     <div v-if="button" class="button-content">
       <div v-if="button.icon" class="button-icon">

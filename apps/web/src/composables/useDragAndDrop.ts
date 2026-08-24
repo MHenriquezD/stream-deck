@@ -1,5 +1,5 @@
 import type { StreamButton } from '@shared/core'
-import { ref } from 'vue'
+import { ref, type Ref } from 'vue'
 
 interface GridPosition {
   row: number
@@ -14,23 +14,33 @@ interface UseDragAndDropOptions {
   /** Callback tras un drop de ratón con cambio (p. ej. mostrar un toast). */
   onMouseDrop?: () => void
   /**
-   * Callback cuando se mantiene presionado sin arrastrar (editar botón en
-   * móvil). Si en cambio el dedo se mueve tras el long-press, se entra en
-   * modo arrastre/reordenar en lugar de disparar esto.
+   * Modo edición del grid, solo relevante en táctil. Dentro solo se
+   * reorganiza: arrastrar mueve botones y nada se ejecuta. El arrastre con
+   * ratón en desktop es independiente de esto.
    */
+  isEditMode: Ref<boolean>
+  /** Long-press sobre un botón fuera del modo edición: abre el editor. */
   onLongPressEdit?: (button: StreamButton | null, position: GridPosition) => void
 }
 
 /**
- * Drag & drop de botones, tanto con ratón (HTML5 drag) como táctil
- * (long-press + arrastre con detección de scroll). Ambos delegan el
- * intercambio real en `swapButtons`, así que aquí solo vive el gesto y su
- * estado visual.
+ * Drag & drop de botones, tanto con ratón (HTML5 drag) como táctil. Ambos
+ * delegan el intercambio real en `swapButtons`, así que aquí solo vive el
+ * gesto y su estado visual.
+ *
+ * En táctil los dos gestos viven en modos separados: fuera del modo edición
+ * un toque ejecuta y un long-press abre el editor; dentro, se arrastra para
+ * reorganizar y no se ejecuta nada. Antes ambos convivían sobre el mismo
+ * elemento (toque ejecuta / mantener edita / mantener+mover reordena) y esa
+ * ambigüedad causó una cadena de bugs imposibles de reproducir a ciegas:
+ * clicks fantasma ejecutando comandos, swaps encadenándose solos, el drag
+ * nativo de las imágenes compitiendo con el gesto.
  */
 export function useDragAndDrop({
   swapButtons,
   moveButtonToPage,
   onMouseDrop,
+  isEditMode,
   onLongPressEdit,
 }: UseDragAndDropOptions) {
   // ── Estado ratón ──
@@ -42,64 +52,140 @@ export function useDragAndDrop({
   const touchOverPosition = ref<GridPosition | null>(null)
   /** Página cuyo punto de navegación está bajo el dedo mientras se arrastra. */
   const touchOverPageIndex = ref<number | null>(null)
-  const touchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
-  const isPressing = ref<string | null>(null) // para la animación de pulso
+  /** Botón bajo el dedo en modo edición, aún sin decidir si es toque o arrastre. */
+  const isPressing = ref<string | null>(null)
   const startX = ref(0)
-  const startY = ref(0) // para detectar intento de scroll
+  const startY = ref(0)
+  /** Desplazamiento del botón arrastrado respecto a su origen, para que siga al dedo. */
+  const touchDragOffset = ref({ x: 0, y: 0 })
 
   /**
-   * "Armado": pasó el tiempo de long-press pero el dedo todavía no se ha
-   * movido lo suficiente para decidir si es editar (se suelta quieto) o
-   * arrastrar (se mueve). Un solo gesto, dos resultados posibles.
+   * Candidato: el dedo bajó sobre este botón estando en modo edición. Si se
+   * mueve lo suficiente pasa a arrastre; si se suelta quieto no pasa nada
+   * (en modo edición solo se reorganiza).
    */
-  const armedButton = ref<StreamButton | null>(null)
-  const armedPosition = ref<GridPosition | null>(null)
-  const armStartX = ref(0)
-  const armStartY = ref(0)
+  const pendingButton = ref<StreamButton | null>(null)
+  const pendingPosition = ref<GridPosition | null>(null)
+
+  /** Timer del long-press que abre el editor (solo fuera del modo edición). */
+  let longPressTimer: ReturnType<typeof setTimeout> | null = null
+  const LONG_PRESS_DELAY = 450
+  const SCROLL_CANCEL_THRESHOLD = 10
 
   /** Timestamp hasta el cual hay que ignorar un click (ver handleTouchEnd). */
   const ignoreClickUntil = ref(0)
   /**
-   * Timestamp del último touchend que vino de un long-press/arrastre. Tras
-   * un swap, el DOM cambia bajo el dedo y algunos WebView de Android
-   * re-sintetizan un touchstart nuevo sin que el usuario haya soltado,
+   * Timestamp del último touchend que cerró un gesto de edición. Tras un
+   * swap el DOM cambia bajo el dedo y algunos WebView de Android
+   * re-sintetizan un touchstart sin que el usuario haya soltado,
    * encadenando swaps sin parar. Si un touchstart llega pegado a este
    * timestamp, es ese eco automático, no un toque real — se ignora.
    */
   let lastGestureEndAt = 0
   const GESTURE_COOLDOWN = 350
 
-  const LONG_PRESS_DELAY = 450
-  const DRAG_MOVE_THRESHOLD = 24
-  const SCROLL_CANCEL_THRESHOLD = 10
+  const DRAG_MOVE_THRESHOLD = 12
 
-  // ── Ratón ──
-  const handleDragStart = (button: StreamButton | null) => {
-    if (!button) return
-    draggedButton.value = button
-  }
+  /**
+   * Resuelve qué celda (o punto de página) hay bajo unas coordenadas y
+   * actualiza el destino del arrastre. Compartido por ratón y táctil.
+   */
+  const updateDropTarget = (clientX: number, clientY: number) => {
+    const element = document.elementFromPoint(clientX, clientY)
 
-  const handleDragEnd = () => {
-    draggedButton.value = null
-    dragOverPosition.value = null
-  }
-
-  const handleDragOver = (position: GridPosition) => {
-    dragOverPosition.value = position
-  }
-
-  const handleDragLeave = () => {
-    dragOverPosition.value = null
-  }
-
-  const handleDrop = (targetPosition: GridPosition) => {
-    const source = draggedButton.value
-    draggedButton.value = null
-    dragOverPosition.value = null
-    if (!source) return
-    if (swapButtons(source, targetPosition)) {
-      onMouseDrop?.()
+    const pageDot = element?.closest('[data-page-dot]')
+    if (pageDot) {
+      touchOverPageIndex.value = parseInt(
+        pageDot.getAttribute('data-page-dot') || '-1',
+      )
+      touchOverPosition.value = null
+      return
     }
+    touchOverPageIndex.value = null
+
+    const gridItem = element?.closest('[data-grid-row]')
+    if (gridItem) {
+      const row = parseInt(gridItem.getAttribute('data-grid-row') || '-1')
+      const col = parseInt(gridItem.getAttribute('data-grid-col') || '-1')
+      if (row !== -1 && col !== -1) touchOverPosition.value = { row, col }
+    }
+  }
+
+  /** Aplica el resultado del arrastre (mover de página o intercambiar). */
+  const commitDrag = (): boolean => {
+    const source = touchDragButton.value
+    const targetPos = touchOverPosition.value
+    const targetPage = touchOverPageIndex.value
+    touchDragButton.value = null
+    touchOverPosition.value = null
+    touchOverPageIndex.value = null
+    touchDragOffset.value = { x: 0, y: 0 }
+    if (!source) return false
+
+    if (targetPage !== null && moveButtonToPage?.(source, targetPage)) return true
+    if (targetPos && swapButtons(source, targetPos)) return true
+    return false
+  }
+
+  // ── Ratón (desktop). Arrastre propio en vez del nativo de HTML5, para que
+  // el botón siga al cursor igual que sigue al dedo en táctil; el "fantasma"
+  // gris del navegador no permitía ese feedback. ──
+  let mouseDragActive = false
+
+  const handleMouseDown = (
+    button: StreamButton | null,
+    position: GridPosition,
+    event: MouseEvent,
+  ) => {
+    if (!button || event.button !== 0) return
+    startX.value = event.clientX
+    startY.value = event.clientY
+    pendingButton.value = button
+    pendingPosition.value = position
+    mouseDragActive = true
+    window.addEventListener('mousemove', handleWindowMouseMove)
+    window.addEventListener('mouseup', handleWindowMouseUp)
+  }
+
+  const handleWindowMouseMove = (event: MouseEvent) => {
+    if (!mouseDragActive) return
+
+    if (pendingButton.value && !touchDragButton.value) {
+      const dx = Math.abs(event.clientX - startX.value)
+      const dy = Math.abs(event.clientY - startY.value)
+      if (dx > DRAG_MOVE_THRESHOLD || dy > DRAG_MOVE_THRESHOLD) {
+        draggedButton.value = pendingButton.value
+        touchDragButton.value = pendingButton.value
+        pendingButton.value = null
+        pendingPosition.value = null
+      }
+      return
+    }
+
+    if (!touchDragButton.value) return
+    event.preventDefault()
+    touchDragOffset.value = {
+      x: event.clientX - startX.value,
+      y: event.clientY - startY.value,
+    }
+    updateDropTarget(event.clientX, event.clientY)
+  }
+
+  const handleWindowMouseUp = () => {
+    window.removeEventListener('mousemove', handleWindowMouseMove)
+    window.removeEventListener('mouseup', handleWindowMouseUp)
+    mouseDragActive = false
+    pendingButton.value = null
+    pendingPosition.value = null
+
+    const wasDragging = touchDragButton.value !== null
+    draggedButton.value = null
+    dragOverPosition.value = null
+    if (!wasDragging) return
+
+    // Se arrastró: el click que viene detrás no debe ejecutar el botón.
+    ignoreClickUntil.value = Date.now() + 300
+    if (commitDrag()) onMouseDrop?.()
   }
 
   const isDragging = (button: StreamButton | null): boolean =>
@@ -121,144 +207,115 @@ export function useDragAndDrop({
     if (Date.now() - lastGestureEndAt < GESTURE_COOLDOWN) return
     startX.value = event.touches[0].clientX
     startY.value = event.touches[0].clientY
-    isPressing.value = button.id
-    if (touchTimer.value) clearTimeout(touchTimer.value)
-    touchTimer.value = setTimeout(() => {
-      // Long-press cumplido sin haberse cancelado por scroll: queda "armado"
-      // a la espera de ver si el usuario suelta (editar) o arrastra (mover).
-      // isPressing se apaga aquí — su animación de pulso es para el tiempo
-      // de espera ANTES del long-press, no para mientras se sigue
-      // sosteniendo ya armado (si no, pulsa sin parar todo lo que dure el hold).
+
+    // Modo edición: candidato a arrastre (aquí solo se reorganiza).
+    if (isEditMode.value) {
+      isPressing.value = button.id
+      pendingButton.value = button
+      pendingPosition.value = position
+      return
+    }
+
+    // Modo normal: mantener presionado abre el editor de ese botón.
+    if (longPressTimer) clearTimeout(longPressTimer)
+    longPressTimer = setTimeout(() => {
+      longPressTimer = null
       if (navigator.vibrate) navigator.vibrate(40)
-      isPressing.value = null
-      armedButton.value = button
-      armedPosition.value = position
-      armStartX.value = startX.value
-      armStartY.value = startY.value
-      touchTimer.value = null
+      // El click sintético posterior no debe ejecutar el comando.
+      ignoreClickUntil.value = Date.now() + 600
+      lastGestureEndAt = Date.now()
+      onLongPressEdit?.(button, position)
     }, LONG_PRESS_DELAY)
   }
 
   const handleTouchMove = (event: TouchEvent) => {
     const touch = event.touches[0]
 
-    // Aún no llegó el long-press: si el dedo se mueve, es scroll → cancelar.
-    if (!armedButton.value && !touchDragButton.value) {
+    // Fuera del modo edición solo hay que vigilar el long-press: si el dedo
+    // se mueve es scroll, no una intención de editar.
+    if (!isEditMode.value) {
+      if (!longPressTimer) return
       const diffY = Math.abs(touch.clientY - startY.value)
-      if (diffY > SCROLL_CANCEL_THRESHOLD) {
-        if (touchTimer.value) {
-          clearTimeout(touchTimer.value)
-          touchTimer.value = null
-        }
-        isPressing.value = null
+      const diffX = Math.abs(touch.clientX - startX.value)
+      if (diffY > SCROLL_CANCEL_THRESHOLD || diffX > SCROLL_CANCEL_THRESHOLD) {
+        clearTimeout(longPressTimer)
+        longPressTimer = null
       }
       return
     }
 
-    // Armado (long-press cumplido) pero aún sin decidir: si se mueve lo
-    // suficiente, pasa a modo arrastre; si no, se queda quieto para editar.
-    if (armedButton.value && !touchDragButton.value) {
-      const dx = Math.abs(touch.clientX - armStartX.value)
-      const dy = Math.abs(touch.clientY - armStartY.value)
+    // Candidato sin decidir: si se mueve lo suficiente pasa a arrastre.
+    if (pendingButton.value && !touchDragButton.value) {
+      const dx = Math.abs(touch.clientX - startX.value)
+      const dy = Math.abs(touch.clientY - startY.value)
       if (dx > DRAG_MOVE_THRESHOLD || dy > DRAG_MOVE_THRESHOLD) {
-        if (navigator.vibrate) navigator.vibrate(100)
-        touchDragButton.value = armedButton.value
+        if (navigator.vibrate) navigator.vibrate(40)
+        touchDragButton.value = pendingButton.value
         isPressing.value = null
-        armedButton.value = null
-        armedPosition.value = null
+        pendingButton.value = null
+        pendingPosition.value = null
       }
       return
     }
+
+    if (!touchDragButton.value) return
 
     // Ya en modo arrastre: bloquear scroll y seguir el dedo.
     if (event.cancelable) event.preventDefault()
-    const element = document.elementFromPoint(touch.clientX, touch.clientY)
-
-    const pageDot = element?.closest('[data-page-dot]')
-    if (pageDot) {
-      touchOverPageIndex.value = parseInt(
-        pageDot.getAttribute('data-page-dot') || '-1',
-      )
-      touchOverPosition.value = null
-      return
+    touchDragOffset.value = {
+      x: touch.clientX - startX.value,
+      y: touch.clientY - startY.value,
     }
-    touchOverPageIndex.value = null
-
-    const gridItem = element?.closest('[data-grid-row]')
-    if (gridItem) {
-      const row = parseInt(gridItem.getAttribute('data-grid-row') || '-1')
-      const col = parseInt(gridItem.getAttribute('data-grid-col') || '-1')
-      if (row !== -1 && col !== -1) {
-        touchOverPosition.value = { row, col }
-      }
-    }
+    updateDropTarget(touch.clientX, touch.clientY)
   }
 
   const handleTouchEnd = (event?: TouchEvent) => {
-    if (touchTimer.value) {
-      clearTimeout(touchTimer.value)
-      touchTimer.value = null
+    // Fuera del modo edición solo hay que cancelar el long-press pendiente
+    // (si ya disparó, él mismo bloqueó el click que viene detrás).
+    if (!isEditMode.value) {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer)
+        longPressTimer = null
+      }
+      return
     }
+
     isPressing.value = null
 
-    // Si hubo long-press (armado) o arrastre, el navegador todavía va a
-    // disparar su propio "click" sintético ~300ms después de este
-    // touchend — sin suprimirlo, ese click fantasma termina EJECUTANDO el
-    // botón (o el que quedó debajo tras moverlo) sin que el usuario lo
-    // haya tocado de verdad. preventDefault() debería bastar, pero algunos
-    // WebView de Android lo ignoran, así que además marcamos una ventana
-    // de tiempo para que quien ejecute el click la revise (ignoreClickUntil).
-    if (armedButton.value || touchDragButton.value) {
+    // Tras un gesto de edición el navegador todavía dispara su propio
+    // "click" sintético ~300ms después del touchend. preventDefault()
+    // debería bastar, pero algunos WebView de Android lo ignoran, así que
+    // además marcamos una ventana que revisa quien maneja el click.
+    if (pendingButton.value || touchDragButton.value) {
       ignoreClickUntil.value = Date.now() + 400
       lastGestureEndAt = Date.now()
       if (event?.cancelable) event.preventDefault()
     }
 
-    // Se quedó "armado" (long-press cumplido) sin llegar a arrastrar →
-    // el gesto era para editar, no para reordenar.
-    if (armedButton.value && !touchDragButton.value) {
-      const button = armedButton.value
-      const position = armedPosition.value
-      armedButton.value = null
-      armedPosition.value = null
-      if (navigator.vibrate) navigator.vibrate(30)
-      if (position) onLongPressEdit?.(button, position)
-      return
-    }
-    armedButton.value = null
-    armedPosition.value = null
+    // Se soltó sin llegar a mover: en modo edición eso no hace nada, solo
+    // se reorganiza. (Editar es long-press fuera del modo edición.)
+    pendingButton.value = null
+    pendingPosition.value = null
 
-    const source = touchDragButton.value
-    const targetPos = touchOverPosition.value
-    const targetPage = touchOverPageIndex.value
-    touchDragButton.value = null
-    touchOverPosition.value = null
-    touchOverPageIndex.value = null
-
-    if (source && targetPage !== null && moveButtonToPage?.(source, targetPage)) {
-      if (navigator.vibrate) navigator.vibrate([30, 10, 30])
-      return
-    }
-    if (source && targetPos && swapButtons(source, targetPos)) {
-      if (navigator.vibrate) navigator.vibrate([30, 10, 30])
-    }
+    if (commitDrag() && navigator.vibrate) navigator.vibrate([30, 10, 30])
   }
 
   /** Limpia TODO el estado táctil (red de seguridad para touchcancel). */
   const handleTouchCancel = () => {
-    if (armedButton.value || touchDragButton.value) {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      longPressTimer = null
+    }
+    if (pendingButton.value || touchDragButton.value) {
       lastGestureEndAt = Date.now()
     }
-    if (touchTimer.value) {
-      clearTimeout(touchTimer.value)
-      touchTimer.value = null
-    }
     isPressing.value = null
-    armedButton.value = null
-    armedPosition.value = null
+    pendingButton.value = null
+    pendingPosition.value = null
     touchDragButton.value = null
     touchOverPosition.value = null
     touchOverPageIndex.value = null
+    touchDragOffset.value = { x: 0, y: 0 }
   }
 
   const isTouchDragging = (button: StreamButton | null): boolean =>
@@ -275,17 +332,14 @@ export function useDragAndDrop({
     touchOverPageIndex.value === page
 
   return {
-    // estado táctil que el template/otros consumen
+    // estado (isTouchDragging/isTouchDragOver cubren ratón y táctil por igual)
     draggedButton,
     touchDragButton,
+    touchDragOffset,
     isPressing,
     ignoreClickUntil,
     // ratón
-    handleDragStart,
-    handleDragEnd,
-    handleDragOver,
-    handleDragLeave,
-    handleDrop,
+    handleMouseDown,
     isDragging,
     isDragOver,
     // táctil
