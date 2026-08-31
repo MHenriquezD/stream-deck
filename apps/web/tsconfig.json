@@ -1,17 +1,17 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "baseUrl": "./",
+    // Aquí nunca se emite: compila Vite y el chequeo es solo del editor.
+    // Con noEmit no hace falta outDir ni rootDir (que además chocaría con
+    // el @shared/core de fuera del proyecto).
+    "noEmit": true,
+    // Sin baseUrl (deprecado en TS 7): los paths van relativos a este archivo.
     "paths": {
-      "@/*": ["src/*"],
-      "@shared/core": ["../../packages/shared/src/index.ts"],
+      "@/*": ["./src/*"],
+      "@shared/core": ["../../packages/shared/src/index.ts"]
     },
     "composite": false
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"],
-  "exclude": ["dist", "node_modules"],
-  "references": [
-    {"path": "../../packages/shared"}
-  ]
+  "exclude": ["dist", "node_modules"]
 }

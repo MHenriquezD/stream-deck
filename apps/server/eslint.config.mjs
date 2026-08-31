@@ -6,7 +6,9 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs'],
+    // Configs de build: no están en el tsconfig, así que el
+    // projectService de typescript-eslint no puede tiparlas.
+    ignores: ['eslint.config.mjs', 'webpack.config.js', 'jest.config.ts'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
