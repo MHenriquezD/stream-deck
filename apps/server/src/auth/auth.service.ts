@@ -4,6 +4,18 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { JsonStore } from '../common/json-store';
 
+/**
+ * Forma de `data/settings.json` en lo que respecta a auth. Es un archivo de
+ * disco que puede venir de una versión anterior, así que los campos son
+ * opcionales y se comprueban antes de usarlos.
+ */
+interface AppSettingsFile {
+  pinHash?: string;
+  /** PIN en claro de versiones antiguas; se migra a hash al primer login. */
+  pin?: string;
+  [key: string]: unknown;
+}
+
 /** Tracks failed login attempts and lockout state for a single origin (IP). */
 interface AttemptRecord {
   failures: number;
@@ -153,7 +165,7 @@ export class AuthService {
    * Verify a PIN against stored settings. Supports legacy plaintext PINs,
    * transparently upgrading them to a hash on first successful login.
    */
-  private verifyPin(pin: string, settings: Record<string, any>): boolean {
+  private verifyPin(pin: string, settings: AppSettingsFile): boolean {
     if (settings.pinHash) {
       return this.verifyHash(pin, settings.pinHash);
     }
@@ -247,7 +259,9 @@ export class AuthService {
   private loadSessions() {
     try {
       if (!fs.existsSync(this.sessionsPath)) return;
-      const data = JSON.parse(fs.readFileSync(this.sessionsPath, 'utf-8'));
+      const data: unknown = JSON.parse(
+        fs.readFileSync(this.sessionsPath, 'utf-8'),
+      );
 
       if (Array.isArray(data)) {
         // Legacy format: array of tokens with no expiry. Give each a fresh TTL
@@ -273,7 +287,7 @@ export class AuthService {
         this.saveSessions();
       }
     } catch (err) {
-      this.logger.warn(`No se pudieron cargar las sesiones: ${err}`);
+      this.logger.warn(`No se pudieron cargar las sesiones: ${String(err)}`);
     }
   }
 
@@ -290,13 +304,18 @@ export class AuthService {
   }
 
   /** Lectura síncrona de settings.json (segura: JsonStore escribe atómico). */
-  private readSettings(): Record<string, any> {
+  private readSettings(): AppSettingsFile {
     try {
       if (fs.existsSync(this.settingsPath)) {
-        return JSON.parse(fs.readFileSync(this.settingsPath, 'utf-8'));
+        const parsed: unknown = JSON.parse(
+          fs.readFileSync(this.settingsPath, 'utf-8'),
+        );
+        if (typeof parsed === 'object' && parsed !== null) {
+          return parsed as AppSettingsFile;
+        }
       }
     } catch (err) {
-      this.logger.warn(`No se pudo leer settings.json: ${err}`);
+      this.logger.warn(`No se pudo leer settings.json: ${String(err)}`);
     }
     return {};
   }

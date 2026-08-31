@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    // Los e2e no se emiten, así que no aplican rootDir ni outDir del build.
+    // Este archivo existe para que el projectService de typescript-eslint
+    // pueda tipar test/, que queda fuera del programa principal.
+    "noEmit": true,
+    "rootDir": ".",
+    "outDir": null,
+    "types": ["jest", "node"]
+  },
+  "include": ["**/*.ts", "../src/**/*.ts"]
+}

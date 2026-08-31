@@ -14,7 +14,7 @@ jest.mock('fs', () => ({
 jest.spyOn(JsonStore, 'write').mockResolvedValue(undefined);
 jest
   .spyOn(JsonStore, 'update')
-  .mockImplementation(async (_p, fallback) => fallback as never);
+  .mockImplementation((_p, fallback) => Promise.resolve(fallback));
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -68,13 +68,13 @@ describe('AuthService — session expiry', () => {
 
   it('persists sessions in the { token: expiresAt } format', () => {
     const { token } = service.setPin('1234');
-    const writeMock = JsonStore.write as jest.Mock;
+    const writeMock = jest.mocked(JsonStore.write);
     const sessionWrite = writeMock.mock.calls
       .slice()
       .reverse()
       .find(([p]) => String(p).includes('sessions.json'));
     expect(sessionWrite).toBeDefined();
-    const payload = sessionWrite[1] as Record<string, number>;
+    const payload = sessionWrite![1] as Record<string, number>;
     expect(Array.isArray(payload)).toBe(false);
     expect(typeof payload[token]).toBe('number');
   });

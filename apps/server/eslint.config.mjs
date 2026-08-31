@@ -27,6 +27,15 @@ export default tseslint.config(
     },
   },
   {
+    // `jest.mocked(Clase.metodo)` pasa el metodo sin ligar a proposito; la regla
+    // no distingue ese caso y lo marca siempre. Es la recomendacion del propio
+    // typescript-eslint para proyectos con Jest.
+    files: ['**/*.spec.ts', '**/*.e2e-spec.ts'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
+  {
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',

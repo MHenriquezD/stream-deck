@@ -18,6 +18,35 @@ export interface InstalledApp {
   Source: string;
 }
 
+/** Contenido de `data/installed-apps.json`. */
+interface AppsCache {
+  apps: InstalledApp[];
+  scannedAt?: string;
+}
+
+/**
+ * La lista de apps llega de JSON escrito por scripts externos (PowerShell,
+ * `mdls`, `.desktop`), así que se comprueba la forma antes de darla por buena.
+ * Solo `Name` es obligatorio; el resto se completa vacío.
+ */
+function isInstalledApp(value: unknown): value is InstalledApp {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { Name?: unknown }).Name === 'string' &&
+    (value as { Name: string }).Name.length > 0
+  );
+}
+
+/** Normaliza la salida cruda de un escáner a una lista de apps válida. */
+function parseAppList(raw: string): InstalledApp[] {
+  const cleaned = raw.trim();
+  if (!cleaned || cleaned === '[]') return [];
+  const parsed: unknown = JSON.parse(cleaned);
+  const list = Array.isArray(parsed) ? parsed : [parsed];
+  return list.filter(isInstalledApp);
+}
+
 @Injectable()
 export class CommandService {
   private filePath = path.join(process.cwd(), 'data', 'commands.json');
@@ -122,7 +151,7 @@ export class CommandService {
           label: 'Play/Pausa',
           icon: 'mdi:play-pause',
           payload:
-            'osascript -e "tell application \"System Events\" to key code 49 using {command down}"',
+            'osascript -e \'tell application "System Events" to key code 49 using {command down}\'',
           description: 'Reproduce/pausa el audio actual',
         },
         {
@@ -130,7 +159,7 @@ export class CommandService {
           label: 'Siguiente',
           icon: 'mdi:skip-next',
           payload:
-            'osascript -e "tell application \"System Events\" to key code 124 using {command down}"',
+            'osascript -e \'tell application "System Events" to key code 124 using {command down}\'',
           description: 'Pista siguiente',
         },
         {
@@ -138,7 +167,7 @@ export class CommandService {
           label: 'Anterior',
           icon: 'mdi:skip-previous',
           payload:
-            'osascript -e "tell application \"System Events\" to key code 123 using {command down}"',
+            'osascript -e \'tell application "System Events" to key code 123 using {command down}\'',
           description: 'Pista anterior',
         },
         {
@@ -146,7 +175,7 @@ export class CommandService {
           label: 'Subir Brillo',
           icon: 'mdi:brightness-6',
           payload:
-            'osascript -e "tell application \"System Events\" to key code 144"',
+            'osascript -e \'tell application "System Events" to key code 144\'',
           description: 'Aumenta el brillo de la pantalla',
         },
         {
@@ -154,7 +183,7 @@ export class CommandService {
           label: 'Bajar Brillo',
           icon: 'mdi:brightness-4',
           payload:
-            'osascript -e "tell application \"System Events\" to key code 145"',
+            'osascript -e \'tell application "System Events" to key code 145\'',
           description: 'Disminuye el brillo de la pantalla',
         },
       ];
@@ -468,22 +497,18 @@ export class CommandService {
     const platform = process.platform;
 
     // Check cache first (unless force rescan)
-    if (!forceRescan && fs.existsSync(this.appsCache)) {
-      try {
-        const cached = JSON.parse(fs.readFileSync(this.appsCache, 'utf-8'));
-        if (cached && Array.isArray(cached.apps) && cached.apps.length > 0) {
-          this.logger.debug(
-            `Usando cache de apps (${cached.apps.length} apps, escaneado: ${cached.scannedAt})`,
-          );
-          return {
-            success: true,
-            apps: cached.apps,
-            cached: true,
-            scannedAt: cached.scannedAt,
-          };
-        }
-      } catch {
-        // Cache corrupted, rescan
+    if (!forceRescan) {
+      const cached = this.readAppsCache();
+      if (cached && cached.apps.length > 0) {
+        this.logger.debug(
+          `Usando cache de apps (${cached.apps.length} apps, escaneado: ${cached.scannedAt ?? 'desconocido'})`,
+        );
+        return {
+          success: true,
+          apps: cached.apps,
+          cached: true,
+          scannedAt: cached.scannedAt,
+        };
       }
     }
 
@@ -518,7 +543,7 @@ foreach ($path in $paths) {
     $_.DisplayName -and $_.DisplayName -notlike 'Update for*' 
   } | ForEach-Object {
     # Algunos instaladores (ej. Realtek) guardan DisplayIcon con comillas
-    # literales incluidas ("C:\...\icon.ico"), lo que rompe cualquier chequeo
+    # literales incluidas ("C:\\...\\icon.ico"), lo que rompe cualquier chequeo
     # de extensión al final de la cadena — se quitan aquí de una vez.
     $icon = if ($_.DisplayIcon) { $_.DisplayIcon.Trim('"') } else { '' }
     $location = if ($_.InstallLocation) { $_.InstallLocation } else { '' }
@@ -547,7 +572,7 @@ foreach ($path in $paths) {
       
       # Primero intentar desde DisplayIcon si es un .exe
       if ($icon -and $icon -like '*.exe*') {
-        $exePath = $icon -replace ',\d+$', ''  # Quitar índice de icono
+        $exePath = $icon -replace ',\\d+$', ''  # Quitar índice de icono
       }
       
       # Si no, buscar en InstallLocation
@@ -729,7 +754,7 @@ try {
               $pwaIcon = ''
               try {
                 # Extraer app-id de los argumentos
-                if ($arguments -match '--app-id=([^\s"]+)') {
+                if ($arguments -match '--app-id=([^\\s"]+)') {
                   $pwaAppId = $Matches[1]
 
                   # Directorio de datos del navegador detectado por ruta,
@@ -757,8 +782,8 @@ try {
                     $profiles = @('Default') + @(Get-ChildItem -Path $dataDir -Directory -Filter "Profile *" -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
                     foreach ($profile in $profiles) {
                       # Chromium moderno guarda los iconos bajo "Manifest
-                      # Resources\<app-id>\Icons"; versiones/perfiles viejos
-                      # los tenían directo en "<app-id>\Icons" — probamos
+                      # Resources\\<app-id>\\Icons"; versiones/perfiles viejos
+                      # los tenían directo en "<app-id>\\Icons" — probamos
                       # ambas rutas por compatibilidad.
                       $iconsDirCandidates = @(
                         (Join-Path $dataDir "$profile\\Web Applications\\Manifest Resources\\$pwaAppId\\Icons"),
@@ -827,19 +852,14 @@ if ($unique.Count -gt 0) {
       // Limpiar el archivo temporal
       try {
         fs.unlinkSync(scriptPath);
-      } catch (e) {
+      } catch {
         // Ignorar errores al eliminar
       }
 
       let apps: InstalledApp[] = [];
-      if (output && output.trim()) {
+      if (output) {
         try {
-          const cleaned = output.trim();
-          if (cleaned && cleaned !== '[]') {
-            const parsed = JSON.parse(cleaned);
-            apps = Array.isArray(parsed) ? parsed : [parsed];
-            apps = apps.filter((app) => app && app.Name);
-          }
+          apps = parseAppList(output);
         } catch (e) {
           this.logger.error('Error parsing JSON:', e);
         }
@@ -892,21 +912,35 @@ if ($unique.Count -gt 0) {
 
   /** Check if there is a cached app list (without scanning) */
   hasAppsCache(): { hasCache: boolean; scannedAt?: string; count?: number } {
+    const cached = this.readAppsCache();
+    if (!cached) return { hasCache: false };
+    return {
+      hasCache: true,
+      scannedAt: cached.scannedAt,
+      count: cached.apps.length,
+    };
+  }
+
+  /**
+   * Lee el cache de apps del disco. Es un archivo que puede estar corrupto,
+   * truncado o escrito por una versión vieja, así que se valida la forma en
+   * lugar de confiar en lo que devuelva JSON.parse.
+   */
+  private readAppsCache(): AppsCache | null {
     try {
-      if (fs.existsSync(this.appsCache)) {
-        const cached = JSON.parse(fs.readFileSync(this.appsCache, 'utf-8'));
-        if (cached && Array.isArray(cached.apps)) {
-          return {
-            hasCache: true,
-            scannedAt: cached.scannedAt,
-            count: cached.apps.length,
-          };
-        }
-      }
+      if (!fs.existsSync(this.appsCache)) return null;
+      const raw: unknown = JSON.parse(fs.readFileSync(this.appsCache, 'utf-8'));
+      if (typeof raw !== 'object' || raw === null) return null;
+      const { apps, scannedAt } = raw as Record<string, unknown>;
+      if (!Array.isArray(apps)) return null;
+      return {
+        apps: apps.filter(isInstalledApp),
+        scannedAt: typeof scannedAt === 'string' ? scannedAt : undefined,
+      };
     } catch {
-      // ignore
+      // Cache corrupto: se reescanea.
+      return null;
     }
-    return { hasCache: false };
   }
 
   /**
@@ -991,12 +1025,7 @@ echo ']'
       if (output && output.trim()) {
         try {
           // The script prints JSON objects line by line, collect them
-          const cleaned = output.trim();
-          if (cleaned && cleaned !== '[]') {
-            apps = JSON.parse(cleaned);
-            if (!Array.isArray(apps)) apps = [apps];
-            apps = apps.filter((a) => a && a.Name);
-          }
+          apps = parseAppList(output);
         } catch {
           // Fallback: simpler approach using ls
           try {
@@ -1094,7 +1123,7 @@ done
       const output = await this.execAsyncRaw(
         `/bin/sh -c '${script.replace(/'/g, "'\\''")}'`,
       );
-      let apps: InstalledApp[] = [];
+      const apps: InstalledApp[] = [];
 
       if (output && output.trim()) {
         const lines = output
@@ -1250,9 +1279,7 @@ done
         // índice puede ser negativo (ej. ",-128"), así que hay que quitarlo
         // ANTES de despojar las comillas, o queda basura como `exe",-128`
         // que rompe el script de PowerShell generado más abajo.
-        exePath = app.Icon
-          .replace(/,-?\d+$/, '')
-          .replace(/^["']|["']$/g, '');
+        exePath = app.Icon.replace(/,-?\d+$/, '').replace(/^["']|["']$/g, '');
       } else if (app.Path && app.Path.toLowerCase().includes('.exe')) {
         exePath = app.Path.replace(/^["']|["']$/g, '')
           .split('"')[0]
@@ -1280,7 +1307,9 @@ done
       }
     }
     if (copyTasks.length > 0) {
-      this.logger.debug(`Iconos copiados (PWA/Store): ${copiedCount}/${copyTasks.length}`);
+      this.logger.debug(
+        `Iconos copiados (PWA/Store): ${copiedCount}/${copyTasks.length}`,
+      );
     }
 
     if (extractionTasks.length === 0) {

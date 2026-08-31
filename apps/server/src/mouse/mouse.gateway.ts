@@ -19,7 +19,7 @@ export class MouseGateway {
   // ─── Mouse Move (relative delta) ───
   @SubscribeMessage('mouse:move')
   handleMove(@MessageBody() data: { dx: number; dy: number }) {
-    this.mouseService.move(data.dx, data.dy);
+    void this.mouseService.move(data.dx, data.dy);
     // No return — fire and forget for speed
   }
 
@@ -57,12 +57,12 @@ export class MouseGateway {
     // Vertical scroll (support both old 'amount' and new 'amountY')
     const vertical = data.amountY ?? data.amount ?? 0;
     if (vertical !== 0) {
-      this.mouseService.scroll(vertical);
+      void this.mouseService.scroll(vertical);
     }
     // Horizontal scroll
     const horizontal = data.amountX ?? 0;
     if (horizontal !== 0) {
-      this.mouseService.scrollHorizontal(horizontal);
+      void this.mouseService.scrollHorizontal(horizontal);
     }
   }
 

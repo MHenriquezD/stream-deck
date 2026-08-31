@@ -6,21 +6,6 @@ import * as path from 'path';
 import { AppModule } from './app.module';
 import { AuthService } from './auth/auth.service';
 
-function getLocalIpAddress(): string {
-  const interfaces = os.networkInterfaces();
-  const ips: string[] = [];
-  for (const name of Object.keys(interfaces)) {
-    const ifaces = interfaces[name];
-    if (!ifaces) continue;
-    for (const iface of ifaces) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        ips.push(iface.address);
-      }
-    }
-  }
-  return ips.length > 0 ? ips[0] : 'localhost';
-}
-
 function getAllLocalIpAddresses(): string[] {
   const interfaces = os.networkInterfaces();
   const ips: string[] = [];
@@ -84,7 +69,6 @@ async function bootstrap() {
   });
 
   const httpPort = process.env.PORT ?? 7500;
-  const localIp = getLocalIpAddress();
   const allIps = getAllLocalIpAddresses();
 
   await app.listen(httpPort, '0.0.0.0');

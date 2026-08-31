@@ -26,7 +26,7 @@ export class JsonStore {
     } catch (err: unknown) {
       const code = (err as NodeJS.ErrnoException)?.code;
       if (code && code !== 'ENOENT') {
-        JsonStore.logger.warn(`No se pudo leer ${filePath}: ${err}`);
+        JsonStore.logger.warn(`No se pudo leer ${filePath}: ${String(err)}`);
       }
       return fallback;
     }
@@ -76,7 +76,10 @@ export class JsonStore {
     return run;
   }
 
-  private static async atomicWrite<T>(filePath: string, data: T): Promise<void> {
+  private static async atomicWrite<T>(
+    filePath: string,
+    data: T,
+  ): Promise<void> {
     const dir = path.dirname(filePath);
     await fs.mkdir(dir, { recursive: true });
     const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;

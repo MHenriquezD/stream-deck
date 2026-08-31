@@ -33,8 +33,8 @@ export class CommandController {
   }
 
   @Post()
-  saveCommands(@Body() commands: StreamCommand[]) {
-    this.service.saveAll(commands);
+  async saveCommands(@Body() commands: StreamCommand[]) {
+    await this.service.saveAll(commands);
     return { success: true };
   }
 

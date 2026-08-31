@@ -4,6 +4,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 
 @Injectable()
@@ -16,7 +17,7 @@ export class AuthGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<Request>();
     const token = this.extractToken(request);
 
     if (!token || !this.authService.validateToken(token)) {
@@ -26,7 +27,7 @@ export class AuthGuard implements CanActivate {
     return true;
   }
 
-  private extractToken(request: any): string | null {
+  private extractToken(request: Request): string | null {
     const auth = request.headers?.authorization;
     if (auth?.startsWith('Bearer ')) {
       return auth.slice(7);

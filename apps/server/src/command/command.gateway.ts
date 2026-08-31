@@ -14,11 +14,20 @@ import { CommandService } from './command.service';
 import { StreamCommand } from './interfaces/command.interface';
 import { SettingsService } from './settings.service';
 
+/** Lo que guardamos en `socket.data` de cada cliente. */
+interface SocketData {
+  token?: string;
+}
+
 @WebSocketGateway({
   cors: { origin: '*' },
 })
 export class CommandGateway
-  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy
+  implements
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    OnGatewayInit,
+    OnModuleDestroy
 {
   @WebSocketServer()
   server!: Server;
@@ -65,7 +74,7 @@ export class CommandGateway
     }
 
     // Guardar el token para poder revalidarlo periódicamente.
-    client.data.token = token;
+    (client.data as SocketData).token = token;
     this.logger.debug(`Cliente conectado: ${client.id}`);
   }
 
@@ -92,7 +101,7 @@ export class CommandGateway
     if (!sockets) return;
 
     for (const client of sockets.values()) {
-      const token = (client.data as { token?: string })?.token;
+      const token = (client.data as SocketData)?.token;
       if (!token || !this.authService.validateToken(token)) {
         this.logger.warn(`Sesión expirada, desconectando: ${client.id}`);
         client.emit('auth:error', { message: 'Sesión expirada' });
@@ -117,11 +126,15 @@ export class CommandGateway
 
   private syncVolumeIfNeeded(id: string) {
     if (!id.startsWith('preset-volume')) return;
-    setTimeout(async () => {
-      try {
-        const state = await this.commandService.getVolume();
-        this.server.emit('volume:changed', state);
-      } catch { /* ignore */ }
+    setTimeout(() => {
+      void (async () => {
+        try {
+          const state = await this.commandService.getVolume();
+          this.server.emit('volume:changed', state);
+        } catch {
+          /* ignore */
+        }
+      })();
     }, 300);
   }
 
@@ -192,7 +205,7 @@ export class CommandGateway
   @SubscribeMessage('volume:mute')
   async handleToggleMute() {
     try {
-      const muted = await this.commandService.toggleMute();
+      await this.commandService.toggleMute();
       const state = await this.commandService.getVolume();
       this.server.emit('volume:changed', state);
       return { success: true, ...state };
