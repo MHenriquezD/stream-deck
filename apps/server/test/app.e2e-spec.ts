@@ -16,6 +16,12 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
+  // Sin esto el proceso de Jest no termina: CommandGateway deja vivo su
+  // intervalo de revalidación de tokens (60s) hasta el onModuleDestroy.
+  afterEach(async () => {
+    await app.close();
+  });
+
   it('/ (GET)', () => {
     return request(app.getHttpServer())
       .get('/')

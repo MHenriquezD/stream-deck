@@ -85,12 +85,17 @@ module.exports = (options, webpack) => {
             '@nestjs/platform-ws',
           ];
 
-          if (!lazyImports.includes(resource)) {
+          // Desde Nest 12 los paquetes son ESM y los specifiers llevan la
+          // extensión (`@nestjs/microservices/microservices-module.js`), así
+          // que hay que quitarla antes de comparar.
+          const specifier = resource.replace(/\.js$/, '');
+
+          if (!lazyImports.includes(specifier)) {
             return false;
           }
 
           try {
-            require.resolve(resource);
+            require.resolve(specifier);
           } catch (err) {
             return true;
           }
