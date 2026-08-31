@@ -2,12 +2,15 @@ packages:
   - apps/*
   - packages/*
 
-ignoredBuiltDependencies:
-  - esbuild
-  - unrs-resolver
-
-onlyBuiltDependencies:
-  - '@nestjs/core'
-  - electron
-  - electron-winstaller
-  - sharp
+# pnpm 12 sustituye onlyBuiltDependencies / ignoredBuiltDependencies por este
+# mapa. Se conserva la intención que ya había declarada: solo corren scripts de
+# instalación los que de verdad necesitan binarios nativos. Los demás traen
+# prebuilds por plataforma y nunca se han construido aquí.
+allowBuilds:
+  '@parcel/watcher': false
+  '@swc/core': false
+  electron: true
+  electron-winstaller: true
+  esbuild: false
+  sharp: true
+  unrs-resolver: false
