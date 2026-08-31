@@ -38,7 +38,15 @@ function getAllLocalIpAddresses(): string[] {
 
 async function bootstrap() {
   // Crear app HTTP sin HTTPS en desarrollo
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // En producción la consola es la del usuario final: solo fallos y avisos, el
+  // banner de abajo es la única salida informativa. En desarrollo se ve todo,
+  // incluido el `debug` del escaneo de apps y del gateway.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger:
+      process.env.NODE_ENV === 'production'
+        ? ['error', 'warn']
+        : ['error', 'warn', 'log', 'debug'],
+  });
 
   // Servir archivos estáticos de la carpeta downloads
   const downloadsPath = path.join(

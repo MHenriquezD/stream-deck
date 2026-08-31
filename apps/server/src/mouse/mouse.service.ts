@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
 @Injectable()
 export class MouseService implements OnModuleInit {
@@ -7,6 +7,7 @@ export class MouseService implements OnModuleInit {
   private Button: any = null;
   private Key: any = null;
   private available = false;
+  private readonly logger = new Logger(MouseService.name);
 
   async onModuleInit() {
     try {
@@ -20,9 +21,9 @@ export class MouseService implements OnModuleInit {
       this.mouse.config.mouseSpeed = 2000;
       this.keyboard.config.autoDelayMs = 0;
       this.available = true;
-      console.log('🖱️ Mouse controller inicializado');
+      this.logger.debug('Mouse controller inicializado');
     } catch (e) {
-      console.warn('⚠️ Mouse controller no disponible:', e);
+      this.logger.warn(`Mouse controller no disponible: ${String(e)}`);
       this.available = false;
     }
   }

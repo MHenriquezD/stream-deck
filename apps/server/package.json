@@ -16,10 +16,10 @@
     "start:prod": "node dist/main",
     "start:standalone": "node standalone/index.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest -c jest.config.js",
-    "test:watch": "jest -c jest.config.js --watch",
-    "test:cov": "jest -c jest.config.js --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest -c jest.config.js --runInBand",
+    "test": "jest -c jest.config.ts",
+    "test:watch": "jest -c jest.config.ts --watch",
+    "test:cov": "jest -c jest.config.ts --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest -c jest.config.ts --runInBand",
     "test:e2e": "jest -c ./test/jest-e2e.json"
   },
   "dependencies": {

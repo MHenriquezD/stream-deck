@@ -7,7 +7,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { OnModuleDestroy } from '@nestjs/common';
+import { Logger, OnModuleDestroy } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
 import { CommandService } from './command.service';
@@ -22,6 +22,8 @@ export class CommandGateway
 {
   @WebSocketServer()
   server!: Server;
+
+  private readonly logger = new Logger(CommandGateway.name);
 
   /** Cada cuánto se revalidan los tokens de los sockets ya conectados. */
   private static readonly REVALIDATE_INTERVAL_MS = 60_000; // 60s
@@ -49,14 +51,14 @@ export class CommandGateway
   handleConnection(client: Socket) {
     // If no PIN configured, allow all connections
     if (!this.authService.isPinConfigured()) {
-      console.log(`🔌 Cliente conectado (sin PIN): ${client.id}`);
+      this.logger.debug(`Cliente conectado (sin PIN): ${client.id}`);
       return;
     }
 
     const token = this.extractToken(client);
 
     if (!token || !this.authService.validateToken(token)) {
-      console.log(`🚫 Cliente rechazado (sin auth): ${client.id}`);
+      this.logger.warn(`Cliente rechazado (sin auth): ${client.id}`);
       client.emit('auth:error', { message: 'Token inválido' });
       client.disconnect(true);
       return;
@@ -64,11 +66,11 @@ export class CommandGateway
 
     // Guardar el token para poder revalidarlo periódicamente.
     client.data.token = token;
-    console.log(`🔌 Cliente conectado: ${client.id}`);
+    this.logger.debug(`Cliente conectado: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`❌ Cliente desconectado: ${client.id}`);
+    this.logger.debug(`Cliente desconectado: ${client.id}`);
   }
 
   private extractToken(client: Socket): string | undefined {
@@ -92,7 +94,7 @@ export class CommandGateway
     for (const client of sockets.values()) {
       const token = (client.data as { token?: string })?.token;
       if (!token || !this.authService.validateToken(token)) {
-        console.log(`⏳ Sesión expirada, desconectando: ${client.id}`);
+        this.logger.warn(`Sesión expirada, desconectando: ${client.id}`);
         client.emit('auth:error', { message: 'Sesión expirada' });
         client.disconnect(true);
       }

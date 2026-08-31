@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { exec } from 'child_process';
@@ -22,6 +23,7 @@ export class CommandService {
   private filePath = path.join(process.cwd(), 'data', 'commands.json');
   private appsCache = path.join(process.cwd(), 'data', 'installed-apps.json');
   private iconsDir = path.join(process.cwd(), 'data', 'app-icons');
+  private readonly logger = new Logger(CommandService.name);
 
   async getAll(): Promise<StreamCommand[]> {
     return JsonStore.read<StreamCommand[]>(this.filePath, []);
@@ -470,7 +472,7 @@ export class CommandService {
       try {
         const cached = JSON.parse(fs.readFileSync(this.appsCache, 'utf-8'));
         if (cached && Array.isArray(cached.apps) && cached.apps.length > 0) {
-          console.log(
+          this.logger.debug(
             `Usando cache de apps (${cached.apps.length} apps, escaneado: ${cached.scannedAt})`,
           );
           return {
@@ -819,9 +821,8 @@ if ($unique.Count -gt 0) {
       // no coincide con el UTF-8 que Node espera al leer stdout/stderr.
       const command = `chcp 65001>nul & powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`;
 
-      console.log('Ejecutando script de PowerShell para obtener apps...');
+      this.logger.debug('Ejecutando script de PowerShell para obtener apps...');
       const output = await this.execAsyncRaw(command);
-      console.log('Output length:', output?.length || 0);
 
       // Limpiar el archivo temporal
       try {
@@ -840,12 +841,11 @@ if ($unique.Count -gt 0) {
             apps = apps.filter((app) => app && app.Name);
           }
         } catch (e) {
-          console.error('Error parsing JSON:', e);
-          console.error('First 500 chars:', output?.substring(0, 500));
+          this.logger.error('Error parsing JSON:', e);
         }
       }
 
-      console.log(`Encontradas ${apps.length} aplicaciones`);
+      this.logger.debug(`Encontradas ${apps.length} aplicaciones`);
       const result = apps.slice(0, 100);
 
       // Extract icons from executables
@@ -868,9 +868,9 @@ if ($unique.Count -gt 0) {
           JSON.stringify(cacheData, null, 2),
           'utf-8',
         );
-        console.log('Cache de apps guardado en', this.appsCache);
+        this.logger.debug(`Cache de apps guardado en ${this.appsCache}`);
       } catch (e) {
-        console.error('Error guardando cache de apps:', e);
+        this.logger.error('Error guardando cache de apps:', e);
       }
 
       return {
@@ -880,7 +880,7 @@ if ($unique.Count -gt 0) {
         scannedAt: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('Error getting installed apps:', error);
+      this.logger.error('Error getting installed apps:', error);
       return {
         success: false,
         message: 'Error al obtener aplicaciones instaladas',
@@ -946,7 +946,7 @@ if ($unique.Count -gt 0) {
   // ─── macOS App Scanner ───
   private async getInstalledAppsMac() {
     try {
-      console.log('Escaneando aplicaciones en macOS...');
+      this.logger.debug('Escaneando aplicaciones en macOS...');
 
       const script = `
 APPS='['
@@ -1021,7 +1021,7 @@ echo ']'
         }
       }
 
-      console.log(`Encontradas ${apps.length} aplicaciones (macOS)`);
+      this.logger.debug(`Encontradas ${apps.length} aplicaciones (macOS)`);
       const result = apps.slice(0, 200);
 
       // Save to cache
@@ -1034,7 +1034,7 @@ echo ']'
         scannedAt: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('Error getting macOS apps:', error);
+      this.logger.error('Error getting macOS apps:', error);
       return {
         success: false,
         message: 'Error al obtener aplicaciones instaladas en macOS',
@@ -1047,7 +1047,7 @@ echo ']'
   // ─── Linux App Scanner ───
   private async getInstalledAppsLinux() {
     try {
-      console.log('Escaneando aplicaciones en Linux...');
+      this.logger.debug('Escaneando aplicaciones en Linux...');
 
       // Parse .desktop files to get Name, Exec, Icon
       const script = `
@@ -1119,7 +1119,7 @@ done
       // Sort alphabetically
       apps.sort((a, b) => a.Name.localeCompare(b.Name));
 
-      console.log(`Encontradas ${apps.length} aplicaciones (Linux)`);
+      this.logger.debug(`Encontradas ${apps.length} aplicaciones (Linux)`);
       const result = apps.slice(0, 200);
 
       // Save to cache
@@ -1132,7 +1132,7 @@ done
         scannedAt: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('Error getting Linux apps:', error);
+      this.logger.error('Error getting Linux apps:', error);
       return {
         success: false,
         message: 'Error al obtener aplicaciones instaladas en Linux',
@@ -1169,10 +1169,10 @@ done
         }
       }
       if (removed > 0) {
-        console.log(`🎨 Iconos huérfanos eliminados: ${removed}`);
+        this.logger.debug(`Iconos huérfanos eliminados: ${removed}`);
       }
     } catch (e) {
-      console.error('Error limpiando iconos huérfanos:', e);
+      this.logger.error('Error limpiando iconos huérfanos:', e);
     }
   }
 
@@ -1188,7 +1188,7 @@ done
       fs.mkdirSync(this.iconsDir, { recursive: true });
     }
 
-    console.log('🎨 Extrayendo iconos de aplicaciones...');
+    this.logger.debug('Extrayendo iconos de aplicaciones...');
 
     // Build a PowerShell script that extracts all icons at once
     const tempDir = path.join(process.cwd(), 'temp');
@@ -1273,18 +1273,17 @@ done
         apps[task.index].Icon = `/app-icons/${task.iconFile}`;
         copiedCount++;
       } catch (e) {
-        console.error(
-          `🎨 Error copiando icono de "${apps[task.index].Name}" desde ${task.srcPath}:`,
+        this.logger.error(
+          `Error copiando icono de "${apps[task.index].Name}" desde ${task.srcPath}:`,
           e,
         );
       }
     }
     if (copyTasks.length > 0) {
-      console.log(`🎨 Iconos copiados (PWA/Store): ${copiedCount}/${copyTasks.length}`);
+      this.logger.debug(`Iconos copiados (PWA/Store): ${copiedCount}/${copyTasks.length}`);
     }
 
     if (extractionTasks.length === 0) {
-      console.log('🎨 Todos los iconos ya existen en cache');
       return;
     }
 
@@ -1352,8 +1351,8 @@ $results -join ","
       }
 
       const extracted = output?.trim().split(',').filter(Boolean) || [];
-      console.log(
-        `🎨 Iconos extraídos: ${extracted.length}/${extractionTasks.length}`,
+      this.logger.debug(
+        `Iconos extraídos: ${extracted.length}/${extractionTasks.length}`,
       );
 
       // Update Icon field for successfully extracted icons
@@ -1364,7 +1363,7 @@ $results -join ","
         }
       }
     } catch (e) {
-      console.error('Error extrayendo iconos:', e);
+      this.logger.error('Error extrayendo iconos:', e);
       try {
         fs.unlinkSync(scriptPath);
       } catch {
@@ -1385,9 +1384,9 @@ $results -join ","
         JSON.stringify(cacheData, null, 2),
         'utf-8',
       );
-      console.log('Cache de apps guardado en', this.appsCache);
+      this.logger.debug(`Cache de apps guardado en ${this.appsCache}`);
     } catch (e) {
-      console.error('Error guardando cache de apps:', e);
+      this.logger.error('Error guardando cache de apps:', e);
     }
   }
 
