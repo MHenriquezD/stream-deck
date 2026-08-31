@@ -24,7 +24,7 @@ const getServerUrl = (): string => {
     if (serverUrlStore.serverUrl) {
       return serverUrlStore.serverUrl.replace(/\/$/, '')
     }
-  } catch (e) {
+  } catch {
     // Store no disponible (fuera de componente)
   }
 

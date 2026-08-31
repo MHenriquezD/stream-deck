@@ -85,13 +85,13 @@ const filteredApps = computed(() => {
 })
 
 const selectApp = (app: InstalledApp) => {
-  let command = ''
+  let command: string
   if (app.Path) {
     if (app.Path.includes('"')) command = app.Path
     else if (app.Path.toLowerCase().endsWith('.exe')) command = app.Path.includes(' ') ? `"${app.Path}"` : app.Path
     else command = `start "" "${app.Path}"`
   } else {
-    let cleanName = app.Name.replace(/\s*\d+(\.\d+)*\s*/g, '').replace(/Microsoft\s*/gi, '').trim().toLowerCase().replace(/\s+/g, '')
+    const cleanName = app.Name.replace(/\s*\d+(\.\d+)*\s*/g, '').replace(/Microsoft\s*/gi, '').trim().toLowerCase().replace(/\s+/g, '')
     command = `start ${cleanName}`
   }
   const icon = app.Icon && app.Icon.startsWith('/app-icons/') ? app.Icon : undefined

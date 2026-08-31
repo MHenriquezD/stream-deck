@@ -49,7 +49,7 @@ const buttonStyle = computed(() => {
     }
   }
   // Si está vacío, fondo degradado adaptado al tema
-  let emptyBg =
+  const emptyBg =
     theme.value === 'dark'
       ? 'linear-gradient(145deg, rgba(34,34,58,0.7) 0%, rgba(34,34,58,0.3) 100%)'
       : 'linear-gradient(145deg, rgba(255,255,255,0.8) 0%, rgba(220,220,240,0.4) 100%)'

@@ -58,9 +58,11 @@ const saveSoundSettings = async (enabled: boolean, file: string) => {
   }
 }
 
+// isConnected NO va como prop: se toma de useSocket() más abajo, que es la
+// misma fuente que usa el padre. Declararlo aquí lo dejaba tapado por el
+// destructuring y el prop nunca se leía.
 const props = defineProps<{
   serverEnabled?: boolean
-  isConnected?: boolean
   isMobileView?: boolean
 }>()
 
@@ -425,15 +427,21 @@ const startScanner = async () => {
 
     await new Promise((resolve) => setTimeout(resolve, 150))
 
-    const listener = await BarcodeScanner.addListener('barcodeScanned', async (event) => {
-      await listener.remove()
-      await stopScanner()
-      if (event.barcode?.rawValue) {
-        handleScanResult(event.barcode.rawValue)
-      } else {
-        scanError.value = 'No se pudo leer el código QR'
-      }
-    })
+    // El plugin emite 'barcodesScanned' (plural) con un array. Estaba escrito
+    // en singular y con event.barcode, así que el listener no se disparaba.
+    const listener = await BarcodeScanner.addListener(
+      'barcodesScanned',
+      async (event) => {
+        await listener.remove()
+        await stopScanner()
+        const rawValue = event.barcodes[0]?.rawValue
+        if (rawValue) {
+          handleScanResult(rawValue)
+        } else {
+          scanError.value = 'No se pudo leer el código QR'
+        }
+      },
+    )
 
     await BarcodeScanner.startScan({ formats: [BarcodeFormat.QrCode] })
   } catch (error: any) {

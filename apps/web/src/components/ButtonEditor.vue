@@ -265,7 +265,7 @@ const handleIconSelect = (icon: string) => {
 }
 
 const handleCommandSelect = (command: string) => {
-  formData.actionType = 'COMMAND'
+  formData.actionType = ActionType.COMMAND
   formData.payload = command
   showCommandPicker.value = false
 }
@@ -275,7 +275,7 @@ const handleAppSelect = (data: {
   icon?: string
   name?: string
 }) => {
-  formData.actionType = 'OPEN_APP'
+  formData.actionType = ActionType.OPEN_APP
   formData.payload = data.command
   if (data.icon) {
     formData.icon = `appicon:${data.icon}`

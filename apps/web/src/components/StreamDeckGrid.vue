@@ -61,7 +61,11 @@ const closeAccentPicker = () => {
   if (accentHideTimer) { clearTimeout(accentHideTimer); accentHideTimer = null }
 }
 const toggleAccentPicker = () => {
-  showAccentPicker.value ? closeAccentPicker() : openAccentPicker()
+  if (showAccentPicker.value) {
+    closeAccentPicker()
+  } else {
+    openAccentPicker()
+  }
 }
 const handleFabLongPressStart = () => {
   longPressTimer = setTimeout(() => {
@@ -81,8 +85,6 @@ const {
   execute: socketExecute,
   on: socketOn,
   off: socketOff,
-  getSettings: socketGetSettings,
-  setButtonSound: socketSetButtonSound,
   setServerEnabled: socketSetServerEnabled,
 } = useSocket()
 
@@ -110,7 +112,7 @@ const onVolumePillTouch = (e: TouchEvent) => {
   resetAutoHide()
 }
 
-const props = defineProps<{
+defineProps<{
   rows?: number
   cols?: number
 }>()
@@ -215,7 +217,6 @@ const updatePageDimensions = () => {
 
 // Drag & drop (ratón + táctil), delegando el intercambio en useButtons
 const {
-  draggedButton,
   touchDragButton,
   isPressing,
   handleMouseDown,
@@ -469,27 +470,6 @@ onUnmounted(() => {
   socketOff('connect_error')
 })
 
-const checkConnection = async () => {
-  // El estado de conexión se maneja automáticamente por el socket
-  if (isConnected.value) {
-    connectionStatus.value = 'connected'
-    return
-  }
-  // Fallback HTTP
-  try {
-    connectionStatus.value = 'connecting'
-    const response = await fetch(`${API_URL.value}/command`, {
-      headers: { ...getAuthHeaders() },
-    })
-    if (response.ok) {
-      connectionStatus.value = 'connected'
-    } else {
-      connectionStatus.value = 'disconnected'
-    }
-  } catch (error) {
-    connectionStatus.value = 'disconnected'
-  }
-}
 
 /**
  * Botón Reconectar/Activar-Desactivar: si no hay conexión real (móvil, o
@@ -750,10 +730,6 @@ const handleSaveButton = (button: ButtonType) => {
 const handleDeleteButton = (id: string) => {
   buttons.value.delete(id)
   saveButtons()
-}
-
-const clearAll = () => {
-  // Aquí irá el nuevo diálogo de confirmación con Tailwind
 }
 
 // Confirmación para limpiar todos los botones
@@ -1140,7 +1116,6 @@ async function handleServerUnreachableClean() {
     <ServerSettings
       v-model:show="showSettings"
       :server-enabled="serverEnabled"
-      :is-connected="isConnected"
       :is-mobile-view="isMobileView"
       @reconnect="handleReconnectButton"
       @clear-all="openClearAllDialog"

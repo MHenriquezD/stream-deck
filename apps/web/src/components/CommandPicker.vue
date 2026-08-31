@@ -11,7 +11,7 @@ interface CommandItem {
   icon?: string
 }
 
-const props = defineProps<{
+defineProps<{
   show: boolean
   currentCommand?: string
 }>()
